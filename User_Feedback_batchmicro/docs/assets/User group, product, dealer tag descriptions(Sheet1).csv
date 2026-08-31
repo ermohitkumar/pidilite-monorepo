@@ -1,0 +1,36 @@
+FEEDBACK GROUP,Feedback category,Feedback Tag,Tag short description
+USER GROUP,Systems,"FCC App, CWC App, Roff Star Champs",Loyalty application for the users
+USER GROUP,Systems,M-Power,"A platform (Application) to capture the daily working of the field marketing executives. (daily working includes activities like - user visits, site visits, delaer visits, conducting one to many meets etc) "
+USER GROUP,Systems,Jharokha,"A on stop solution for all product related informations (like videos, Technical data sheets, FAQs, MSDS, Product PPT etc)"
+USER GROUP,User Engagement,Site visits,"Use only when the user comments on FME site-visit activity itself: visit quality, frequency, FME not coming or delayed, scheduling, or requesting more visits. Do not use merely because the recording happened on a job site, or for product application, usage, or quality talk during a visit. Those belong in PDT GROUP."
+USER GROUP,User Engagement,Sponsorship of events,Some of the events are sponsered by us where we partially or fully sponser the event.
+USER GROUP,User Engagement,User LSP,"User related LSP items (freebies) such as tshirst, cap etc"
+USER GROUP,User Engagement,Product content (videos etc),"Product related content such as application video, product video etc"
+USER GROUP,User Loyalty Program,FCC Redemption Gifts,Users uses our products and get loyalty points. The accumulated loyalty points can be redeem to for gift items.
+USER GROUP,User Loyalty Program,User scheme,Promotional scheme for the users to get more benefit in terms of additional points or gifts
+USER GROUP,User Loyalty Program,User trips�,"As part of reward to the top users, the users are sent to exotic locations for a trip"
+USER GROUP,User Meets,FCC Meet,One to many product promotion meet meant for Fevicol Chempion Club's users
+USER GROUP,User Meets,Carnival,One to many meet with a scale of connect for contractors and carpenters
+USER GROUP,User Meets,OB Meet,One to many meet with office bearers of a club.
+USER GROUP,User Meets,Social Meet,"User meet with a social cause such as blood donation, awareness camp, shramdaan, roza-iftar, vishwakarma puja etc"
+USER GROUP,User Meets,Site SGA,Small group activity with users on a site to promote a product or awareness on correct application
+USER GROUP,User Meets,Expert Panel�Meet,"One to many meet with empanneled expert users who help us capture the practical insignts and real world feedback that can guide product improvements, validate new launches etc"
+USER GROUP,User Meets,Large Contractor Lunch meet,One to many user meets with high potential users
+USER GROUP,User Meets,FPC Day-Out Meet,"One to many user meets with large contractors to build strong bonds through a day of fun activities while giving contractors the opportunity to relax, engage with the other contractors"
+USER GROUP,User Meets,FPC Annual Meet,"One to many user meets with large contractors to create a professional setting for a larger gathering of contractors, providing them with insights into the industry, product demonstrations, and networking opportunities"
+USER GROUP,User Meets,Birthday Celebration Meets,To celebrate the birthday of the contractor
+USER GROUP,User Meets,OB Meet,One to many meet with office bearers of a club.
+USER GROUP,User Meets,LCD User Meet,One to many meet designed for users linked to large competition dealer
+USER GROUP,User Meets,Product Promotion Meet,One to many meet desiged to promot a product
+USER GROUP,User Meets,Large Contractor Lunch meet,One to many user meets with high potential users
+USER GROUP,User Meets,Factory SGA,Small group activity with users in a factory to promote a product or awareness on correct application
+PDT GROUP,Competition,Competition product�- product quality ,"Comparison of Pidilite product and product from competition brands. Product quality includes ease of application, drying time, shelf life, pot life, viscocity, anti-bubble technology, variance in grip, intensity of grab."
+PDT GROUP,Competition,Competition product - Price / scheme,"Comparison of pidilite scheme with competition company scheme. Includes, products with dealer trip schemes, user token value/schemes, user gift, competition user application, spot redemption, dealer gifts, points value offered by competition, user trip schemes. "
+PDT GROUP,Competition,Competition Engagement / Service,"Activities that competition companies conduct for users. This includes meetings in big hotels, contractor meetings in small towns, site activities, festival celebrations, birthday celebration, user family engagement programs, carnivals, and digital engagements as well."
+PDT GROUP,Competition,Competition App,"Comparison of Pidilite contractor app and competition - Which apps competition is using for contractors, points for different pack sizes, bonus points, redemption options, gift options, online delivery of gifts, ease of redemption, new product information,product application videos, product catalogues. "
+PDT GROUP,Product,Product In Pack quality / packaging / application complaints,"Product Packaging - Leakage issues, information on packaging, token inside, token scanning, ease of opening and closing pack, longevity of product provided by packaging. Application includes ease of applying product on substrate - whether it be laminate, or any other surface. Single vs. multi-direction application, requirement of masking tape, application on plywood vs. Laminate. Application related complaints - bubble formation, uneven surface, rubbery glue, odd smell, difficulty in adhesion. "
+PDT GROUP,Product,Existing Product - Performance improvements,"Improvements can include areas such as strength of product, new avenues of application, longevity of product, shelf life, pot life"
+PDT GROUP,Product,Existing Product - Packaging improvements,"Improvements can include ease of storage, transportation, uniqueness, easy identification, PIL branding, token identification, scanning options, clarity in manufacturing and expiry dates."
+DEALER GROUP,Dealer-related,Competition - Credit days,"Credit days competition offers to dealers - can be 3,4,6 months. High credit days is sometimes a reason for dealer to purchase competition. PIL provides 30 days across most of its products. "
+DEALER GROUP,Dealer-related,Stock Issues,"Delay in stock from distributor or company can lead to dealer disgruntlement. Stock unavailability is also a concern for dealers. When dealer faces stock issue, dealer will resort to wholesale market for urgent requirements. "
+DEALER GROUP,Dealer-related,Dealer Disgruntlement,"Common dealer disgrutlement issues - stock issues, pending scheme settlements, employees not visiting, damaged stock received, disgruntement with distributor, lack of user meets for dealer's key users, no gifts from company."

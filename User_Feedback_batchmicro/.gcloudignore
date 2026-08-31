@@ -1,0 +1,13 @@
+.git/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+.env
+.env.*
+.pytest_cache/
+
+*.mp3
+.DS_Store

@@ -1,0 +1,292 @@
+{
+  "file": "transcript_4.txt",
+  "hindi_chars": 5505,
+  "translated_text": "Speaker 1: Work is good. Two-three sites active.\nSpeaker 2: How many workers now?\nSpeaker 1: Currently 12 workers.\nSpeaker 2: Which product is used more on each site? Hyper or Marine?\nSpeaker 1: Marine is more common. Used Hyper on one site recently.\nSpeaker 2: For plywood and laminate here, will acrylic or veneer be used on this site?\nSpeaker 1: Veneer is being used on site.\nSpeaker 2: Veneer arrived. Acrylic?\nSpeaker 1: Acrylic used in kitchen.\nSpeaker 2: You used Hyper Star last time, 20 kg. How is it?\nSpeaker 1: I liked it.\nSpeaker 2: Compared to Marine, what difference did you notice with Hyper?\nSpeaker 1: Hyper offers better coverage. Can use it.\nSpeaker 2: Hyper Star?\nSpeaker 1: Hyper Star.\nSpeaker 2: And Marine Coat?\nSpeaker 1: Marine Coat is a client requirement. We advise it. Most use PVC on the backside, but we still apply Marine Coat over it.\nSpeaker 2: So you haven't used it much for 12 months? Using PVC.\nSpeaker 2: Any feedback on our products you use: Hyper, Probond, Nail Free?\nSpeaker 1: Good. No complaints about your products, we use them fully. No complaints to date.\nSpeaker 2: Any new product needs or suggestions for innovation?\nSpeaker 1: You're already releasing new items constantly. We have all the products we need. No issues with usage.\nSpeaker 2: Any feedback on our FCC Meets or the gifts received?\nSpeaker 1: It's good. Gifts and meetings are timely. Well-arranged, no problems.\nSpeaker 2: You haven't redeemed any gift points in the last 6 months? Why?\nSpeaker 1: I was busy, didn't have time. I just scan them, planning to redeem later.\nSpeaker 2: Are you planning to redeem anything now?\nSpeaker 1: Yes, I'm planning to redeem something.\nSpeaker 2: What? A gift? A car?\nSpeaker 1: Yes, a car, or gold or something.\nSpeaker 2: You're using SH less often these days?\nSpeaker 1: Used SH initially, then Marine came. I liked Marine after using it. Then I used Hyper Star, also liked it. Can use that.\nSpeaker 2: Where is the material for this site coming from? Which dealer?\nSpeaker 1: From Konkan, or Vinayak Hardware. Half the material came from Vinayak Hardware.\nSpeaker 2: Vinayak Hardware. Not from one shop entirely?\nSpeaker 1: No, also from Prakash Traders.\nSpeaker 2: It's mixed.\nSpeaker 2: How much Fevicol material for this site?\nSpeaker 1: This site will use 150 kg Fevicol. Another site used 400 kg.\nSpeaker 2: Is MDF being used?\nSpeaker 1: Yes, MDF is used. We use MDF most.\nSpeaker 2: Where is it used most? For Deco paint? PU paint, Duco paint?\nSpeaker 1: Our team handles that.\nSpeaker 2: Your team?\nSpeaker 2: How is our Fevikwik? New Fevikwik 463?\nSpeaker 1: New Fevikwik is good.\nSpeaker 2: Used anywhere? After the demo?\nSpeaker 1: Brought it once, didn't check points due to urgency. Just used it.\nSpeaker 2: Yes, it's on top. All Fevikwik bottles and cans have points.\nSpeaker 1: It was urgent, nobody checked, used it, discarded the box.\nSpeaker 2: No, don't do that next time. Both 125g and 250g have points. 20g doesn't.\nSpeaker 2: Is Probond being used now?\nSpeaker 1: Probond is mandatory on my sites. We use Probond for all PVC.\nSpeaker 2: In acrylic? In both acrylic and this.\nSpeaker 1: New acrylic sheets have arrived, all use this.\nSpeaker 2: Do you use edge banding? All used this for edge banding.\nSpeaker 1: No, for laminate. Do you use edge banding more? This entire side uses edge banding. Yes, edge banding. We stick it with Probond.\nSpeaker 2: Any thoughts on competition? Other companies...\nSpeaker 1: We don't focus on competition. We only use Pidilite products. Many competitors exist, but we don't engage. For 20-22 years, only Pidilite Marine...\nSpeaker 2: How much Fevicol was used across your three sites in January?\nSpeaker 1: January just started, probably 100-150 kg used so far.\nSpeaker 2: 150 kg used? Three sites active?\nSpeaker 1: Yes, three sites active.\nSpeaker 2: Any other product concerns?\nSpeaker 1: No, everything is fine.",
+  "translation_tokens": {
+    "input": 1772,
+    "output": 1144,
+    "total": 10278
+  },
+  "insights_tokens": {
+    "input": 7153,
+    "output": 4046,
+    "total": 11199
+  },
+  "total_tokens": {
+    "input": 8925,
+    "output": 5190,
+    "total": 21477
+  },
+  "total_time_s": 56.21,
+  "insights": [
+    {
+      "group_type": "Product",
+      "category_type": "Marine",
+      "tag_ids": [
+        9
+      ],
+      "verbatim_quote": "Marine is more common.",
+      "summary": "Fevicol Marine is a commonly used product, indicating its popularity and widespread acceptance among users.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol MARINE"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Used Hyper on one site recently.",
+      "summary": "Fevicol Hi-per was recently used on a construction site, suggesting its application in ongoing projects.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Acrylic used in kitchen.",
+      "summary": "Acrylic sheets were used in a kitchen application, implying the use of an adhesive suitable for bonding acrylic in a kitchen environment.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "I liked it.",
+      "summary": "The user expressed satisfaction with Fevicol Hi-per Star after using it, indicating positive product performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Hyper offers better coverage.",
+      "summary": "Fevicol Hi-per offers better coverage compared to Fevicol Marine, suggesting an advantage in application efficiency or spread.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Marine",
+      "tag_ids": [
+        9
+      ],
+      "verbatim_quote": "Marine Coat is a client requirement.",
+      "summary": "Fevicol Marine Coat is a specific requirement from clients, indicating its importance in project specifications and client preferences.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol MARINE"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Marine",
+      "tag_ids": [
+        9
+      ],
+      "verbatim_quote": "Most use PVC on the backside, but we still apply Marine Coat over it.",
+      "summary": "Despite the common practice of using PVC on the backside, Fevicol Marine Coat is still applied over it, highlighting its perceived value or necessity for additional protection or bonding.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol MARINE"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "No complaints about your products, we use them fully.",
+      "summary": "The user has no complaints about Pidilite products and utilizes them extensively, indicating high satisfaction and trust in the product range.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Used SH initially, then Marine came.",
+      "summary": "Fevicol SH was used initially, but then Fevicol Marine became the preferred product, suggesting a shift in preference possibly due to performance or specific project requirements.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol SH"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Marine",
+      "tag_ids": [
+        9
+      ],
+      "verbatim_quote": "I liked Marine after using it.",
+      "summary": "The user expressed satisfaction with Fevicol Marine after using it, indicating a positive experience with the product's performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol MARINE"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Then I used Hyper Star, also liked it.",
+      "summary": "The user also expressed satisfaction with Fevicol Hi-per Star after using it, indicating a positive experience with this product as well.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "This site will use 150 kg Fevicol.",
+      "summary": "A specific site is projected to use 150 kg of Fevicol, indicating a significant volume requirement for an ongoing or upcoming project.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Another site used 400 kg.",
+      "summary": "Another site utilized 400 kg of Fevicol, highlighting a large-scale application and substantial product consumption.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Yes, MDF is used.",
+      "summary": "MDF (Medium-density fibreboard) is being used, implying the need for an adhesive suitable for bonding this material.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We use MDF most.",
+      "summary": "MDF (Medium-density fibreboard) is the most frequently used material, indicating a high demand for adhesives compatible with MDF.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "New Fevikwik is good.",
+      "summary": "The new Fevikwik 463 is performing well and is considered good by the user, suggesting positive feedback on its improved formulation or features.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "Brought it once, didn't check points due to urgency.",
+      "summary": "The user purchased Fevikwik once but did not check for loyalty points due to the urgent need for the product, indicating that immediate utility sometimes overrides loyalty program engagement.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "It was urgent, nobody checked, used it, discarded the box.",
+      "summary": "Due to the urgent need for Fevikwik, the product was used immediately, and the packaging was discarded without checking for loyalty points, highlighting a missed opportunity for loyalty program engagement during urgent purchases.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Probond is mandatory on my sites.",
+      "summary": "Fevicol Probond is a mandatory product on the user's sites, indicating its critical role and established preference in their operations.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol PROBOND"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We use Probond for all PVC.",
+      "summary": "Fevicol Probond is exclusively used for all PVC applications, highlighting its suitability and effectiveness for bonding PVC materials.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol PROBOND"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "New acrylic sheets have arrived, all use this.",
+      "summary": "New acrylic sheets have been received, and Fevicol Probond is being used for all of them, indicating its consistent application for new materials.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol PROBOND"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We stick it with Probond.",
+      "summary": "Edge banding is being adhered using Fevicol Probond, demonstrating its application in finishing processes.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol PROBOND"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "January just started, probably 100-150 kg used so far.",
+      "summary": "Approximately 100-150 kg of Fevicol has been used across three active sites since the beginning of January, indicating ongoing consumption and project activity.",
+      "competitors_mentioned": [],
+      "product_name": null
+    }
+  ],
+  "validation": {
+    "total_items": 23,
+    "group_counts": {
+      "User": 0,
+      "Dealer": 0,
+      "Product": 23
+    },
+    "issues": [],
+    "all_tag_ids": [
+      9,
+      5,
+      6
+    ],
+    "all_competitors": []
+  },
+  "raw_hindi": "नमस्ते सर। नमस्ते। और सर कैसा हो रहा है काम सब? ठीक है सर, काम-काज हो रहा है अच्छा। दो-तीन साइट चल रहा है। ओके, अभी आदमी लोग सब... आदमी लोग है। कितना आदमी है अभी? एक 12 आदमी हैं अभी फिलहाल के लिए। ओके। अभी आपका कौन सा ज्यादा... हर साइट में कौन सा यूज़ होता है सर? हाइपर या मरीन? मरीन ज्यादा है, अभी बीच में एक साइट पे हाइपर भी यूज़ किया था मैंने। ओके। बाकी दूसरा आइटम सब जाता ही है, नेल फ्री है, प्रोबॉन्ड है... ये टाइप, ये सब कॉमन है। तो अभी इधर जो प्लाईवुड और लैमिनेट हो रहा है, उसमें अभी एक्रेलिक और विनियर ऐसा कुछ आएगा इधर साइट में? साइट में अभी विनियर आ रहा है ना, विनियर आया है। आया है क्या? ओके ओके। विनियर आया है, एक्रेलिक? एक्रेलिक किचन में... एक्रेलिक किचन में आया है। अभी हाइपर स्टार आप... हाइपर स्टार यूज़ किया ना अभी लास्ट टाइम, 20 केजी किया। कैसा है अभी? ठीक लगा मेरे को। जो अभी हाइपर आप मरीन... उसके मामले में कैसा है डिफरेंस, कैसा कुछ लगा? डिफरेंस में ज्यादा मतलब कवरेज है अच्छा, कोई ये नहीं है। ले सकता है, हाइपर ले सकता है। हाइपर स्टार? हाइपर स्टार। ओके। और मरीन कोट? मरीन कोट तो अभी... मरीन कोट कुछ-कुछ पार्टी का रिक्वायरमेंट रहता है। बाद में हम लोग बोल के बोल देते हैं कि करना पड़ेगा, अभी ज्यादा तो थोड़ पीवीसी डालता है बैक साइड में ज्यादातर लोग। बैक साइड में पीवीसी डालता है। बाद में तब भी हम लोग उसके ऊपर भी मरीन कोट डलवा देते हैं। मतलब अभी आप 12 महीने से यूज़ नहीं किया उसका ज्यादा? ओके। पीवीसी डाल रहा है। और सर कुछ अभी हमारा जो भी प्रोडक्ट यूज़ करते हैं आप हाइपर, प्रोबॉन्ड, नेल फ्री, जो भी यूज़ करते हैं, उसका कुछ प्रोडक्ट के बारे में कुछ... कोई फीडबैक है आपका? अच्छा है, आपका प्रोडक्ट के बारे में कोई बोलना नहीं है, पूरा यूज़ करता है। कुछ कंप्लेंट आज तक कोई कंप्लेंट नहीं है। ओके। और उसको छोड़ के और कोई फीडबैक आपका? जो भी मतलब ओवरऑल फीडबैक फेविकोल के लिए? कोई कुछ नया प्रोडक्ट चाहिए या कुछ... कुछ हम कुछ नया कर सकते हैं? जो भी आपका मन में... ऑलरेडी आपका तो नया-नया आइटम आ ही रहा है, कुछ सोचने का ही जरूरत नहीं है। मतलब एक-एक नया निकलता ही रहता है। हमको जो चाहिए वो आइटम है आपके पास, पूरा टोटल। और यूज़ भी हो रहा है, कोई कंपनी नहीं है। और जो भी हमारा ये एफसीसी मीट (FCC Meet) सब उसके बारे में आप... या हमारा एफसीसी आ रहा है, गिफ्ट लेते हैं उसके बारे में कोई फीडबैक? सर आपका अच्छा ही है, कोई ये नहीं है। टाइम पे गिफ्ट मिलता है, टाइम पे मीटिंग भी है, सब कुछ है। अच्छा अरेंज रहता है, कोई दिक्कत नहीं। ओके। और सर अभी लास्ट 6 महीने से आप कुछ गिफ्ट कुछ पॉइंट रिडेम्पशन नहीं किया? क्यों? मतलब... मतलब ऐसे ही... फिलहाल मैं तो बिजी नहीं, बिजी था, फ्री नहीं था वो सब इतना करने के लिए। मैं खाली ये स्कैन करता रहता हूं बस, बाद में देखेंगे, बाद में देखेंगे करके। अभी कुछ क्या सोच रहे हैं क्या कुछ लेने के लिए या... हां, अभी कुछ सोच रहा हूं कुछ लेने के लिए। क्या? गिफ्ट? गाड़ी है... हां गाड़ी, नहीं तो कुछ भी गोल्ड या ऐसा कुछ भी यानी... और सर एसएच (SH) बहुत कम यूज़ कर रहे हैं आजकल? स्टार्टिंग में पहले यूज़ कर रहा था, बाद में मरीन आ गया ना। थोड़ा मरीन में एक-दो बार यूज़ किया तो थोड़ा इंटरेस्ट अच्छा लगा, मरीन अच्छा प्रोडक्ट है करके। बाद में अभी स्टार यूज़, हाइपर स्टार यूज़ कर रहा था उसमें भी मेरे को थोड़ा अच्छा लगा। वही यूज़ कर सकते हैं। ओके। और सर अभी जो इधर जो साइट है इसका मटेरियल कहां से आ रहा है दुकान? जो डीलर... हमारा इधर का डीलर... कहां से आया था? वहां से आया था, ये कोंकण... नहीं तो ये विनायक हार्डवेयर है ना हमारा, आधा मटेरियल इधर से गया विनायक हार्डवेयर से। विनायक हार्डवेयर। मतलब एक पूरा एक शॉप से नहीं? नहीं नहीं, अभी इधर से भी गया, प्रकाश ट्रेडर्स से... ओके ओके। सब मिक्स में जाता है। ओके। कितना आएगा सर ये साइट में मटेरियल फेविकोल? ये साइट में फेविकोल अभी... टोटल कितना हो जाएगा? टोटल ये साइड पे तो यहां पे तो 150 केजी आएगा, वहां पे 400 केजी गया। ओके। एमडीएफ (MDF) यूज़ हो रहा है सर? हां, एमडीएफ यूज़ हो रहा है। हम लोग सबसे ज्यादा एमडीएफ ही यूज़ करते हैं। कहां पे ज्यादा यूज़ होता है? डेको पेंट के लिए? पीयू पेंट (PU paint), डिको पेंट (Duco paint) के लिए। आप ही करते हैं उसको? हां, हमारा ही टीम है। आपका ही टीम है? बहुत बढ़िया। और सर हमारा फेविक्विक कैसा है? नया फेविक्विक 463? नया फेविक्विक भी अच्छा है। कहीं पे यूज़ हुआ? डेमो देने के बाद किया आप यूज़? एक बार लाया था, उसमें पॉइंट था? हां, जो बॉक्स रहता है उसके ऊपर 125... एक बार अर्जेंट में लाया था, पॉइंट नहीं देखा। हम लोग लगा दिया। हां, उसमें ऊपर रहता है, तो सब बोतल में देखते हैं जो सर, हर प्रोडक्ट का बोतल में और कैन में आता है ना जो फेविक्विक... हां, वो अर्जेंट में था, कोई देखा नहीं, लगा दिया, फेंक दिया डब्बी। नहीं नहीं, नेक्स्ट ऐसा मत करो। दोनों जो 125 और 250 में दोनों में पॉइंट रहता है। 20 ग्राम आता है उसमें नहीं आएगा, इस दोनों में रहता है। प्रोबॉन्ड अभी यूज़ हो रहा है सर? प्रोबॉन्ड मेरे साइड पे जबरदस्ती होता है। कोई भी पीवीसी में हम प्रोबॉन्ड ही डालता है। एक्रेलिक में? एक्रेलिक में और इसमें दोनों में। अभी नया-नया एक्रेलिक का शीट आया है वो, सब यही डालता है पूरा। एज बैंडिंग आप यूज़ करते हैं? एज बैंडिंग में भी यही डाला पूरा। नहीं, लैमिनेट का करते हैं? ज्यादा आप एज बैंडिंग ही यूज़ करते हैं? एक-एक साइड पे ये पूरा साइड में वही करता है। एज बैंडिंग? हां एज बैंडिंग। इसमें प्रोबॉन्ड ही डाल के चिपकाते हैं। ठीक है सर। और सर कुछ कॉम्पिटिशन के बारे में? कॉम्पिटिशन है, अदर कंपनीज़... उसमें हम लोग ध्यान नहीं देते हैं। हम लोग ओनली पिडिलाइट का आइटम यूज़ करते हैं बस। बहुत है, आया मार्केट में, मीटिंग भी होता है उनका, ये भी होता है। बट हम लोग उधर जाते ही नहीं है। आज से आज तक 20 ईयर में, 22 ईयर में ओनली फॉर पिडिलाइट का ये मरीन... ओके। और सर अभी कितना आया ये जनवरी में फेविकोल आपका तीनों साइड में? अभी जनवरी में अभी स्टार्ट हुआ ना, अभी ज्यादा नहीं गया होगा शायद एक सौ, सौ-डेढ़ सौ केजी गया होगा अभी तो। डेढ़ सौ केजी गया होगा? अभी तीन साइट एक्टिव चल रहा है? हां, तीन साइट चल रहा है। ओके। और कोई प्रोडक्ट के बारे में कुछ कंसर्न है आप कुछ ऐसा कुछ... नहीं, ऐसा कुछ भी नहीं है, सब कुछ सही है। ठीक है सर ठीक है। थैंक यू सर।"
+}

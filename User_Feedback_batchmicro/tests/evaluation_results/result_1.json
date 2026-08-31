@@ -1,0 +1,114 @@
+{
+  "file": "transcript_1.txt",
+  "hindi_chars": 1280,
+  "translated_text": "Speaker 1: New site here?\nSpeaker 2: Yes.\nSpeaker 1: How much work remaining?\nSpeaker 2: 15-20 days.\nSpeaker 1: 15-20 more days?\nSpeaker 1: Which glue are you using this time?\nSpeaker 2: It arrived, but not used, just tested.\nSpeaker 1: Which glue is used here now?\nSpeaker 2: Pidilite SH.\nSpeaker 1: SH?\nSpeaker 1: Doing this work with material?\nSpeaker 2: With material, so SH.\nSpeaker 1: Okay. Where else is work ongoing?\nSpeaker 2: New work starting near Ring Road.\nSpeaker 1: Okay. That's also with material, two 60kg drums of SH sent there.\nSpeaker 1: Okay. Have you used our new product, X-per?\nSpeaker 2: Yes, used it.\nSpeaker 1: How was it?\nSpeaker 2: Excellent, superb.\nSpeaker 1: Okay. Have you used the new Fevikwik 463?\nSpeaker 2: Yes, used it, it's good too.\nSpeaker 1: Okay. Which products were used here?\nSpeaker 2: Nail Free, Relam.\nSpeaker 1: Relam?\nSpeaker 1: Okay. Good job here.\nSpeaker 1: Are you doing the kitchen work yourself?\nSpeaker 2: Kitchen work is also ours.\nSpeaker 1: Will you build everything?\nSpeaker 1: Building here or a side...?\nSpeaker 2: No, everything complete here, only doors-windows will arrive pre-made.\nSpeaker 1: Okay. Any new product or any deficiency in a product?\nSpeaker 2: No deficiency.\nSpeaker 1: No deficiency?\nSpeaker 1: Everything good?\nSpeaker 2: Everything good.",
+  "translation_tokens": {
+    "input": 519,
+    "output": 422,
+    "total": 2054
+  },
+  "insights_tokens": {
+    "input": 5434,
+    "output": 1148,
+    "total": 6582
+  },
+  "total_tokens": {
+    "input": 5953,
+    "output": 1570,
+    "total": 8636
+  },
+  "total_time_s": 13.55,
+  "insights": [
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "It arrived, but not used, just tested.",
+      "summary": "Fevicol SH arrived and was tested, indicating a potential for performance evaluation or initial assessment rather than full application.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol SH"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Pidilite SH.",
+      "summary": "Fevicol SH is currently being used for the work, suggesting ongoing application and performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol SH"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "That's also with material, two 60kg drums of SH sent there.",
+      "summary": "Two 60kg drums of Fevicol SH were sent to a new work site near Ring Road, indicating a significant supply for a project.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol SH"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Yes, used it. Excellent, superb.",
+      "summary": "Fevicol X-Per was used and received excellent and superb feedback, highlighting strong product performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol X-Per"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Yes, used it, it's good too.",
+      "summary": "Fevikwik 463 was used and is considered good, indicating satisfactory performance.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Nail Free, Relam.",
+      "summary": "Fevicol Nail Free and Fevicol Relam were used at the site, suggesting their application in a specific project.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Nail Free, Relam.",
+      "summary": "Fevicol Nail Free and Fevicol Relam were used at the site, suggesting their application in a specific project.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol RELAM"
+    }
+  ],
+  "validation": {
+    "total_items": 7,
+    "group_counts": {
+      "User": 0,
+      "Dealer": 0,
+      "Product": 7
+    },
+    "issues": [],
+    "all_tag_ids": [
+      6
+    ],
+    "all_competitors": []
+  },
+  "raw_hindi": "और भाई साहब और सुनाओ क्या हाल-चाल है? बस बढ़िया। यहाँ पे लगा रखी है नयी साइट ये? हाँ। कितना रह गया और काम इसमें? अभी 15-20 दिन का है। 15-20 दिन का और रह गया? यहाँ पे ये कौन सा ग्लू लगा रहे हो यार अबकी बारी? नहीं, ये तो आया था लेकिन इसको लगाया नहीं, टेस्ट करके छोड़ दिया। तो यहाँ पे कौन सा ग्लू लगा है अभी यहाँ पे? पिडिलाइट एसएच (Pidilite SH)। एसएच? तो विद मटेरियल कर रहे हो ये वाला काम? विद मटेरियल है इसलिए एसएच है। अच्छा। और बताओ, और कहाँ लगा रखा है काम अभी? काम अब नया लगायेंगे उधर रिंग रोड की तरफ। अच्छा। वहां भी विद मटेरियल है, वहां एसएच के 60 किलो के दो ड्रम भेज दिए। अच्छा। और अभी जो अपना नया प्रोडक्ट आया है एक्सपर (X-per), वो काम में लिया आपने? हाँ लिया है ना। कैसा लगा आपको? बढ़िया, शानदार। अच्छा। और आपने जो फेविक्विक आई है नई 463, वो काम में ली? हाँ ली है, वो भी अच्छी है। अच्छा। और यहाँ पे कौन-कौन से प्रोडक्ट यूज़ में हुए हैं? नेल फ्री है, रेलम है। रिलेम (Relam) है? अच्छा। चलो बढ़िया है, काम अच्छा किया आपने यार यहाँ पे। तो किचन का काम भी खुद ही कर रहे हो आप? किचन का काम भी अपना ही है। पूरा सारा कुछ बना के दोगे आप? तो यहाँ पे बना रहे हो या यहाँ पे कोई साइड... नहीं-नहीं, सब कंप्लीट यहाँ पे है, केवल डोर-विंडो बन के आएँगे बस। अच्छा। और कुछ, कोई नया प्रोडक्ट या कुछ भी कमी लग रही हो आपको किसी प्रोडक्ट में? कोई कमी नहीं है। कोई कमी नहीं है। सब बढ़िया है? सब बढ़िया।"
+}

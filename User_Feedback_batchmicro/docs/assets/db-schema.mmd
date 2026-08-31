@@ -1,0 +1,106 @@
+%%{init: {"theme": "neutral", "themeVariables": {"primaryColor": "#1e3a5f", "primaryTextColor": "#ffffff", "primaryBorderColor": "#0f2744", "lineColor": "#334155", "secondaryColor": "#f8fafc", "tertiaryColor": "#e2e8f0"}}}%%
+erDiagram
+    users {
+        uuid user_id PK
+        varchar email UK
+        varchar username UK
+        varchar password_hash
+        varchar role
+        jsonb allowed_resources
+        boolean is_active
+    }
+
+    batches {
+        uuid id PK
+        int batch_number
+        int batch_size
+        enum status
+    }
+
+    jobs {
+        uuid id PK
+        uuid batch_id FK
+        enum status
+        text gcs_input_uri
+        text gcs_stt_output_uri
+        int retry_count
+    }
+
+    file_details {
+        uuid job_id PK_FK
+        varchar file_name
+        varchar state
+        varchar division
+        varchar zone
+        varchar data_source
+    }
+
+    processed_file {
+        uuid job_id PK_FK
+        text raw_transcript_text
+        text translated_text
+        jsonb insights_raw_json
+    }
+
+    failed_jobs {
+        uuid id PK
+        uuid job_id FK
+        varchar pipeline_stage
+        text error_message
+    }
+
+    products {
+        int id PK
+        varchar product_name
+        varchar short_code
+        boolean is_active
+    }
+
+    feedbacks {
+        uuid id PK
+        uuid job_id FK
+        int product_id FK
+        varchar product_name
+        varchar group_type
+        text ai_summary
+    }
+
+    feedback_tags {
+        int tag_id PK
+        varchar tag_name
+        varchar sub_tag_name
+        varchar group_type
+        varchar category
+    }
+
+    feedback_tag_link {
+        uuid feedback_id PK_FK
+        int tag_id PK_FK
+    }
+
+    feedback_competitors {
+        uuid id PK
+        uuid feedback_id FK
+        varchar competitor_name
+    }
+
+    keyword_dictionary {
+        varchar canonical_id PK
+        varchar canonical_term UK
+        jsonb aliases
+    }
+
+    app_config {
+        varchar key PK
+        jsonb value
+    }
+
+    batches ||--o{ jobs : batch_id
+    jobs ||--|| file_details : job_id
+    jobs ||--o| processed_file : job_id
+    jobs ||--o{ failed_jobs : job_id
+    jobs ||--o{ feedbacks : job_id
+    products ||--o{ feedbacks : product_id
+    feedbacks ||--o{ feedback_tag_link : feedback_id
+    feedback_tags ||--o{ feedback_tag_link : tag_id
+    feedbacks ||--o{ feedback_competitors : feedback_id

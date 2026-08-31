@@ -1,0 +1,56 @@
+name: Dev Auto Build and Push Batch Micro
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2.1.10
+        with:
+          workload_identity_provider: projects/634870075270/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-sa@pidilite-user-feedback-ai.iam.gserviceaccount.com
+
+      - name: Fetch Short SHA
+        run: |
+          echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+      - name: Build and Push
+        run: |
+          docker build \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-batchmicro/pidilite-batchmicro-image:${{ env.SHORT_SHA }} \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-batchmicro/pidilite-batchmicro-image:latest \
+            .
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-batchmicro/pidilite-batchmicro-image:${{ env.SHORT_SHA }}
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-batchmicro/pidilite-batchmicro-image:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy pidilite-pipeline-svc \
+            --image=asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-batchmicro/pidilite-batchmicro-image:${{ env.SHORT_SHA }} \
+            --region=asia-south1 \
+            --project=pidilite-user-feedback-ai \
+            --platform=managed \
+            --port=8001 \
+            --timeout=900 \
+            --vpc-connector=pidilite-run-connector \
+            --vpc-egress=private-ranges-only \
+            --service-account=cloud-run-api@pidilite-user-feedback-ai.iam.gserviceaccount.com \
+            --set-secrets="GCP_PROJECT_ID=DEV_GCP_PROJECT_ID:latest,GCP_LOCATION=DEV_GCP_LOCATION:latest,GCS_INPUT_BUCKET=DEV_GCS_INPUT_BUCKET:latest,GCS_OUTPUT_BUCKET=DEV_GCS_OUTPUT_BUCKET:latest,CLOUD_TASKS_QUEUE=DEV_CLOUD_TASKS_QUEUE:latest,CLOUD_TASKS_CALLBACK_URL=DEV_CLOUD_TASKS_CALLBACK_URL:latest,CLOUD_TASKS_TRANSLATE_URL=DEV_CLOUD_TASKS_TRANSLATE_URL:latest,CLOUD_TASKS_POSTPROCESS_URL=DEV_CLOUD_TASKS_POSTPROCESS_URL:latest,GEMINI_MODEL=DEV_GEMINI_MODEL:latest,DB_HOST=DEV_DB_HOST:latest,DB_PORT=DEV_DB_PORT:latest,DB_NAME=DEV_DB_NAME:latest,DB_USER=DEV_DB_USER:latest,DB_PASSWORD=DEV_DB_PASSWORD:latest" \
+            --quiet

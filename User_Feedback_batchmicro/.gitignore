@@ -1,0 +1,22 @@
+.venv/
+venv/
+.env.*
+.env
+__pycache__/
+
+# Audio / video files (should never be committed)
+*.mp3
+*.wav
+*.mp4
+*.m4a
+*.ogg
+*.flac
+graphify-out/
+.agents
+.DS_Stores
+tests/.DS_Store
+.vscode
+test_files/
+.db-dumps/
+scratch/
+samples/

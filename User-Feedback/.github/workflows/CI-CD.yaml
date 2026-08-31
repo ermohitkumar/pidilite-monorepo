@@ -1,0 +1,66 @@
+name: Dev Auto Build and Push
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2.1.10
+        with:
+          workload_identity_provider: projects/634870075270/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-sa@pidilite-user-feedback-ai.iam.gserviceaccount.com
+
+      - name: Fetch Secrets
+        run: |
+          echo "AUTH_SECRET=$(gcloud secrets versions access latest --secret=DEV_AUTH_SECRET)" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_NODE_ENV=$(gcloud secrets versions access latest --secret=DEV_NEXT_PUBLIC_NODE_ENV)" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_APP_URL=$(gcloud secrets versions access latest --secret=DEV_NEXT_PUBLIC_APP_URL)" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_BACKEND_API_URL=$(gcloud secrets versions access latest --secret=DEV_NEXT_PUBLIC_BACKEND_API_URL)" >> $GITHUB_ENV
+          echo "AZURE_AD_CLIENT_ID=$(gcloud secrets versions access latest --secret=DEV_AZURE_AD_CLIENT_ID)" >> $GITHUB_ENV
+          echo "AZURE_AD_CLIENT_SECRET=$(gcloud secrets versions access latest --secret=DEV_AZURE_AD_CLIENT_SECRET)" >> $GITHUB_ENV
+          echo "AZURE_AD_TENANT_ID=$(gcloud secrets versions access latest --secret=DEV_AZURE_AD_TENANT_ID)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+      - name: Build and Push
+        run: |
+          docker build \
+            --build-arg AUTH_SECRET="${{ env.AUTH_SECRET }}" \
+            --build-arg NEXT_PUBLIC_NODE_ENV="${{ env.NEXT_PUBLIC_NODE_ENV }}" \
+            --build-arg NEXT_PUBLIC_APP_URL="${{ env.NEXT_PUBLIC_APP_URL }}" \
+            --build-arg NEXT_PUBLIC_BACKEND_API_URL="${{ env.NEXT_PUBLIC_BACKEND_API_URL }}" \
+            --build-arg AZURE_AD_CLIENT_ID="${{ env.AZURE_AD_CLIENT_ID }}" \
+            --build-arg AZURE_AD_CLIENT_SECRET="${{ env.AZURE_AD_CLIENT_SECRET }}" \
+            --build-arg AZURE_AD_TENANT_ID="${{ env.AZURE_AD_TENANT_ID }}" \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-frontend/pidilite-frontend-image:${{ env.SHORT_SHA }} \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-frontend/pidilite-frontend-image:latest \
+            .
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-frontend/pidilite-frontend-image:${{ env.SHORT_SHA }}
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-frontend/pidilite-frontend-image:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy pidilite-frontend \
+            --image=asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-frontend/pidilite-frontend-image:${{ env.SHORT_SHA }} \
+            --region=asia-south1 \
+            --project=pidilite-user-feedback-ai \
+            --platform=managed \
+            --port=3000 \
+            --service-account=cloud-run-api@pidilite-user-feedback-ai.iam.gserviceaccount.com \
+            --quiet

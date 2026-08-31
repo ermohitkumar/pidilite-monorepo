@@ -1,0 +1,126 @@
+{
+  "file": "transcript_2.txt",
+  "hindi_chars": 5275,
+  "translated_text": "Speaker 1: My name is Roshan. I've replaced Mukut, visiting your site for the first time. We'll ask questions; this is being recorded for our company. Before visiting, we noted you use Hyper, Hyper Star, and Ezee Spray frequently. A question: I'm on your site, are you building a showroom?\nSpeaker 2: Yes, I'm building a Woodland showroom.\nSpeaker 1: Besides this commercial work, do you do builder or private sites?\nSpeaker 2: No, we only do Woodland commercial.\nSpeaker 1: You only do Woodland work?\nSpeaker 2: Yes, only Woodland.\nSpeaker 1: You're using our premium product here. Who told you about Hyper Star?\nSpeaker 2: Nitin told me.\nSpeaker 1: Nitin meets you regularly?\nSpeaker 2: Yes, he meets me, we talk.\nSpeaker 1: How do you like the product? Compared to Hyper, how is Hyper Star?\nSpeaker 2: It's better, Hyper Star is good compared to Hyper.\nSpeaker 1: Hyper Star is good? Work is faster?\nSpeaker 2: Faster, no fear of bubbling/swelling.\nSpeaker 1: Premium work, anti-bubble, waterproof. How do you like Ezee Spray?\nSpeaker 2: It's even better. Work is faster with it.\nSpeaker 1: Did you know Ezee Spray is multi-purpose? You can apply charcoal sheets, PVC sheets, louvers. Do you use louvers on your site?\nSpeaker 2: No, rarely. I only do Woodland work.\nSpeaker 1: So normal laminates are applied. Do you also work with PVC laminates on your site?\nSpeaker 2: No, not that.\nSpeaker 1: Not acrylic either?\nSpeaker 2: No.\nSpeaker 1: Do you charge labor rate, or...\nSpeaker 2: Yes, this is labor rate.\nSpeaker 1: Labor rate. Is it through an architect?\nSpeaker 2: No, direct through the company.\nSpeaker 1: Direct company contact. Your work must be pan-India then. I checked, you use all our new products. Do you ever need quick work, instant adhesion?\nSpeaker 2: No, I handle everything with Ezee Spray.\nSpeaker 1: No PVD strips used?\nSpeaker 1: We have two new products. One, Fevikwik 463, known as carpenter's Fevikwik, has been out a year. It gives 30 seconds to set, then cures. You can stick metal strips, louvers, charcoal sheets, edge banding tape. We have another product... The second product is 'Multilock.' It's unique. In winter, glues take time to dry, even 24 hours. Hyper, Hyper Star also take time. Multilock's specialty: in humid weather, like today's rain, it dries and sets in 2 to 2.5 hours. You can cut the board 2.5 hours after application. Some things to note; I'll send a video with precautions. If you had PVC or WPC board, I'd demonstrate. Good product. Single-side application. Good coverage, slightly higher rates. You get 8 points per pouch. It comes with a special comb; use that for application. If any site issues arise, contact me, Nitish, or Kirti (center contact); we'll be available. Any questions for you?\nSpeaker 2: I've been associated for so long, why isn't my bonus coming?\nSpeaker 1: Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8. So, the bonus slab is higher. You might be below the criteria, at 200-250 kg. I'll check your last quarter's usage. Any other bonus questions?\nSpeaker 2: No, no questions.\nSpeaker 1: Try Multilock, it's a great product. We expect you'll use Fevikwik too. As you've promoted other products, doing good, premium commercial work, we expect you'll promote this well too. Any other questions, ask me.\nSpeaker 2: No, none now.",
+  "translation_tokens": {
+    "input": 1645,
+    "output": 981,
+    "total": 7561
+  },
+  "insights_tokens": {
+    "input": 6346,
+    "output": 2075,
+    "total": 8421
+  },
+  "total_tokens": {
+    "input": 7991,
+    "output": 3056,
+    "total": 15982
+  },
+  "total_time_s": 30.65,
+  "insights": [
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "How do you like the product? Compared to Hyper, how is Hyper Star? It's better, Hyper Star is good compared to Hyper.",
+      "summary": "Fevicol HI-PER STAR is considered better than Fevicol HI-PER in terms of product performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "How do you like the product? Compared to Hyper, how is Hyper Star? It's better, Hyper Star is good compared to Hyper.",
+      "summary": "Fevicol HI-PER is compared unfavorably to Fevicol HI-PER STAR regarding product performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Hyper Star is good? Work is faster? Faster, no fear of bubbling/swelling.",
+      "summary": "Fevicol HI-PER STAR enables faster work and eliminates concerns about bubbling or swelling during application, indicating improved performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "How do you like Ezee Spray? It's even better. Work is faster with it.",
+      "summary": "Fevicol EZEESPRAY is considered even better and makes work faster, indicating improved performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol EZEESPRAY"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "No, I handle everything with Ezee Spray.",
+      "summary": "The user handles all work with Fevicol EZEESPRAY, indicating high reliance and satisfaction with its performance.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol EZEESPRAY"
+    },
+    {
+      "group_type": "User",
+      "category_type": "User Loyalty Program",
+      "tag_ids": [
+        22
+      ],
+      "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
+      "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "User",
+      "category_type": "User Loyalty Program",
+      "tag_ids": [
+        22
+      ],
+      "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
+      "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "User",
+      "category_type": "User Loyalty Program",
+      "tag_ids": [
+        22
+      ],
+      "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
+      "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol EZEESPRAY"
+    }
+  ],
+  "validation": {
+    "total_items": 8,
+    "group_counts": {
+      "User": 3,
+      "Dealer": 0,
+      "Product": 5
+    },
+    "issues": [],
+    "all_tag_ids": [
+      6,
+      22
+    ],
+    "all_competitors": []
+  },
+  "raw_hindi": "विक्रम जी? हां जी सर। कैसे हो सर? बस बढ़िया है सर। विक्रम जी, मेरा नाम रोशन है। मैं मुकुट जी की जगह आया हूं, पहली बार आपकी साइट पे विज़िट किया है। हां सर। तो हम आपसे कुछ सवाल पूछेंगे, इसकी रिकॉर्डिंग हो रही है जो कि हमारी कंपनी में जाएगा। तो पहली चीज ये है कि मैं पहली बार आज आपसे मिल रहा हूं, तो हम आपके पास आने के पहले देखे कि आप हाइपर, हाइपर स्टार और ईजी स्प्रे (Ezee Spray) ज्यादा लगाते हैं। तो एक सवाल था, जैसे मैं आपकी साइट पे आया हूं, ये तो आप शोरूम बना रहे हो? हां, मैं वुडलैंड का शोरूम बना रहा हूं। तो आपके क्या इसके अलावा जैसे कमर्शियल ये हो गया काम, तो कुछ बिल्डर का या प्राइवेट साइट भी चलती है? नहीं सर, हमारा बस कमर्शियल ही है वुडलैंड का। अच्छा, सारा आप वुडलैंड का ही करते हो? हां, वुडलैंड का ही काम करता हूं। तो यहां पे आप ये प्रीमियम प्रोडक्ट जैसे हमारा यूज़ कर रहे हो, बड़ा अच्छा लगा कि आप हाइपर स्टार लगा रहे हैं अभी यहां पे। हाइपर स्टार के बारे में आपको किसने बताया? ये नितिन जी बताए थे मेरे को। अच्छा, नितीश जो है अपना, वो आपसे मिलते रहते हैं? हां, वो मिलते रहते हैं, बात होते रहता है। तो कैसा लगा प्रोडक्ट आपको? हाइपर से अगर कंपेयर करें हम अपने हाइपर स्टार को तो? वो उससे बढ़िया है सर, हाइपर गोल्ड से हाइपर स्टार सही है। हाइपर स्टार बढ़िया है? काम जल्दी होता है? जल्दी होता है और इसमें फूलने का डर नहीं रहता है सर। हां, प्रीमियम काम है, एंटी-बबल है, वाटरप्रूफ भी है, है ना! ईजी स्प्रे कैसा लगा आपको? वो तो और अच्छा है सर। वो तो उससे फटाफट काम होता है। ईजी स्प्रे पता है आपको मल्टीपर्पस यूज़ के लिए भी है? इससे आप चारकोल की शीट, पीवीसी शीट भी लगा सकते हैं। लूवर्स भी लगा सकते हैं। वैसे लूवर्स वगैरह लगता है आपकी साइट पे? नहीं सर, ये कम ही है, ये लगता ही नहीं है, मैं बस वुडलैंड का ही काम होता है सर। हां हां, तो जो भी है नॉर्मल लैमिनेट्स आपका इस पे लगता है। वैसे आपकी साइट पे पीवीसी लैमिनेट वगैरह का भी काम चलता है? नहीं सर, ये नहीं। एक्रेलिक भी नहीं? नहीं नहीं। अच्छा, लेबर रेट पे काम लेते हैं या... हां सर, ये मेरा लेबर रेट पे है सर। अच्छा, लेबर रेट पे। किसी आर्किटेक्ट के थ्रू है क्या? नहीं, ये सर कंपनी डायरेक्ट थ्रू है। अच्छा, डायरेक्ट कंपनी से कॉन्टैक्ट किए, बहुत बढ़िया। तब तो काम आपका ऑल इंडिया, पैन इंडिया के लेवल पे चलता होगा कहीं ना कहीं। तो मैंने जैसा आपका चेक कर रहा था, मुझे बड़ा अच्छा लगा कि आप है ना, सारे नए प्रोडक्ट्स हमारे यूज़ करते हो। हां सर। तो कभी वैसा जरूरत पड़ा है क्या जल्दी काम करना हो, कुछ इंस्टेंट चिपकानी हो, कुछ वैसी जरूरत पड़ती है? नहीं सर, ऐसा तो नहीं है, हमें ईजी स्प्रे है, उसी से मैं सारा सब हैंडल कर लेता हूं। अच्छा, पीवीडी पत्ती वगैरह नहीं लगती है? वैसे मैं आपको अपनी दो प्रोडक्ट्स आई हैं, आपको पता होगा। एक प्रोडक्ट एक साल से चल रहा है अपना फेविक्विक करके नाम आता है अपना फेविक्विक 463 (Fevikwik 463), जिसको कि हम कारपेंटर की फेविक्विक भी कहते हैं। ये अपना आपको 30 सेकंड का समय देता है सेट होने के लिए। 30 सेकंड के बाद ये सेट हो जाता है, इससे आप मेटल की पत्ती हो गई, लूवर्स हो गए, चारकोल शीट हो गई, एज बैंडिंग टेप हो गई, हर चीज चिपका सकते हैं। और एक और प्रोडक्ट है अपने पास... दूसरा प्रोडक्ट जो है अपना 'मल्टी लॉक' (Multilock) के नाम से आया है। ये प्रोडक्ट कुछ खास है, अलग तरीके का बना हुआ है। जैसे सर्दी का मौसम है अभी अपना, अभी ग्लू को सूखने में आपने देखा होगा टाइम लगता है। 24-24 घंटे भी लग जाते हैं। हाइपर, हाइपर स्टार को भी सूखने में समय लगता है। मगर मल्टी लॉक में एक खासियत है, ये जैसे नमी का मौसम है, आज बारिश हो रही है अपने यहां, इस मौसम में भी ये ना 2 से ढाई घंटे में सूख जाता है, सेट हो जाता है। आप काट सकते हो बोर्ड को लगाने के बाद ढाई घंटे में। इसमें कुछ चीजें आपको ध्यान रखनी है जो मैं आपको वीडियो भी भेजूंगा। उसको भी आप देखोगे ना तो उसमें क्या-क्या प्रिकॉशन है वो सारी चीजें बताई गई हैं। अगर आपके पास यहां पर पीवीसी या डब्ल्यूपीसी का बोर्ड रहता तो मैं आपको ट्राई करके भी दिखाता। काफी अच्छी प्रोडक्ट है। सिंगल साइड एप्लीकेशन है। कवरेज भी बढ़िया है, रेट थोड़े ऊपर हैं। पॉइंट्स की बात करें, इस पे आपको 8 पॉइंट प्रति पाउच मिलते हैं। इसकी स्पेशल कंघी आती है, आपको उसी कंघी से इस ग्लू को लगाना है। ठीक है? बाकी अगर आपको कुछ लगता है, वैसा कोई परेशानी आती है साइट्स पे, तो आप मुझे या नितीश को या कीर्ति का नंबर होगा सेंटर का, जो सेंटर पे बैठता है, तो आप मुझे भी संपर्क करेंगे तो हम आपकी साइट पे अवेलेबल रहेंगे। बाकी आपके लिए कोई सवाल आपको लगता हो? ये सर हमारा ये जैसे मैंने इतने दिन से जुड़ा पड़ा हूं काफी टाइम से, तो ये मेरा बोनस कब तक नहीं, अभी क्यों नहीं आ रहा है सर? देखिए, आपको पता होगा अप्रैल से सारे पॉइंटों पे, पॉइंट्स बढ़ गए हैं सारे प्रोडक्ट्स पे। तो बोनस का स्लैब जो है वो 300 किलो से अपना स्टार्ट होता है। क्योंकि आपको हाइपर, हाइपर स्टार लगाते हो 8 पॉइंट प्रति केजी मिलता होगा। आज से 1 साल (मतलब 9 महीने पीछे जाएं हम) तो आपको हाइपर पे साढ़े तीन पॉइंट मिलते थे, हाइपर स्टार पे 5 और हाइपर पे साढ़े तीन। तो 5 को 8 कर दिया, हाइपर के साढ़े तीन को 8 कर दिया। ईजी स्प्रे पे जो आपको 5 पॉइंट मिलते थे उसको भी 8 कर दिया। ठीक है? तो इस वजह से आपको बोनस का थोड़ा सा जो स्लैब है वो ऊपर है। शायद आप नीचे रह गए होंगे, 200-250 किलो पे रह गए होंगे तो आप बोनस वाले क्राइटेरिया पे नहीं पहुंच सके होंगे। मगर मैं चेक करूंगा अभी आपका पिछले क्वार्टर में कितना हुआ है। ठीक है? बाकी और कोई सवाल बोनस वगैरह को लेके? नहीं, ऐसा कोई सवाल तो है नहीं सर। हां, बाकी आप यूज़ करके देखना, मल्टी लॉक काफी बढ़िया प्रोडक्ट है। और फेविक्विक भी आप जरूर लगाएंगे, हम उम्मीद करते हैं। बाकी प्रोडक्ट को जैसे आगे बढ़ाए हो, हम आप लोगों से ही उम्मीद करते हैं, आप अच्छे काम करते हैं, प्रीमियम काम करते हैं कमर्शियल का, तो आप इसको भी बढ़िया खींचेंगे। हां हां सर। ठीक है? बाकी और भी कोई सवाल होगा तो आप पूछ सकते हैं मेरे से। नहीं अब कोई ऐसा नहीं है।"
+}

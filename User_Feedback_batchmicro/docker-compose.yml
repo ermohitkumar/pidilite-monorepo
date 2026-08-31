@@ -1,0 +1,36 @@
+# ── Pipeline Service — Local dev stack ───────────────────────────────────────
+# IMPORTANT: Start monolith stack first (docker compose up in pidilite/)
+# Then start this stack: docker compose up --build
+# Run migrations: docker compose exec api poetry run alembic upgrade head
+# Seed data:      docker compose exec api poetry run python scripts/seed.py
+
+services:
+
+  # ── Pipeline API (5 processing endpoints) ─────────────────────────────────
+  api:
+    build: .
+    command: poetry run uvicorn services.api.main:app --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "8001:8001"
+    env_file: .env
+    volumes:
+      - .:/app
+      - /app/.venv
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── PostgreSQL Database ───────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pidilite_db}
+      POSTGRES_USER: ${DB_USER:-pidilite_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pidilite_pass}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

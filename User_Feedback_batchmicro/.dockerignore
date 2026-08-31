@@ -1,0 +1,25 @@
+# Virtual environments (local macOS venv breaks the Linux container)
+.venv/
+__pycache__/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker (avoid recursive context)
+docker-compose.yml
+Dockerfile
+
+# Misc
+*.pyc
+.env.local
+.DS_Store
+.env
+.env.*
+samples/
+scratch/

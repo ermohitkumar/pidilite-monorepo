@@ -1,0 +1,834 @@
+[
+  {
+    "product_name": "Fevicol Hi-per Star",
+    "short_code": "F-HS",
+    "description": "Best adhesive from Fevicol with unmatched coverage and speed",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Relam",
+    "short_code": "F-R",
+    "description": "For hassle-free pasting of new laminate on old laminate",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Plastilok",
+    "short_code": "F-P",
+    "description": "Perfectly pastes laminate on WPC boards",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Probond",
+    "short_code": "F-P",
+    "description": "Specially crafted for PVC and acrylic sheets",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SpeedX",
+    "short_code": "F-S",
+    "description": "The adhesive with quick setting time",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Probond Edgelok",
+    "short_code": "F-PE",
+    "description": "Fast Setting Adhesive for PVC Edge Banding tapes",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Marine",
+    "short_code": "F-M",
+    "description": "Superior waterproof glue with high coverage",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SH",
+    "short_code": "F-S",
+    "description": "Trusted adhesive over 65 years with mazboot jod",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Heatx",
+    "short_code": "F-H",
+    "description": "Heatproof adhesive that bonds in just 10 min",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SR 998",
+    "short_code": "F-S9",
+    "description": "Synthetic Rubber Adhesive",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Ezeespray",
+    "short_code": "F-E",
+    "description": "Innovative spray adhesive for laminate pasting",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Hi-per",
+    "short_code": "F-H",
+    "description": "Anti-bubble and waterproof adhesive",
+    "brand": "Fevicol",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Green Building Enabler",
+    "short_code": "DF-GBE",
+    "description": "Our products qualify for IGBC Leed certification which are compliant for green buildings. Green building rating brings together a host of sustainable practices and solutions to reduce environmental impacts.",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit LW+",
+    "short_code": "DF-DFL",
+    "description": "Cement made stronger with Dr. Fixit’s tonic",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit Pidicrete URP",
+    "short_code": "DF-DFP",
+    "description": "SBR Latex for Waterproofing and Repairs",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit Raincoat",
+    "short_code": "DF-DFR",
+    "description": "India’s first external wall waterproof coating brand",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit Roofseal Classic",
+    "short_code": "DF-DFR",
+    "description": "Heat-Reducing Acrylic Coating That Keeps Your Roof Cool And Leak-Free",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit Pidifin 2K",
+    "short_code": "DF-DFP",
+    "description": "Acrylic Cementitious Two Component Waterproof Coating",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Dr. Fixit Fastflex",
+    "short_code": "DF-DFF",
+    "description": "High Performance Polymer Modified Cementitious Coating",
+    "brand": "Dr Fixit",
+    "category": "Waterproofing",
+    "is_active": true
+  },
+  {
+    "product_name": "Your Partner in Plumbing",
+    "short_code": "M-YPI",
+    "description": "A comprehensive set of solutions, trusted by plumbers in a pinch, M-Seal is the ultimate problem solver to repair leakages, joining pipes or filling gaps and cracks.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Mseal PV Seal launches Tin Packs",
+    "short_code": "M-PSL",
+    "description": "The range of solvent cements was extended to tin packs.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Launch of Co-ex packs in Solvents",
+    "short_code": "M-LOC",
+    "description": "Unveiled the new age cyclic polymer CoEx packs, which offer first in market benefits, such as an easy-to-open, pilfer-proof cap, 3 years shelf life, among others.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "A strong start in sealants",
+    "short_code": "M-ASS",
+    "description": "M-Seal successfully entered the sealants market with a portfolio of simple and superior solutions.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Ezyseal",
+    "short_code": "M-ME",
+    "description": "A multi-purpose elastomeric sealant that is easy and effective.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Bathroom & Kitchen",
+    "short_code": "M-MB&",
+    "description": "An acrylic sealant that offers superior gap filling for your bathroom and kitchen.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal PTFE Tape",
+    "short_code": "M-MPT",
+    "description": "Reinforce your pipes with this high-performance pipe joining tape.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Plumber Liquid Sealant",
+    "short_code": "M-MPL",
+    "description": "Join, fix, seal and build with this liquid sealant.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal PP",
+    "short_code": "M-MP",
+    "description": "Fast Setting Epoxy Putty.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal GP",
+    "short_code": "M-MG",
+    "description": "Putty with Power - a high strength epoxy putty.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Phataphat",
+    "short_code": "M-MP",
+    "description": "A quick curing epoxy compound putty sealant.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Sanitary",
+    "short_code": "M-MS",
+    "description": "A clean, white epoxy putty for gap filling in wet areas.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal Super",
+    "short_code": "M-MS",
+    "description": "Easily accessible in the innovative co-axial pack.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal PVSEAL CPVC Solvent Cement",
+    "short_code": "M-MPC",
+    "description": "High performance solvent for CPVC Pipes.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal PVSEAL PVC Solvent Cement",
+    "short_code": "M-MPP",
+    "description": "High performance solvent for PVC Pipes.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "M-Seal PVSEAL UPVC Solvent Cement",
+    "short_code": "M-MPU",
+    "description": "High performance solvent for UPVC Pipes.",
+    "brand": "Mseal",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Phenko Nahin, Jodo!",
+    "short_code": "F-PNJ",
+    "description": "This all-purpose instant bonding adhesive fixes your industrial and home requirements in just one drop.",
+    "brand": "Fevikwik",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Fixes In Five Seconds",
+    "short_code": "F-FIF",
+    "description": "Want the things you love to last much longer? A little Fevikwik does the trick!This instant adhesive fixes anything in just 5 seconds, whether it is wood, plastic, paper or metal. So you don’t have to worry about your precious antique cracking up. Or be overprotective about your expensive jewellery or electronics for fear of them wearing out. Fevikwik works its wonders and brings them back to life in a few seconds. So that nothing in your life will be broken again.Call us at :1800 266 6066",
+    "brand": "Fevikwik",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevikwik Precision Pro",
+    "short_code": "F-PP",
+    "description": "An instant adhesive with quick wicking properties",
+    "brand": "Fevikwik",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevikwik Gel",
+    "short_code": "F-G",
+    "description": "For a precise fix, go for this thick, non-drip gel.",
+    "brand": "Fevikwik",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevikwik Advance",
+    "short_code": "F-A",
+    "description": null,
+    "brand": "Fevikwik",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Pidilite acquires Roff",
+    "short_code": "R-PA",
+    "description": "Pidilite reaches a coveted milestone of hitting 1000Cr mark, Roff brand of construction chemical is acquired.Roff brand has been in existence since 1988.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Champs",
+    "short_code": "R-C",
+    "description": "The Roff Loyalty program for tile contractors is born. Today it is known as Roff Champs.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff at Pidilite",
+    "short_code": "R-AP",
+    "description": "A separate team at Pidilite is identified to run the Roff Business.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "A Year of Big Ventures",
+    "short_code": "R-AYO",
+    "description": "A Joint venture is formed with Litokol Italy – technology leaders in specialised tile grout.Another Joint venture is established with Grupo Puma – leaders in Mortar & Specialised tile adhesive.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Venturing into Stone Care",
+    "short_code": "R-VIS",
+    "description": "A JV is signed with Tenax - a global leader in stone care chemicals.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "From Business to Consumer",
+    "short_code": "R-FBT",
+    "description": "A national TV campaign is launched to make Roff a consumer brand.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Taking Roff to every home",
+    "short_code": "R-TTE",
+    "description": "Roff is back with a brand-new consumer campaign.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff goes outdoor",
+    "short_code": "R-GO",
+    "description": "The quirky 'Nak Kat Gayi' OOH campaign to amplify Roff's brand messaging.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Building A Green Future",
+    "short_code": "R-BAG",
+    "description": "Roff wears its GreenPro Ecolabel with pride. It signifies that our products have a lower environmental impact and contribute significantly to enhance the performance of Green buildings and companies. GreenPro offers end users key information on product sustainability and empowers them to choose sustainable products.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Non-Skid Adhesive (NSA)",
+    "short_code": "R-NA(",
+    "description": "For natural stones, clay, terracotta, and vitrified tiles of regular size.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Vitrofix Adhesive",
+    "short_code": "R-VA",
+    "description": "For all sizes of ceramic, vitrified and natural stone tiles.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Vitrofix Ultra Adhesive",
+    "short_code": "R-VUA",
+    "description": "Fit for the internal application of ceramic, vitrified and natural stone tiles of all sizes.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Extrofix Adhesive",
+    "short_code": "R-EA",
+    "description": "Suits all types of tiles, ceramics, marble, and natural stones.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Extrofix Ultra Adhesive",
+    "short_code": "R-EUA",
+    "description": "Perfect for exterior areas prone to vibrations.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Starlike",
+    "short_code": "R-S",
+    "description": "High performance epoxy grout for internal and external use.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Masterfix Adhesive",
+    "short_code": "R-MA",
+    "description": "Designed for metal, plywood, cement boards, engineered stones, and drywall surfaces.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff Cera Clean",
+    "short_code": "R-CC",
+    "description": "High-quality tile cleaner liquid for stain removal and shine.",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Roff New Construction Adhesive (NCA)",
+    "short_code": "R-NCA",
+    "description": "Ceramic and new floor tiles fixed!",
+    "brand": "Roff",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "With you through Thick and Thin",
+    "short_code": "A-WYT",
+    "description": "Whether it’s building houses or industries, Araldite allows you to create strong and long-lasting bonds.",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "We Build World-Class Solutions",
+    "short_code": "A-WBW",
+    "description": "Innovation lies at the core of Araldite. It’s what draws dealers and contractors to engage with our products, solutions and variants. It empowers them to build excellence and offers a diverse range of solutions that fit neatly into the needs of every household.Visit websiteCall center number :1800 266 6066",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Green Pro Certified",
+    "short_code": "A-GPC",
+    "description": "Araldite proudly wear the Green Pro label on Araldite Standard and Araldite Klear 5. It signifies that our products have a lower environmental impact and contribute significantly to enhance the performance of Green buildings and companies.",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Art Workshops",
+    "short_code": "A-AW",
+    "description": "We provide the children of contractors an opportunity to learn various art forms to empower them with fresh ideas for growing in alternate career avenues or pursuing the family business",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Klear 5",
+    "short_code": "A-K5",
+    "description": "Fast and clear epoxy for a wide variety of substrates",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Klear 20",
+    "short_code": "A-K2",
+    "description": "Quick and clear epoxy for larger surface areas",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Klear 120",
+    "short_code": "A-K1",
+    "description": "Best-in-class clarity epoxy for large substrates",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Klad X",
+    "short_code": "A-KX",
+    "description": "Sets swiftly for heavy duty stone cladding through spot bonding",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Standard",
+    "short_code": "A-S",
+    "description": "High-bond strength adhesive for a wide range of substrates",
+    "brand": "Araldite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Gluedrops Revamped",
+    "short_code": "FAF-FGR",
+    "description": "The innovative temporary sticking brand of Fevicol Gluedrops is revamped with new packaging and a fresh campaign – “Chipkane mein asaan, chhode no Nishan”. The campaign connected with influencers, DIY enthusiasts, Hobbyists, fashion stylists.",
+    "brand": "fevistik and fevicolmr",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Extension to Govt schools",
+    "short_code": "FAF-ETG",
+    "description": "Pidilite signed a Memorandum of Understanding (MOU) with the Government of Gujarat, represented by the Gujarat Council of School Education (GCSE). The objective of this collaboration is to promote and enhance learning through arts and crafts across the state of Gujarat. The pilot program for this was initiated in Mahuva taluka of Gujarat.",
+    "brand": "fevistik and fevicolmr",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Adding magic to the world",
+    "short_code": "F-AMT",
+    "description": "​By helping people unleash their creativity to the fullest, our products manifest beauty and open unlimited possibilities.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Empowering Women through Art",
+    "short_code": "F-EWT",
+    "description": "Over 3000 artists are on a mission to ignite creativity and inspire confidence in women.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Workshops",
+    "short_code": "F-W",
+    "description": "Every year we host creative workshops, connecting with 1.5 million women, where we bring both heart and hues to their hobbies. Join us as we craft a bolder and brighter future for women everywhere.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Hobby Ideas",
+    "short_code": "F-HI",
+    "description": "Step into a world where colour and creativity reign supreme. Share, learn and celebrate the arts with us.Explore at :https://www.hobbyideas.in/",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicryl Glass Colours",
+    "short_code": "F-GC",
+    "description": "Non-toxic, water-based colours for glass, OHP sheets, wood or MDF.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicryl Acrylic Colours",
+    "short_code": "F-AC",
+    "description": "Versatile, long-lasting colours for multiple surfaces.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicryl Fabric Glue",
+    "short_code": "F-FG",
+    "description": "Stick beads, sequins, lace and more.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicryl Mould It",
+    "short_code": "F-MI",
+    "description": "Easy and pliable epoxy compound to mould 3D shapes.",
+    "brand": "Fevicryl",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Colours that Captivate",
+    "short_code": "H-CTC",
+    "description": "Haisha Paints take your room’s aesthetics to another level with a captivating range of superior emulsions, primers and specialised emulsions. Give your home the decor it deserves.",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "Bring Indian Hues into Your Home",
+    "short_code": "H-BIH",
+    "description": "Haisha Paints is known for its innovative, reliable, customer-centric solutions that reflect India’s heritage. Pidilite’s latest entry is deeply committed to delivering a range of quality products that will delight dealers, enchant homeowners and keep homes shining for years.Visit websiteCall us at :1800 266 6066",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Ceiling Emulsion",
+    "short_code": "H-PCE",
+    "description": "Enjoy super white and wonderful ceilings",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Floor Coat",
+    "short_code": "H-PFC",
+    "description": "Leaves your floors damage-free",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Wall Primer",
+    "short_code": "H-PWP",
+    "description": "An interior primer for superior topcoat performance",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Luxury Interior Emulsion",
+    "short_code": "H-PLI",
+    "description": "Leaves your walls shining",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Select Emulsion",
+    "short_code": "H-PSE",
+    "description": "Smooth, stunning and highly washable",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "HAISHA Paints Classic Interior Emulsion",
+    "short_code": "H-PCI",
+    "description": "Smooth finish emulsion which fits your budget",
+    "brand": "Haisha",
+    "category": "Decorative Paints",
+    "is_active": true
+  },
+  {
+    "product_name": "WD-40 – Multi-Use Product",
+    "short_code": "W-W–M",
+    "description": "WD-40 Company is a global marketing organization headquartered in San Diego, California, where the original WD-40® Multi-Use Product was invented over 70 years ago. Above and beyond that legendary, signature blue and yellow can, instantly recognized worldwide with more than 2000 uses. WD-40 Company features a range of high performance products. Spanning maintenance, specialty, and cleaning products for all corners of the industrial realm, automobile maintenance, enthusiasts, hobbyists and home. WD-40 Company is versatile as it is useful and a must have in every vehicle and home.",
+    "brand": "WD40",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Motomax",
+    "short_code": "M-MOT",
+    "description": "Shine And Protection For Bikes And Cars!Motomax offers range of Do-It-Yourself and Professional Auto care products.It has been extremely successful in terms of product performance and customer satisfaction.",
+    "brand": "Motomax",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Tenax",
+    "short_code": "T-TEN",
+    "description": "Premium stone & marble usage by consumers is increasing. However, there is a gap in Indian market for the right stone solutions to preserve its beauty for a longer period. Keeping this consumer need in mind, Pidilite has partnered with Tenax Italy who are the experts in this field globally.​Tenax is a renowned Italian company that was established in 1956. It has grown substantially over the years and is now present in more than 100 countries worldwide. For over 65 years, Tenax has been providing research, technology, and innovation for the world of Marbles, natural stone surfaces, ceramics, and quartz. With continuous and in-depth research and experimentation, Tenax offers products capable of responding and anticipating market needs.​",
+    "brand": "Tenax",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevitite",
+    "short_code": "F-FEV",
+    "description": "From heavy-duty repairs to demanding industrial applications, Fevitite delivers the kind of strength you can count on. Our epoxy adhesives are built for long-term performance, forming durable bonds that resist heat, moisture, chemicals, and wear.​With variants like fast-setting and high-viscosity formulations, there’s a Fevitite solution for every job - whether you’re fixing, assembling, or building. Easy to work with and engineered for reliability, Fevitite helps get the job done right the first time, making it a trusted choice for professionals who need results that last.",
+    "brand": "Fevitite",
+    "category": "Tile and Stone Solutions",
+    "is_active": true
+  },
+  {
+    "product_name": "Falcofix",
+    "short_code": "F-FAL",
+    "description": "Falcofix started in Maharashtra in the year 1995 with its manufacturing base at Falna, Rajasthan. It gradually expanded to nine more states in subsequent years. Falcofix has a wide range of white glue adhesives which includes Premium, Mechanized and Economy white glue products. Pidilite acquired Falcofix in 2013 to strengthen the white Glue portfolio.Falcofix has a wide variety of high performance adhesives ideal for wood working applications.",
+    "brand": "Falcofix",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Bluecoat",
+    "short_code": "B-BLU",
+    "description": "Bluecoat started in the state of Gujarat in the year 2001 with its manufacturing base at Baddi. It then gradually expanded to Rajasthan MP, UP, Punjab and Haryana in subsequent years. Bluecoat offers a wide range of Premium adhesives in the White Glue category. Pidilite acquired Bluecoat in 2014 to further strengthen its white Glue PortfolioBluecoat offers Premium White Glue adhesives for wood working application.",
+    "brand": "Bluecoat",
+    "category": "Wood Adhesives",
+    "is_active": true
+  },
+  {
+    "product_name": "Unitint",
+    "short_code": "U-UNI",
+    "description": "From the house of Pidilite, the experts in tints and pigments, Unitint is a universal stainer specially formulated to blend smoothly into both water-based and solvent-based systems, thereby providing vibrant and uniform shades. Trusted and known for its superior tinting strength and light fast shades, Unitint is specially formulated to give deep and rich colour to any premium quality paint, every time. ​​Its inter miscible property not only allows one to create any new and unique shade of their choice but also gives the option to the homeowners to get the shade adjusted on the site itself as per their need and desire making these high-performance colorants the best choice for any interior applications.​",
+    "brand": "Unitint",
+    "category": "Wood Finishes",
+    "is_active": true
+  },
+  {
+    "product_name": "Piditint",
+    "short_code": "P-PID",
+    "description": "From the house of Pidilite, the experts in tints and pigments, Piditint is a manual stainer used for colour development in lime solutions, distempers and all other decorative water-based paints.​Recognised for its strong tint strength and smooth dispersion, with Piditint, you can rely on colours that area accurate, stable, and easy to achieve every time.​​The colours are easily miscible with each other allowing one to create their own special shades too. Piditint gives much superior and 'no mess' finish to the powder colours available in the market, making it an ideal choice for any interior application.​​",
+    "brand": "Piditint",
+    "category": "Wood Finishes",
+    "is_active": true
+  },
+  {
+    "product_name": "Holdtite Leakguard",
+    "short_code": "H-L",
+    "description": "Holdtite, a trusted name in plumbing category, is known for its product range in solvent cement, PTFE tapes and liquid sealants. Renowned for its exceptional performance in both domestic plumbing and industrial piping applications, Holdtite range of products are designed to provide leak-proof joints and strong bonds for all metal and PVC pipes. Our solutions are designed for durability and help you build plumbing systems that last longer and perform better under everyday conditions.​",
+    "brand": "Holdtite",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Steelgrip",
+    "short_code": "S-STE",
+    "description": "Steelgrip is an electrical PVC tape that is fire retardant (self-extinguishing) and provides a durable, waterproof and weatherproof insulation. Our tape has high TACK which ensures long lasting and complete insulation on wiring under different usage and environment conditions. It is available in different colours of black, red, green, yellow, blue and white, which are useful for colour coding where multiple joints have to be demarcated distinctly.",
+    "brand": "Steelgrip",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Wudfin",
+    "short_code": "W-WUD",
+    "description": "Wudfin range of products is meant to meet wood coating needs of the consumer. It comprises of top coats like Wudfin PU11 and Wudfin Melamine. The range also includes Wudfin Wudstain which is used to stain wooden surface and Wudfin Tymberfill which is wood filler.",
+    "brand": "Wudfin",
+    "category": "Wood Finishes",
+    "is_active": true
+  },
+  {
+    "product_name": "Terminator",
+    "short_code": "T-TER",
+    "description": "Terminator is an anti-termite product that keeps wooden furniture and concrete structures safe from termite invasion. Its ‘Insta Kill’ formula tackles all existing termites as well as prevents future termite attack. Being an eco-friendly product, it does not harm the applicator, pets or the environment.",
+    "brand": "Terminator",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Zorrik 88",
+    "short_code": "Z8-ZOR",
+    "description": "From factory floors to home garages, Zorrik 88 has become essential for long-lasting metal care. It's madefor superior performance and helps keep tools, machines, and fixtures working at their best.​It permeates rusted joints and loosens jammed parts. Be it working on machinery or tightening a squeakyhinge, Zorrik 88 helps in maintenance.​​",
+    "brand": "Zorrik 88",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Stain Off",
+    "short_code": "SO-STA",
+    "description": "Spills are part of everyday life but don’t have to leave a lasting stain. Stain Off isdesigned to easily take care of clothes, cushions, and upholstery withoutworrying about damage or residue.​Its advanced formula penetrates deep into fabrics to break down tough stainslike oil, ink, and food while being gentle on all materials. It works fast andeffectively, helping you return your items to their clean, fresh best—just how theyshould be.​",
+    "brand": "Stain Off",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevibond",
+    "short_code": "F-FEV",
+    "description": "Fevibond has become a trusted household staple for all jobs that require areliable hold. Known for its flexible bonding power and quick tack time, Fevibondeffectively adheres to leather, rubber, fabric, and metal, making it the go-tosolution for everyday repairs and creative projects.​Our rubber-based adhesive is resistant to heat, water, and wear, providing adurable bond that lasts without hassle. Whether tackling a quick repair orworking on a DIY project, Fevibond ensures that your work stays secure, and yourprocess remains simple.​​",
+    "brand": "Fevibond",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Brite O",
+    "short_code": "BO-BRI",
+    "description": "Clean spaces need more than surface-level shine; they deserve carefulattention. BriteO is designed to provide that level of care. Our polish-cleanercombination is renowned for restoring shine without harsh abrasives, allowingyou to maintain a fresh and new surface appearance.​Safe on stainless steel, glass, chrome, and ceramics, BriteO lifts smudges anddullness with a streak-free, non-sticky finish. Our formula ensures that surfaceslike your kitchen, bathroom, or workspace remain clean, polished, and easy tomaintain, making daily upkeep all the more rewarding.​​",
+    "brand": "Brite O",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  },
+  {
+    "product_name": "Rangeela",
+    "short_code": "R-RAN",
+    "description": "Rangeela comprises of a range of colours primarily aimed at satisfying the art & craft needs of students. Major products include Rangeela Tempera colours and Rangeela – Safe Moulding Dough and Paper Glitter.Rangeela Tempera colours are ideal for easy art and craft ideas and can enhance personalised handmade gifts. They can be used to decorate greeting cards, pots, paintings, thermocol products, and more. They are extremely easy to use and are safe for children. These colours are economical, washable, available in bright shades, safe and non-toxic.",
+    "brand": "Rangeela",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevigum – Synthetic Gum",
+    "short_code": "F-–SG",
+    "description": "Fevigum is a non-toxic, hygienic synthetic gum. It comes in different coloured “squeezy” bottles with lovely fragrance options. Its attractive packaging and non-toxic nature makes it perfect for kids. It has excellent paper-to-paper bonding.Fevigum’s easy dispensing packs made simple and convenient to use makes it popular among children and household paper to paper bonding. It conforms to European Standards EN-71 norms, which makes it completely safe for children above 3 years of age.",
+    "brand": "Fevigum",
+    "category": "Art and Craft",
+    "is_active": true
+  },
+  {
+    "product_name": "D-Klog",
+    "short_code": "-D-K",
+    "description": "Keeping drains clear should be simple and with D-Klog, it is. Developed withfast-acting science and pipe-safe performance in mind, D-Klog is a trustedsolution for homes and facilities alike. ​Our powerful formula dissolves clogs, grease, and buildup within minuteswithout harming your plumbing. It’s a simple, effective way to restoreflow, avoid disruptions, and keep things running smoothly. Be it for theroutine upkeep or dealing with an unexpected blockage, D-Klog helps clearout blockages quickly and get back on track. ​",
+    "brand": "D-Klog",
+    "category": "Maintenance and Repair",
+    "is_active": true
+  }
+]

@@ -1,0 +1,321 @@
+{
+  "_meta": {
+    "description": "Complete feedback taxonomy for Pidilite User Feedback AI Pipeline",
+    "sources": [
+      "User Group Tag Description.xlsx",
+      "1.2 Dashboard Look_Product and User Engagement.xlsx"
+    ],
+    "groups": [
+      "PDT GROUP",
+      "USER GROUP",
+      "DEALER GROUP"
+    ],
+    "total_tags": 42
+  },
+  "taxonomy": [
+    {
+      "tag_id": 1,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Competition",
+      "feedback_tag": "Competition product - product quality",
+      "feedback_sub_tag": "If comp name mentioned, state name. If PIL product is stated, also mention name",
+      "description": "Comparison of Pidilite product and product from competition brands. Product quality includes ease of application, drying time, shelf life, pot life, viscocity, anti-bubble technology, variance in grip, intensity of grab."
+    },
+    {
+      "tag_id": 2,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Competition",
+      "feedback_tag": "Competition product - Price / scheme",
+      "feedback_sub_tag": "If comp name mentioned, state name. If PIL product is stated, also mention name",
+      "description": "Comparison of pidilite scheme with competition company scheme. Includes, products with dealer trip schemes, user token value/schemes, user gift, competition user application, spot redemption, dealer gifts, points value offered by competition, user trip schemes."
+    },
+    {
+      "tag_id": 3,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Competition",
+      "feedback_tag": "Competition Engagement / Service",
+      "feedback_sub_tag": "If comp company name mentioned, state name. If PIL mentioned, also mention PIL",
+      "description": "Activities that competition companies conduct for users. This includes meetings in big hotels, contractor meetings in small towns, site activities, festival celebrations, birthday celebration, user family engagement programs, carnivals, and digital engagements as well."
+    },
+    {
+      "tag_id": 4,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Competition",
+      "feedback_tag": "Competition App",
+      "feedback_sub_tag": "If comp APP mentioned, state name. If PIL APP is stated, also mention name",
+      "description": "Comparison of Pidilite contractor app and competition - Which apps competition is using for contractors, points for different pack sizes, bonus points, redemption options, gift options, online delivery of gifts, ease of redemption, new product information,product application videos, product catalogues."
+    },
+    {
+      "tag_id": 5,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product",
+      "feedback_tag": "Product In Pack quality / packaging / application complaints",
+      "feedback_sub_tag": "If comp name mentioned, state name. If PIL product is stated, also mention name",
+      "description": "Product Packaging - Leakage issues, information on packaging, token inside, token scanning, ease of opening and closing pack, longevity of product provided by packaging. Application includes ease of applying product on substrate - whether it be laminate, or any other surface. Single vs. multi-direction application, requirement of masking tape, application on plywood vs. Laminate. Application related complaints - bubble formation, uneven surface, rubbery glue, odd smell, difficulty in adhesion."
+    },
+    {
+      "tag_id": 6,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product",
+      "feedback_tag": "Existing Product - Performance improvements",
+      "feedback_sub_tag": "If comp name mentioned, state name. If PIL product is stated, also mention name",
+      "description": "Improvements can include areas such as strength of product, new avenues of application, longevity of product, shelf life, pot life"
+    },
+    {
+      "tag_id": 7,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product",
+      "feedback_tag": "Existing Product - Packaging improvements",
+      "feedback_sub_tag": "If comp name mentioned, state name. If PIL product is stated, also mention name",
+      "description": "Improvements can include ease of storage, transportation, uniqueness, easy identification, PIL branding, token identification, scanning options, clarity in manufacturing and expiry dates."
+    },
+    {
+      "tag_id": 8,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Marine",
+      "feedback_tag": "Competition",
+      "feedback_sub_tag": "Competition product - product quality"
+    },
+    {
+      "tag_id": 9,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Marine",
+      "feedback_tag": "Product",
+      "feedback_sub_tag": "Product In Pack quality / packaging / application complaints"
+    },
+    {
+      "tag_id": 10,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Marine",
+      "feedback_tag": "Product",
+      "feedback_sub_tag": "Existing Product - Performance improvements"
+    },
+    {
+      "tag_id": 11,
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Marine",
+      "feedback_tag": "Product",
+      "feedback_sub_tag": "Existing Product - Packaging improvements"
+    },
+    {
+      "tag_id": 12,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Systems",
+      "feedback_tag": "FCC App",
+      "description": "Loyalty application for the users"
+    },
+    {
+      "tag_id": 13,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Systems",
+      "feedback_tag": "CWC App",
+      "description": "Loyalty application for the users"
+    },
+    {
+      "tag_id": 14,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Systems",
+      "feedback_tag": "Roff Star Champs",
+      "description": "Loyalty application for the users"
+    },
+    {
+      "tag_id": 15,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Systems",
+      "feedback_tag": "M-Power",
+      "description": "A platform (Application) to capture the daily working of the field marketing executives. (daily working includes activities like - user visits, site visits, delaer visits, conducting one to many meets etc)"
+    },
+    {
+      "tag_id": 16,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Systems",
+      "feedback_tag": "Jharokha",
+      "description": "A on stop solution for all product related informations (like videos, Technical data sheets, FAQs, MSDS, Product PPT etc)"
+    },
+    {
+      "tag_id": 17,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Engagement",
+      "feedback_tag": "Site visits",
+      "description": "Use only when the user comments on FME site-visit activity itself: visit quality, frequency, FME not coming or delayed, scheduling, or requesting more visits. Do not use merely because the recording happened on a job site, or for product application, usage, or quality talk during a visit. Those belong in PDT GROUP."
+    },
+    {
+      "tag_id": 18,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Engagement",
+      "feedback_tag": "Sponsorship of events",
+      "description": "Some of the events are sponsered by us where we partially or fully sponser the event."
+    },
+    {
+      "tag_id": 19,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Engagement",
+      "feedback_tag": "User LSP",
+      "description": "User related LSP items (freebies) such as tshirst, cap etc"
+    },
+    {
+      "tag_id": 20,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Engagement",
+      "feedback_tag": "Product content (videos etc)",
+      "description": "Product related content such as application video, product video etc"
+    },
+    {
+      "tag_id": 21,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Loyalty Program",
+      "feedback_tag": "FCC Redemption Gifts",
+      "description": "Users uses our products and get loyalty points. The accumulated loyalty points can be redeem to for gift items."
+    },
+    {
+      "tag_id": 22,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Loyalty Program",
+      "feedback_tag": "User scheme",
+      "description": "Promotional scheme for the users to get more benefit in terms of additional points or gifts"
+    },
+    {
+      "tag_id": 23,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Loyalty Program",
+      "feedback_tag": "User trips",
+      "description": "As part of reward to the top users, the users are sent to exotic locations for a trip"
+    },
+    {
+      "tag_id": 24,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "FCC Meet",
+      "description": "One to many product promotion meet meant for Fevicol Chempion Club's users"
+    },
+    {
+      "tag_id": 25,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Carnival",
+      "description": "One to many meet with a scale of connect for contractors and carpenters"
+    },
+    {
+      "tag_id": 26,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "OB Meet",
+      "description": "One to many meet with office bearers of a club."
+    },
+    {
+      "tag_id": 27,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Social Meet",
+      "description": "User meet with a social cause such as blood donation, awareness camp, shramdaan, roza-iftar, vishwakarma puja etc"
+    },
+    {
+      "tag_id": 28,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Site SGA",
+      "description": "Small group activity with users on a site to promote a product or awareness on correct application"
+    },
+    {
+      "tag_id": 29,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Expert Panel Meet",
+      "description": "One to many meet with empanneled expert users who help us capture the practical insignts and real world feedback that can guide product improvements, validate new launches etc"
+    },
+    {
+      "tag_id": 30,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Large Contractor Lunch meet",
+      "description": "One to many user meets with high potential users"
+    },
+    {
+      "tag_id": 31,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "FPC Day-Out Meet",
+      "description": "One to many user meets with large contractors to build strong bonds through a day of fun activities while giving contractors the opportunity to relax, engage with the other contractors"
+    },
+    {
+      "tag_id": 32,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "FPC Annual Meet",
+      "description": "One to many user meets with large contractors to create a professional setting for a larger gathering of contractors, providing them with insights into the industry, product demonstrations, and networking opportunities"
+    },
+    {
+      "tag_id": 33,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Birthday Celebration Meets",
+      "description": "To celebrate the birthday of the contractor"
+    },
+    {
+      "tag_id": 34,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "LCD User Meet",
+      "description": "One to many meet designed for users linked to large competition dealer"
+    },
+    {
+      "tag_id": 35,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Product Promotion Meet",
+      "description": "One to many meet desiged to promot a product"
+    },
+    {
+      "tag_id": 36,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Factory SGA",
+      "description": "Small group activity with users in a factory to promote a product or awareness on correct application"
+    },
+    {
+      "tag_id": 37,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Carnival",
+      "feedback_sub_tag": "Bad Food",
+      "description": "One to many meet with a scale of connect for contractors and carpenters"
+    },
+    {
+      "tag_id": 38,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Carnival",
+      "feedback_sub_tag": "Slow redemption",
+      "description": "One to many meet with a scale of connect for contractors and carpenters"
+    },
+    {
+      "tag_id": 39,
+      "feedback_group": "USER GROUP",
+      "feedback_category": "User Meets",
+      "feedback_tag": "Carnival",
+      "feedback_sub_tag": "Too much crowd",
+      "description": "One to many meet with a scale of connect for contractors and carpenters"
+    },
+    {
+      "tag_id": 40,
+      "feedback_group": "DEALER GROUP",
+      "feedback_category": "Dealer-related",
+      "feedback_tag": "Competition - Credit days",
+      "description": "Credit days competition offers to dealers - can be 3,4,6 months. High credit days is sometimes a reason for dealer to purchase competition. PIL provides 30 days across most of its products."
+    },
+    {
+      "tag_id": 41,
+      "feedback_group": "DEALER GROUP",
+      "feedback_category": "Dealer-related",
+      "feedback_tag": "Stock Issues",
+      "description": "Delay in stock from distributor or company can lead to dealer disgruntlement. Stock unavailability is also a concern for dealers. When dealer faces stock issue, dealer will resort to wholesale market for urgent requirements."
+    },
+    {
+      "tag_id": 42,
+      "feedback_group": "DEALER GROUP",
+      "feedback_category": "Dealer-related",
+      "feedback_tag": "Dealer Disgruntlement",
+      "description": "Common dealer disgrutlement issues - stock issues, pending scheme settlements, employees not visiting, damaged stock received, disgruntement with distributor, lack of user meets for dealer's key users, no gifts from company."
+    }
+  ]
+}

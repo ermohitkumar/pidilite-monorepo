@@ -1,0 +1,258 @@
+{
+  "file": "transcript_3.txt",
+  "hindi_chars": 3017,
+  "translated_text": "Speaker 1: Rajouri site fully operational?\nSpeaker 2: Yes, operational, last stage.\nSpeaker 1: Current labor count on site?\nSpeaker 2: 8 people working.\nSpeaker 1: 8 people working? Which Pidilite product are you using?\nSpeaker 2: Currently using Hyper.\nSpeaker 1: Using Hyper? Which other products are being used?\nSpeaker 2: Hyper and Relem.\nSpeaker 1: Using Relem? For what application?\nSpeaker 2: For bonding mica to mica.\nSpeaker 1: Any other new products used?\nSpeaker 2: We use all Fevicol products.\nSpeaker 1: Did you use Easy Spray, as requested?\nSpeaker 2: Yes, we ordered it for this purpose.\nSpeaker 1: Last month you ordered Hyper Star for this site, but now ordered Hyper again?\nSpeaker 2: Yes, it was taking too long to dry. The client said not to delay work, so use a faster-drying product. They requested Hyper due to drying issues with Hyper Star.\nSpeaker 1: So you ordered Hyper?\nSpeaker 2: Yes, I reordered Hyper.\nSpeaker 1: Try using Hyper Star. There are no issues. It's an NI pack, and product composition changes over 6 months, requiring a longer open time in winter. That's why I suggested it.\nSpeaker 2: For the next site, we'll order Hyper Star. Here, the client insisted on Hyper due to the previous issue.\nSpeaker 1: You've used Fevikwik in good quantity. We've given you Multi-Lock for trial. Where will you use it?\nSpeaker 2: We'll use it on PVC boards, for vertical surfaces; it's good for that.\nSpeaker 1: For acrylic sheets, where ProBond had issues, use this in vertical situations. It's suitable for WPC, mica, or any acrylic sheet. You can use it. Don't abandon Hyper Star.\nSpeaker 2: No, sir, for the next site, we will use Hyper Star.\nSpeaker 1: Okay.\nSpeaker 1: Any suggestions for new product launches?\nSpeaker 2: A suggestion: a good product for bonding acrylic to stone/granite.\nSpeaker 1: You want to bond acrylic to granite? We have Nail Free, but it won't bond acrylic. What's the acrylic thickness?\nSpeaker 2: 1 mm.\nSpeaker 1: 1 mm? What size piece?\nSpeaker 2: A 2x8 sheet.\nSpeaker 1: The entire 2x8 sheet?\nSpeaker 2: Yes.\nSpeaker 1: Understood. I'll provide feedback on this by tomorrow morning or evening.\nSpeaker 1: Continue using our New Gen products.\nSpeaker 2: Thank you, sir.",
+  "translation_tokens": {
+    "input": 1010,
+    "output": 630,
+    "total": 3653
+  },
+  "insights_tokens": {
+    "input": 6530,
+    "output": 3668,
+    "total": 10198
+  },
+  "total_tokens": {
+    "input": 7540,
+    "output": 4298,
+    "total": 13851
+  },
+  "total_time_s": 25.18,
+  "insights": [
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Hyper and Relem.",
+      "summary": "Fevicol HI-PER and Fevicol RELAM are currently in use by the customer.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Hyper and Relem.",
+      "summary": "Fevicol HI-PER and Fevicol RELAM are currently in use by the customer.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol RELAM"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "For bonding mica to mica.",
+      "summary": "Fevicol RELAM is being used for bonding mica to mica, indicating its suitability for this specific application.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol RELAM"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Yes, we ordered it for this purpose.",
+      "summary": "Fevicol EZEESPRAY was specifically ordered for a particular purpose, suggesting its utility in a defined application.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol EZEESPRAY"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "Yes, it was taking too long to dry.",
+      "summary": "Fevicol HI-PER STAR was taking too long to dry, causing delays in the application process.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "The client said not to delay work, so use a faster-drying product.",
+      "summary": "The client requested a faster-drying product due to Fevicol HI-PER STAR's slow drying time, which was causing project delays.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "They requested Hyper due to drying issues with Hyper Star.",
+      "summary": "The client requested Fevicol HI-PER due to drying issues experienced with Fevicol HI-PER STAR.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "They requested Hyper due to drying issues with Hyper Star.",
+      "summary": "The client requested Fevicol HI-PER due to drying issues experienced with Fevicol HI-PER STAR.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "Yes, I reordered Hyper.",
+      "summary": "Fevicol HI-PER was reordered by the customer, indicating continued usage.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "Here, the client insisted on Hyper due to the previous issue.",
+      "summary": "The client insisted on using Fevicol HI-PER due to a previous issue encountered with Fevicol HI-PER STAR, likely related to drying time.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "Here, the client insisted on Hyper due to the previous issue.",
+      "summary": "The client insisted on using Fevicol HI-PER due to a previous issue encountered with Fevicol HI-PER STAR, likely related to drying time.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "You've used Fevikwik in good quantity.",
+      "summary": "Fevikwik has been used in good quantity, suggesting high demand or frequent application.",
+      "competitors_mentioned": [],
+      "product_name": "Fevikwik"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We've given you Multi-Lock for trial.",
+      "summary": "Fevicol Multilock has been provided for trial, indicating an evaluation of its performance for specific applications.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol Multilock"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We'll use it on PVC boards, for vertical surfaces; it's good for that.",
+      "summary": "Fevicol Multilock will be used on PVC boards for vertical surfaces, as it is considered suitable for that specific application.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol Multilock"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "For acrylic sheets, where ProBond had issues, use this in vertical situations.",
+      "summary": "Fevicol Multilock is suggested for vertical applications with acrylic sheets, especially where Fevicol PROBOND previously encountered issues.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol Multilock"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        5
+      ],
+      "verbatim_quote": "For acrylic sheets, where ProBond had issues, use this in vertical situations.",
+      "summary": "Fevicol PROBOND experienced issues when used with acrylic sheets in vertical situations, indicating a performance limitation.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol PROBOND"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "It's suitable for WPC, mica, or any acrylic sheet.",
+      "summary": "Fevicol Multilock is suitable for bonding WPC, mica, or any acrylic sheet, highlighting its versatility across various substrates.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol Multilock"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "No, sir, for the next site, we will use Hyper Star.",
+      "summary": "Fevicol HI-PER STAR will be used for the next site, indicating a planned application for an upcoming project.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol HI-PER STAR"
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "A suggestion: a good product for bonding acrylic to stone/granite.",
+      "summary": "A suggestion for a new product is to develop an adhesive specifically designed for effectively bonding acrylic to stone/granite.",
+      "competitors_mentioned": [],
+      "product_name": null
+    },
+    {
+      "group_type": "Product",
+      "category_type": "Product",
+      "tag_ids": [
+        6
+      ],
+      "verbatim_quote": "We have Nail Free, but it won't bond acrylic.",
+      "summary": "Nail Free is available but is not suitable for bonding acrylic, indicating a limitation in its application range.",
+      "competitors_mentioned": [],
+      "product_name": "Fevicol Nail Free"
+    }
+  ],
+  "validation": {
+    "total_items": 20,
+    "group_counts": {
+      "User": 0,
+      "Dealer": 0,
+      "Product": 20
+    },
+    "issues": [],
+    "all_tag_ids": [
+      5,
+      6
+    ],
+    "all_competitors": []
+  },
+  "raw_hindi": "नमस्कार चेतराम जी, क्या हाल है? नमस्कार सर, बढ़िया है। और आपकी साइट अभी चल रही है राजौरी वाली पूरी? हां, चल रही है, लास्ट स्टेज है अभी। तो अभी कितने हैं लेबर, आपकी कितनी है साइट पे अभी? अभी 8 बंदे काम कर रहे हैं। 8 बंदे काम कर रहे हैं? और अभी पिडिलाइट में क्या लगा रहे हो? पिडिलाइट में अभी हाइपर लगा रहे हैं। हाइपर लगा रहे हो? और कौन-कौन सा प्रोडक्ट अभी यूज़ हो रहा है? हाइपर और रिलेम भी लगा रहे हैं। अच्छा, रिलेम लगा रहे हो? रिलेम किससे... किसके लिए लगा रहे हो? माइका के ऊपर माइका चिपकाते हैं ना, उसके लिए। अच्छा। तो और कोई नया प्रोडक्ट हमारा अभी लगा हो? प्रोडक्ट सारा ही लगाते हैं फेविकोल पे। और आपने ईजी स्प्रे के बारे में पूछा था, ईजी स्प्रे लगाया? हां, लगाया था, हमने इसके लिए मंगाया था। अच्छा। तो मैं आपने हाइपर स्टार भी आर्डर किया था लास्ट मंथ इस साइट पे, तो अभी हाइपर मंगवाया आपने वापिस? हां, उसमें रीज़न ये था ना, उसमें सूखने में थोड़ा टाइम लग रहा था। तो क्लाइंट ने बोला कि अभी काम ढीले मत करो, ढीले हो रहा है। तो जो जल्दी सूखता है वो लगाओ आप। अच्छा। हां, इसलिए बोले हाइपर ही मंगाओ आप, उसमें थोड़ा दिक्कत आ रही है सूखने की। तो हाइपर ही मंगवाया आपने? हां जी, फिर दोबारा हाइपर ही लाया मैंने। तो कोशिश करो हाइपर स्टार आए, देखो उसमें इशू कुछ नहीं होता है। बस ये है कि एनआई (NI) पैक होता है वो 6 मंथ जैसे हमारे होते हैं, तो उसमें प्रोडक्ट चेंज होता है तो विंटर का थोड़ा आपको ओपन टाइम थोड़ा देना होता है। हम्म। ठीक है? ठीक है। तो ओपन टाइम के चक्कर में आपको इसीलिए कहा था कि आप वो मंगवा सकते हो। अब दूसरी साइड पे जाएंगे तो फिर हाइपर स्टार ही मंगाएंगे। यहां पे क्लाइंट ने बोल दिया कि अभी हाइपर ही लगाओ यहां पे, उसमें थोड़ा इशू आ गया था इसलिए। अच्छा। चलो और क्या कहते हैं, अभी फेविक्विक तो आपने लगाई है जो कि अच्छी क्वांटिटी में लग गई है आपकी। ये मल्टी लॉक का ट्रायल आपको दिया है, अब इसको आप कहां-कहां इस्तेमाल करोगे? इसको हम पीवीसी बोर्ड पे इस्तेमाल करेंगे, जहां खड़ी सतह होती है हमारी, उसमें लगाने के लिए बहुत अच्छा है लगाने के लिए। देखो एक्रेलिक शीट, जहां पे आपको प्रोबॉन्ड में इशू आया था, तो आप इसको इस्तेमाल करो वर्टिकल सिचुएशन में। और मेन डब्ल्यूपीसी पे, कोई भी माइका, कोई भी एक्रेलिक शीट लगानी है, उसके लिए ये प्रोडक्ट सक्षम है। तो आप इसको लगा सकते हो, और हाइपर स्टार को मत छोड़ो। नहीं-नहीं सर, नेक्स्ट दूसरी साइड पे हम हाइपर स्टार ही लगाएंगे। हां, चलो ठीक है। और चेतराम जी और सुनाइए कैसा चल रहा है? और सब बढ़िया है सर, ठीक चल रहा है। और कुछ सुझाव आप देना चाहते हो कि प्रोडक्ट हमारा आए, नया प्रोडक्ट कोई लॉन्च होना चाहिए? सर एक सुझाव है मुझे, अगर स्टोन पे ग्रेनाइट पे हमें एक्रेलिक चिपकाना है, उसके लिए कोई प्रोडक्ट अगर मिल जाए बढ़िया... उसके लिए अच्छा, एक्रेलिक आपने ग्रेनाइट पे चिपकाना है? हां। तो उसके लिए देखो, अभी तो हमारे पास नेल फ्री है बट नेल फ्री से आप एक्रेलिक नहीं चिपका सकते। एक्रेलिक कितने एमएम की है? वही 1 एमएम की है। 1 एमएम की है? कितना बड़ा पीस है जो आपने चिपकाना है? वही 2/8 की शीट है। 2/8 की शीट पूरी चिपकानी है? हां जी। चलो इसके बारे में मैं आधा शीट हो गया... हां, समझ गया, समझ गया। तो कोई बात नहीं, इसके बारे में मैं आपको फीडबैक देता हूं, आपको कल सुबह तक मॉर्निंग तक या इवनिंग तक। ठीक है सर। ठीक है? बाकी आप हमारे न्यू जेन प्रोडक्ट लगा रहे हो, इसको लगाते रहिए। धन्यवाद। ठीक है, थैंक यू सर।"
+}

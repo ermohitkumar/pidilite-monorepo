@@ -1,0 +1,55 @@
+name: Dev Auto Build and Push Backend
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2.1.10
+        with:
+          workload_identity_provider: projects/634870075270/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-sa@pidilite-user-feedback-ai.iam.gserviceaccount.com
+
+      - name: Fetch Short SHA
+        run: |
+          echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+      - name: Build and Push
+        run: |
+          docker build \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-backend/pidilite-backend-image:${{ env.SHORT_SHA }} \
+            -t asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-backend/pidilite-backend-image:latest \
+            .
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-backend/pidilite-backend-image:${{ env.SHORT_SHA }}
+          docker push asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-backend/pidilite-backend-image:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy pidilite-dashboard \
+            --image=asia-south1-docker.pkg.dev/pidilite-user-feedback-ai/user-feedback-backend/pidilite-backend-image:${{ env.SHORT_SHA }} \
+            --region=asia-south1 \
+            --project=pidilite-user-feedback-ai \
+            --platform=managed \
+            --port=8000 \
+            --vpc-connector=pidilite-run-connector \
+            --vpc-egress=private-ranges-only \
+            --set-secrets="DB_HOST=DEV_DB_HOST:latest,DB_PORT=DEV_DB_PORT:latest,DB_NAME=DEV_DB_NAME:latest,DB_USER=DEV_DB_USER:latest,DB_PASSWORD=DEV_DB_PASSWORD:latest,SESSION_SECRET_KEY=DEV_SESSION_SECRET_KEY:latest,SESSION_MAX_AGE=DEV_SESSION_MAX_AGE:latest" \
+            --remove-env-vars=CORS_ALLOWED_ORIGINS \
+            --quiet

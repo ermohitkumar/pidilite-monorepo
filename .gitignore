@@ -1,0 +1,29 @@
+# Nested repo metadata (this monorepo snapshots files, not child remotes)
+.git.bak/
+**/.git.bak/
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies and local runtimes
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.next/
+**/.db-dumps/
+**/.local.db
+
+# Generated
+graphify-out/
+**/graphify-out/
+**/*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+**/.DS_Store
+.vscode/
+**/.vscode/

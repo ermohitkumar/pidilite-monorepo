@@ -1,0 +1,46 @@
+# ── Dashboard Service — Local dev stack ───────────────────────────────────────
+# Start everything:   docker compose up --build
+# Run migrations:     handled by pipeline service
+# Seed data:          handled by pipeline service
+
+services:
+
+  # ── PostgreSQL (local stand-in for Cloud SQL) ──────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pidilite_db
+      POSTGRES_USER: pidilite_user
+      POSTGRES_PASSWORD: pidilite_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pidilite_user -d pidilite_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Dashboard API (auth + dashboard + users endpoints) ────────────────────
+  api:
+    build: .
+    command: poetry run uvicorn services.api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: pidilite_db
+      DB_USER: pidilite_user
+      DB_PASSWORD: pidilite_pass
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

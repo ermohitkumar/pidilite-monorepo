@@ -1,0 +1,140 @@
+[
+  {
+    "product_name": "Fevicol X-Per",
+    "short_code": "F-X",
+    "description": "Fevicol X-Per is a high-performance, water-resistant synthetic resin adhesive specifically formulated for robust wood-to-wood bonding. It offers superior strength and durability, making it ideal for furniture manufacturing and joinery applications where moisture resistance is crucial.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol Multilock",
+    "short_code": "F-M",
+    "description": "Fevicol Multilock is a versatile synthetic resin adhesive designed for strong bonding across multiple substrates including wood, plywood, laminates, and veneers. It provides a reliable and durable bond, making it suitable for a wide range of interior furnishing and carpentry applications.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol ProGel",
+    "short_code": "F-P",
+    "description": "Fevicol ProGel is a non-drip, gel-based adhesive engineered for clean and precise application, especially on vertical surfaces. Its thixotropic properties ensure strong and lasting bonds for decorative laminates, plywood, and various woodworking projects without mess.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol MARINE",
+    "short_code": "F-M",
+    "description": "Fevicol MARINE is a specialized waterproof adhesive offering exceptional resistance to water and moisture, making it ideal for marine and high-humidity applications. It provides a robust and long-lasting bond for wood, plywood, and laminates in environments prone to water exposure.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol PROBOND",
+    "short_code": "F-P",
+    "description": "Fevicol PROBOND is a high-performance industrial adhesive known for its strong initial tack and rapid setting time, ensuring efficient bonding in manufacturing processes. It delivers a durable and reliable bond across a wide range of substrates including wood, PVC, and various fabrics.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SPEEDX",
+    "short_code": "F-S",
+    "description": "Fevicol SPEEDX is an ultra-fast setting synthetic resin adhesive designed for projects requiring rapid assembly and reduced clamping time. It delivers quick initial grab and strong final bond strength, significantly enhancing productivity in woodworking and carpentry.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SH",
+    "short_code": "F-S",
+    "description": "Fevicol SH is a reliable, general-purpose synthetic resin adhesive widely used for bonding wood, plywood, laminates, and veneers in everyday carpentry. It provides a strong, durable, and long-lasting bond for furniture and interior woodworking applications.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SB",
+    "short_code": "F-S",
+    "description": "Fevicol SB is a synthetic rubber-based contact adhesive known for its excellent bonding strength across diverse materials such as foam, leather, rubber, and various plastics. It offers a strong, flexible, and long-lasting bond, ideal for upholstery, footwear, and automotive applications.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol EZEESPRAY",
+    "short_code": "F-E",
+    "description": "Fevicol EZEESPRAY is a convenient spray adhesive designed for quick and uniform application over large surfaces. It provides a strong, reliable bond for materials like fabric, foam, paper, and cardstock, making it suitable for crafts, upholstery, and temporary or permanent fixing.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol PLASTILOK",
+    "short_code": "F-P",
+    "description": "Fevicol PLASTILOK is a specialized adhesive formulated for achieving strong and durable bonds on various plastic substrates, including PVC, acrylic, and ABS. It ensures excellent adhesion for applications in signage, fabrication, and plastic component assembly.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol RELAM",
+    "short_code": "F-R",
+    "description": "Fevicol RELAM is a specialized adhesive engineered for securely bonding decorative laminates to wood, plywood, and particleboard. It provides a strong, bubble-free, and long-lasting adhesion, ensuring a perfect finish for furniture and interior surfaces.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol XPRES",
+    "short_code": "F-X",
+    "description": "Fevicol XPRES is an ultra-rapid setting adhesive formulated for projects demanding immediate adhesion and minimal clamping time. It provides exceptional grab and quick bond formation, significantly accelerating assembly processes in woodworking and general repairs.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol HEATX",
+    "short_code": "F-H",
+    "description": "Fevicol HEATX is a high-performance adhesive specifically designed to withstand extreme temperatures, ensuring robust bonding even in hot environments. It delivers excellent heat resistance and strong adhesion for laminates, wood, and other materials in high-temperature applications like kitchens and sun-facing furniture.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol SR 998",
+    "short_code": "F-S9",
+    "description": "Fevicol SR 998 is a premium synthetic rubber-based contact adhesive renowned for its superior bonding strength and versatility. It creates a durable and flexible bond across a wide range of materials including foam, leather, fabric, and rubber, making it ideal for automotive, upholstery, and footwear industries.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol GRIPPO",
+    "short_code": "F-G",
+    "description": "Fevicol GRIPPO is a heavy-duty adhesive known for its powerful initial grab and non-sagging properties, making it ideal for vertical and demanding applications. It provides a strong and reliable bond for various materials, including plywood, laminates, and decorative panels, preventing slippage during curing.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol FALCOBOND PLUS",
+    "short_code": "F-FP",
+    "description": "Fevicol FALCOBOND PLUS is a high-strength contact adhesive specifically formulated for robust bonding of PVC flooring, carpets, and rubber to various substrates. It offers excellent adhesion and durability, ensuring long-lasting installations in commercial and residential settings.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol PROBOND EDGELOK",
+    "short_code": "F-PE",
+    "description": "Fevicol PROBOND EDGELOK is a specialized adhesive designed for strong and seamless bonding of PVC, ABS, and veneer edge bands to particleboard and MDF. It ensures excellent adhesion and a clean finish, preventing peeling and enhancing the durability of furniture edges.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol BULBOND",
+    "short_code": "F-B",
+    "description": "Fevicol BULBOND is a heavy-duty synthetic resin adhesive engineered for robust bonding in large-scale industrial and construction applications. It provides exceptional strength and durability for substrates like wood, plywood, and laminates, ensuring long-lasting structural integrity.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol BULBOND XTRA",
+    "short_code": "F-BX",
+    "description": "Fevicol BULBOND XTRA is an advanced, high-performance synthetic resin adhesive offering superior strength and enhanced durability for demanding industrial applications. It delivers an exceptionally strong and long-lasting bond, excelling in heavy-duty woodworking and construction projects.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol MASTERLOK",
+    "short_code": "F-M",
+    "description": "Fevicol MASTERLOK is a premium quality synthetic resin adhesive designed for superior bonding in high-end furniture and exquisite woodworking. It ensures a powerful and lasting bond, providing excellent craftsmanship and durability for intricate designs and demanding applications.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol MASTERLOK XTRA",
+    "short_code": "F-MX",
+    "description": "Fevicol MASTERLOK XTRA is an ultra-premium adhesive offering unparalleled bond strength and durability for the most demanding and sophisticated woodworking projects. It provides exceptional performance for high-end furniture, ensuring lasting quality and aesthetic perfection.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol HI-PER",
+    "short_code": "F-H",
+    "description": "Fevicol HI-PER is a high-performance synthetic resin adhesive known for its rapid setting time and superior bond strength. It is engineered for efficiency and reliability in woodworking, delivering strong, durable joints in a shorter timeframe.",
+    "is_active": true
+  },
+  {
+    "product_name": "Fevicol HI-PER STAR",
+    "short_code": "F-HS",
+    "description": "Fevicol HI-PER STAR is an advanced, ultra-fast setting adhesive designed for exceptional speed and superior bond strength in professional woodworking. It dramatically reduces clamping time and provides an incredibly robust, durable bond for high-production environments.",
+    "is_active": true
+  }
+]

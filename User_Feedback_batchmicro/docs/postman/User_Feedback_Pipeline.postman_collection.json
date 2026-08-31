@@ -1,0 +1,274 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "User Feedback Pipeline",
+    "description": "Pidilite Pipeline Service endpoints.\n\nPipeline: ingest → batch → STT → translate → normalize → insights\n\nSet `baseUrl` to `http://localhost:8001` for local Docker Compose, or your Cloud Run URL for deployed environments.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8001"
+    },
+    {
+      "key": "jobId",
+      "value": ""
+    },
+    {
+      "key": "batchId",
+      "value": ""
+    },
+    {
+      "key": "gcsInputBucket",
+      "value": "pidilite-raw-audio"
+    },
+    {
+      "key": "gcsOutputBucket",
+      "value": "pidilite-processed-text"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness check. Returns `{ status: ok, service: pipeline }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Ingest",
+      "item": [
+        {
+          "name": "POST Ingest File (Eventarc GCS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.data && json.data.job_id) {",
+                  "    pm.collectionVariables.set('jobId', json.data.job_id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"audio/sample-conversation.mp3\",\n  \"bucket\": \"{{gcsInputBucket}}\",\n  \"contentType\": \"audio/mpeg\",\n  \"size\": \"1024000\",\n  \"md5Hash\": \"dGVzdC1oYXNo\",\n  \"timeCreated\": \"2026-07-22T04:00:00.000Z\",\n  \"metadata\": {\n    \"division\": \"Consumer\",\n    \"zone\": \"West\",\n    \"cluster\": \"Mumbai\",\n    \"rbdm_cluster\": \"\",\n    \"town_city\": \"Mumbai\",\n    \"tsi_territory_code\": \"T001\",\n    \"fme_code\": \"F001\",\n    \"tty_code\": \"\",\n    \"user_id\": \"user-123\",\n    \"user_type\": \"FME\",\n    \"data_source\": \"field_app\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/file",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "file"]
+            },
+            "description": "Eventarc GCS object.finalize payload.\n\nCreates a Job in PENDING status + FileDetails.\nIdempotent on duplicate `gcs_input_uri`.\n\nSaves `job_id` from the response into collection variable `jobId`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Batch",
+      "item": [
+        {
+          "name": "POST Start Batch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  if (json && json.data && json.data.batch_id) {",
+                  "    pm.collectionVariables.set('batchId', json.data.batch_id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/batch",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "batch"]
+            },
+            "description": "Cloud Scheduler entrypoint.\n\nPicks PENDING jobs (up to BATCH_SIZE), creates Batch, marks jobs BATCHED, enqueues Cloud Tasks to `/files/transcription`.\n\nIf no PENDING jobs: `{ batch_id: \"\", jobs_enqueued: 0 }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. STT",
+      "item": [
+        {
+          "name": "POST Submit Transcription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"{{jobId}}\",\n  \"gcs_input_uri\": \"gs://{{gcsInputBucket}}/audio/sample-conversation.mp3\",\n  \"gcs_output_uri_prefix\": \"gs://{{gcsOutputBucket}}/stt-output/{{jobId}}/\",\n  \"batch_id\": \"{{batchId}}\",\n  \"language_code\": \"en-IN\",\n  \"model\": \"latest_long\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/transcription",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "transcription"]
+            },
+            "description": "Cloud Tasks callback.\n\nSubmits Cloud Speech `long_running_recognize` for the job. Accepts job status BATCHED or ERROR.\n\nReplace `jobId` / URIs with values from ingest + batch if not auto-set."
+          },
+          "response": []
+        },
+        {
+          "name": "POST STT Complete (Eventarc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"stt-output/{{jobId}}/output.json\",\n  \"bucket\": \"{{gcsOutputBucket}}\",\n  \"contentType\": \"application/json\",\n  \"size\": \"4096\",\n  \"timeCreated\": \"2026-07-22T04:05:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/stt-complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "stt-complete"]
+            },
+            "description": "Eventarc when STT writes `stt-output/{job_id}/output.json`.\n\nMoves job to TRANSLATING and enqueues translate Cloud Task.\n\nActions: `enqueued_translate` | `skipped` | `enqueue_failed`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Translate",
+      "item": [
+        {
+          "name": "POST Translate Transcript",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"{{jobId}}\",\n  \"gcs_transcript_uri\": \"gs://{{gcsOutputBucket}}/stt-output/{{jobId}}/output.json\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/translate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "translate"]
+            },
+            "description": "Cloud Tasks callback.\n\nReads STT JSON from GCS, translates via Vertex/Gemini, writes ProcessedFile, enqueues post-processing.\n\nActions: `translated` | `skipped` | `failed` | `idempotent` | `enqueue_failed`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Post-processing / Insights",
+      "item": [
+        {
+          "name": "POST Post-Processing (Insights)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"job_id\": \"{{jobId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/files/post-processing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "files", "post-processing"]
+            },
+            "description": "Cloud Tasks callback.\n\nRuns Gemini insights against the product catalog and inserts Feedback rows (products, tags, competitors). Job → COMPLETED."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Checker",
+      "item": [
+        {
+          "name": "POST Checker Run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_jobs_to_check\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/checker/run",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "checker", "run"]
+            },
+            "description": "Recovery / ops endpoint (typically Cloud Scheduler).\n\nPolls stuck STT LROs, kicks missed translate/post-process, retries ERROR jobs (up to MAX_RETRY_COUNT), reconciles Batch status.\n\n`max_jobs_to_check`: 1–500 (default 50)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
