@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Judge Evaluation Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">AI Pipeline Audit Report</h1>
+            <p class="text-lg text-gray-600 mt-2">LLM-as-a-Judge Evaluation (Gemini 2.5 Pro / Flash)</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div class="glass p-6 rounded-2xl shadow-sm flex items-center justify-between">
+                <div>
+                    <h3 class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Average Score</h3>
+                    <p class="text-5xl font-black text-indigo-600 mt-1">8.6<span class="text-2xl text-gray-400">/10</span></p>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-2xl shadow-sm flex items-center justify-between">
+                <div>
+                    <h3 class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Transcripts Audited</h3>
+                    <p class="text-5xl font-black text-gray-800 mt-1">5</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Detailed Findings</h2>
+        <div class="space-y-8">
+
+            <div class="glass p-8 rounded-2xl shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">transcript_1.txt</h3>
+                    <span class="text-3xl font-black text-yellow-600">7/10</span>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div>
+                        <span class="font-semibold text-gray-900">Verdict:</span> The extraction is mostly correct but missed some product usage insights.
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-900 block mb-1">Reasoning:</span>
+                        <p class="text-sm leading-relaxed text-gray-600">The extraction correctly identified positive feedback for Fevicol X-Per and Fevikwik 463. It also correctly identified the usage of Fevicol SH, Fevicol Nail Free, and Fevicol RELAM. However, it missed extracting the usage of Fevicol SH in two instances and the usage of Fevicol Nail Free and Fevicol RELAM.</p>
+                    </div>
+                    
+            <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
+                <strong>Weakness:</strong> Missed several instances of product usage that could have been extracted as insights.
+            </div>
+                </div>
+            </div>
+        
+            <div class="glass p-8 rounded-2xl shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">transcript_2.txt</h3>
+                    <span class="text-3xl font-black text-green-600">9/10</span>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div>
+                        <span class="font-semibold text-gray-900">Verdict:</span> Excellent work. The extraction is precise, adheres to all guidelines, and effectively captures the relevant user feedback and product insights.
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-900 block mb-1">Reasoning:</span>
+                        <p class="text-sm leading-relaxed text-gray-600">The extraction is largely accurate, capturing key user feedback and product comparisons. The verbatim quotes are correctly attributed to the user, and the summaries accurately reflect the user's statements. The product names are correctly identified from the TSV. The FME's pitches and product introductions are correctly omitted from the insights, adhering to the hard rules. The bonus query from the user is also correctly captured as an insight.</p>
+                    </div>
+                    
+            <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
+                <strong>Weakness:</strong> There are no significant weaknesses. All hard rules were followed, and the extraction is comprehensive and accurate.
+            </div>
+                </div>
+            </div>
+        
+            <div class="glass p-8 rounded-2xl shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">transcript_3.txt</h3>
+                    <span class="text-3xl font-black text-green-600">9/10</span>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div>
+                        <span class="font-semibold text-gray-900">Verdict:</span> Excellent
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-900 block mb-1">Reasoning:</span>
+                        <p class="text-sm leading-relaxed text-gray-600">The extraction is very good. All quotes are from the user and accurately reflect their feedback. The summaries are concise and correct. Product names are correctly identified or left null when the user is asking for a new product. There are no FME quotes or usage-only rows. The tags are appropriate.</p>
+                    </div>
+                    
+            <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
+                <strong>Weakness:</strong> The only minor point is that the first three insights are very similar, all stemming from the same core issue with Fevicol HI-PER STAR's drying time. While technically distinct quotes, they could potentially be consolidated into a single, more comprehensive insight about the product's drying issue and the client's preference for Fevicol HI-PER.
+            </div>
+                </div>
+            </div>
+        
+            <div class="glass p-8 rounded-2xl shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">transcript_4.txt</h3>
+                    <span class="text-3xl font-black text-green-600">9/10</span>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div>
+                        <span class="font-semibold text-gray-900">Verdict:</span> Excellent extraction, very close to perfect.
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-900 block mb-1">Reasoning:</span>
+                        <p class="text-sm leading-relaxed text-gray-600">The extraction is very good. All verbatim quotes are from the user, and the summaries accurately reflect the user's feedback. There are no FME pitches or usage-only rows. Product names are correctly mapped. The tags are appropriate for the content.</p>
+                    </div>
+                    
+            <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
+                <strong>Weakness:</strong> There are no significant weaknesses. The extraction is comprehensive and accurate.
+            </div>
+                </div>
+            </div>
+        
+            <div class="glass p-8 rounded-2xl shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">transcript_5.txt</h3>
+                    <span class="text-3xl font-black text-green-600">9/10</span>
+                </div>
+                <div class="space-y-4 text-gray-700">
+                    <div>
+                        <span class="font-semibold text-gray-900">Verdict:</span> Excellent work. The extraction is highly accurate and adheres to all guidelines.
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-900 block mb-1">Reasoning:</span>
+                        <p class="text-sm leading-relaxed text-gray-600">The extraction is very good, capturing all relevant insights and correctly identifying competitors and product names. The summaries are accurate and concise. The hard rules are followed, with all verbatim quotes attributed to the User and no FME pitches or usage-only rows treated as insights.</p>
+                    </div>
+                    
+            <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
+                <strong>Weakness:</strong> The only minor point is that the product name 'Fevicol HI-PER' was inferred from 'HI-PER type product' in the first insight, which is a good inference but not a direct quote of the product name by the user in that specific instance. However, the user did mention 'Fevicol HI-PER STAR' earlier, so the FME's follow-up question about 'HI-PER type product' makes sense in context.
+            </div>
+                </div>
+            </div>
+        
+        </div>
+    </div>
+</body>
+</html>

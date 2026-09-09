@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import type {
+    FilterOptions,
     ReportConversationResponse,
     ReportDetailsResponse,
     ReportFilters,
@@ -14,6 +15,15 @@ function buildQuery(params: Record<string, unknown>): string {
         searchParams.append(key, String(value));
     });
     return searchParams.toString();
+}
+
+export async function fetchReportFilterOptions(
+    params: Pick<ReportFilters, "division" | "zone" | "cluster"> = {},
+): Promise<{ success: boolean; data?: FilterOptions }> {
+    const qs = buildQuery(params);
+    const res = await apiFetch(`/api/v1/reports/filter-options${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw new Error("Failed to fetch report filter options");
+    return res.json();
 }
 
 export async function fetchReportSummary(

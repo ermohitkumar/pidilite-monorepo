@@ -40,6 +40,16 @@ def test_audio_locator_rejects_bucket_outside_allowlist(client: TestClient, crea
     assert resp.status_code == 403
 
 
+def test_report_filter_options_without_fact_view(client: TestClient):
+    resp = client.get("/api/v1/reports/filter-options")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert "divisions" in body["data"]
+    assert "products" in body["data"]
+    assert "fme_codes" in body["data"]
+
+
 def test_report_summary_missing_view_returns_empty(client: TestClient):
     resp = client.get("/api/v1/reports/summary", params={"feedback_group": "PDT GROUP"})
     assert resp.status_code == 200

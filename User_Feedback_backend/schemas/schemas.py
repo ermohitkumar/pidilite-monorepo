@@ -531,6 +531,7 @@ class FeedbackFactFilterOptions(BaseModel):
     divisions: List[str] = []
     zones: List[str] = []
     clusters: List[str] = []
+    rfmm_clusters: List[str] = []
     states: List[str] = []
     products: List[str] = []
     data_sources: List[str] = []

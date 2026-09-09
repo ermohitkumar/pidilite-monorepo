@@ -51,6 +51,7 @@ export type FilterOptions = {
     divisions: string[];
     zones: string[];
     clusters: string[];
+    rfmm_clusters?: string[];
     states: string[];
     products: string[];
     data_sources: string[];

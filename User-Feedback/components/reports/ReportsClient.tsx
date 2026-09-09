@@ -12,8 +12,7 @@ import { exportMatrixCsv, ReportTable } from "@/components/reports/ReportTable";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
-import { useProducts } from "@/lib/hooks/catalog";
-import { useReportConversation, useReportSummary } from "@/lib/hooks/reports";
+import { useReportConversation, useReportFilterOptions, useReportSummary } from "@/lib/hooks/reports";
 import { buildTagMatrixFromSummary, columnsForOverview } from "@/lib/reports/build";
 import { isFullConversationTitle, parseConversationTurns } from "@/lib/reports/conversation";
 import { datesForPeriod, defaultPeriod, type PeriodKind, type PeriodState } from "@/lib/reports/period";
@@ -32,7 +31,6 @@ const PERIOD_TABS: { id: PeriodKind; label: string }[] = [
     { id: "month", label: "Monthly" },
     { id: "quarter", label: "Quarterly" },
     { id: "year", label: "Year" },
-    { id: "range", label: "Date range" },
 ];
 
 const QUARTER_OPTIONS = [
@@ -46,6 +44,7 @@ const EMPTY_FILTERS: FilterOptions = {
     divisions: [],
     zones: [],
     clusters: [],
+    rfmm_clusters: [],
     states: [],
     products: [],
     data_sources: [],
@@ -61,6 +60,21 @@ function applySelect(prev: ReportFilters, key: keyof ReportFilters, value: strin
     const next = { ...prev };
     if (!value || value === "ALL") delete next[key];
     else (next as Record<string, unknown>)[key] = value;
+    return next;
+}
+
+function applyLinkedSelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
+    const next = applySelect(prev, key, value);
+    if (key === "division") {
+        delete next.zone;
+        delete next.cluster;
+        delete next.fme_code;
+    } else if (key === "zone") {
+        delete next.cluster;
+        delete next.fme_code;
+    } else if (key === "cluster") {
+        delete next.fme_code;
+    }
     return next;
 }
 
@@ -91,7 +105,7 @@ export default function ReportsClient() {
         jobId?: string;
     } | null>(null);
     const [showFilters, setShowFilters] = useState(true);
-    const [period, setPeriod] = useState<PeriodState>(defaultPeriod("range"));
+    const [period, setPeriod] = useState<PeriodState>(defaultPeriod("month"));
 
     const appliedFilters = useMemo(
         () => ({ ...filters, feedback_group: group }),
@@ -100,17 +114,30 @@ export default function ReportsClient() {
 
     const { data, isLoading, isFetching } = useReportSummary(appliedFilters);
     const conversationQuery = useReportConversation(textModal?.feedbackId, textModal?.jobId);
-    const catalogProducts = useProducts();
+    const filterQuery = useReportFilterOptions({
+        division: draft.division,
+        zone: draft.zone,
+        cluster: draft.cluster,
+    });
 
-    const filterOptions = data?.data?.filter_options || EMPTY_FILTERS;
+    const linkedOptions = filterQuery.data?.data;
+    const summaryOptions = data?.data?.filter_options;
+    const geoScoped = Boolean(draft.division || draft.zone || draft.cluster);
+    const filterOptions: FilterOptions = {
+        ...EMPTY_FILTERS,
+        ...summaryOptions,
+        ...linkedOptions,
+    };
+    if (geoScoped) {
+        filterOptions.clusters = linkedOptions?.rfmm_clusters ?? linkedOptions?.clusters ?? [];
+        filterOptions.rfmm_clusters = filterOptions.clusters;
+        filterOptions.fme_codes = linkedOptions?.fme_codes ?? [];
+    }
     const source = data?.data?.source;
-    const productOptions = useMemo(() => {
-        const names = new Set<string>();
-        for (const row of catalogProducts.data?.data || []) {
-            if (row.product_name && row.is_active !== false) names.add(row.product_name);
-        }
-        return [...names].sort((a, b) => a.localeCompare(b));
-    }, [catalogProducts.data]);
+    const rfmmOptions = filterOptions.rfmm_clusters?.length
+        ? filterOptions.rfmm_clusters
+        : filterOptions.clusters;
+    const productOptions = filterOptions.products || [];
 
     const rows = useMemo(
         () =>
@@ -137,7 +164,7 @@ export default function ReportsClient() {
         setDraft({});
         setFilters({});
         setSearch("");
-        setPeriod(defaultPeriod("range"));
+        setPeriod(defaultPeriod("month"));
         setDrill(null);
     };
     const selectPeriod = (kind: PeriodKind) => {
@@ -247,7 +274,7 @@ export default function ReportsClient() {
                             <Select
                                 className="mt-1"
                                 value={draft.division || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "division", value))}
+                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "division", value))}
                                 options={withAll(filterOptions.divisions)}
                             />
                         </div>
@@ -256,17 +283,28 @@ export default function ReportsClient() {
                             <Select
                                 className="mt-1"
                                 value={draft.zone || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "zone", value))}
+                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "zone", value))}
                                 options={withAll(filterOptions.zones)}
                             />
                         </div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            Cluster
+                            RFMM Cluster
                             <Select
+                                key={`rfmm-${draft.division || "all"}-${draft.zone || "all"}`}
                                 className="mt-1"
                                 value={draft.cluster || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "cluster", value))}
-                                options={withAll(filterOptions.clusters)}
+                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
+                                options={withAll(rfmmOptions)}
+                            />
+                        </div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            FME
+                            <Select
+                                key={`fme-${draft.division || "all"}-${draft.zone || "all"}-${draft.cluster || "all"}`}
+                                className="mt-1"
+                                value={draft.fme_code || "ALL"}
+                                onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
+                                options={withAll(filterOptions.fme_codes || [])}
                             />
                         </div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
@@ -279,30 +317,12 @@ export default function ReportsClient() {
                             />
                         </div>
                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            FME
-                            <Select
-                                className="mt-1"
-                                value={draft.fme_code || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
-                                options={withAll(filterOptions.fme_codes || [])}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
                             User type
                             <Select
                                 className="mt-1"
                                 value={draft.user_type || "ALL"}
                                 onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
                                 options={withAll(filterOptions.user_types || [])}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            Data source
-                            <Select
-                                className="mt-1"
-                                value={draft.data_source || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "data_source", value))}
-                                options={withAll(filterOptions.data_sources)}
                             />
                         </div>
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
@@ -348,28 +368,6 @@ export default function ReportsClient() {
                                     options={QUARTER_OPTIONS}
                                 />
                             </label>
-                        ) : null}
-                        {period.kind === "range" ? (
-                            <>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                    Start date
-                                    <input
-                                        type="date"
-                                        value={period.start_date || ""}
-                                        onChange={(e) => updatePeriod({ start_date: e.target.value })}
-                                        className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
-                                    />
-                                </label>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                    End date
-                                    <input
-                                        type="date"
-                                        value={period.end_date || ""}
-                                        onChange={(e) => updatePeriod({ end_date: e.target.value })}
-                                        className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
-                                    />
-                                </label>
-                            </>
                         ) : null}
                         <div>
                             <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">

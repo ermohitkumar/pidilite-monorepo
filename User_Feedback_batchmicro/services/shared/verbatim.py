@@ -7,6 +7,42 @@ _SPEAKER_LABEL_RE = re.compile(
     r"^(Speaker\s+\d+|FME|User|Dealer|Customer|Contractor|Carpenter)\s*[:\-–—]\s*",
     re.IGNORECASE,
 )
+_PREFERRED_ROLE_RE = re.compile(
+    r"^(User|Dealer|Customer|Contractor|Carpenter|Speaker\s*2)$",
+    re.IGNORECASE,
+)
+_FME_ROLE_RE = re.compile(r"^(FME|Speaker\s*1)$", re.IGNORECASE)
+_ANY_ROLE_RE = re.compile(
+    r"(Speaker\s+\d+|FME|User|Dealer|Customer|Contractor|Carpenter)\s*[:\-–—]\s*",
+    re.IGNORECASE,
+)
+
+
+def _role_before(source: str, index: int) -> str:
+    matches = list(_ANY_ROLE_RE.finditer(source[: max(index, 0)]))
+    if not matches:
+        return ""
+    return matches[-1].group(1)
+
+
+def _hit_score(role: str) -> int:
+    if _PREFERRED_ROLE_RE.match(role or ""):
+        return 2
+    if _FME_ROLE_RE.match(role or ""):
+        return 0
+    return 1
+
+
+def _all_exact_hits(haystack: str, needle: str) -> list[int]:
+    hits: list[int] = []
+    start = 0
+    while needle and start <= len(haystack):
+        at = haystack.find(needle, start)
+        if at < 0:
+            break
+        hits.append(at)
+        start = at + 1
+    return hits
 
 
 def _fold_char(ch: str) -> str:
@@ -61,6 +97,21 @@ def _expand_to_sentences(text: str, start: int, end: int) -> tuple[int, int]:
     return start, end
 
 
+def _trim_to_one_turn(source: str, start: int, end: int) -> tuple[int, int]:
+    """Do not let sentence expansion swallow the next speaker's turn."""
+    body = source[start:end]
+    skip = 0
+    labeled = _SPEAKER_LABEL_RE.match(body)
+    if labeled:
+        skip = labeled.end()
+    nxt = _ANY_ROLE_RE.search(body[skip:])
+    if nxt:
+        end = start + skip + nxt.start()
+        while end > start and source[end - 1].isspace():
+            end -= 1
+    return start, end
+
+
 def snap_verbatim_quote_to_transcript(quote: str | None, transcript: str | None) -> str:
     """Return the exact transcript slice the quote refers to.
 
@@ -78,11 +129,19 @@ def snap_verbatim_quote_to_transcript(quote: str | None, transcript: str | None)
     if not quote_fold or not source_fold:
         return quote_text
 
-    exact_at = source_fold.find(quote_fold)
-    if exact_at >= 0:
-        start = source_map[exact_at]
-        end = source_map[exact_at + len(quote_fold) - 1] + 1
-        start, end = _expand_to_sentences(source, start, end)
+    exact_hits = _all_exact_hits(source_fold, quote_fold)
+    if exact_hits:
+        scored = []
+        for exact_at in exact_hits:
+            raw_start = source_map[exact_at]
+            role = _role_before(source, raw_start)
+            start = raw_start
+            end = source_map[exact_at + len(quote_fold) - 1] + 1
+            start, end = _expand_to_sentences(source, start, end)
+            start, end = _trim_to_one_turn(source, start, end)
+            scored.append((_hit_score(role), start, end))
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        _, start, end = scored[0]
         return _SPEAKER_LABEL_RE.sub("", source[start:end]).strip()
 
     needle = [word for word in quote_fold.split(" ") if word]
@@ -125,5 +184,6 @@ def snap_verbatim_quote_to_transcript(quote: str | None, transcript: str | None)
     start = source_map[first[1]]
     end = source_map[last[2] - 1] + 1
     start, end = _expand_to_sentences(source, start, end)
+    start, end = _trim_to_one_turn(source, start, end)
     snapped = _SPEAKER_LABEL_RE.sub("", source[start:end]).strip()
     return snapped or quote_text

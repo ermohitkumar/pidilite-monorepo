@@ -39,6 +39,7 @@ _EMPTY_FILTERS = {
     "divisions": [],
     "zones": [],
     "clusters": [],
+    "rfmm_clusters": [],
     "states": [],
     "products": [],
     "data_sources": [],
@@ -189,6 +190,37 @@ def _filters(
     )
 
 
+@router.get("/filter-options")
+def get_report_filter_options(
+    db: DbSession,
+    division: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    cluster: Optional[str] = Query(None),
+):
+    """Linked dropdowns from vw_filter_hierarchy / vw_filter_options."""
+    fact = None
+    try:
+        fact = report_repo.fact_table(db)
+    except report_repo.MissingFactView:
+        fact = None
+    try:
+        options = report_repo.filter_options(
+            db, fact, division=division, zone=zone, cluster=cluster,
+        )
+    except Exception:
+        logger.exception("Failed to retrieve report filter options")
+        raise APIException(
+            status_code=500,
+            message="Failed to retrieve report filter options",
+            error="Internal Error",
+        )
+    return make_response(
+        success=True,
+        message="Report filter options retrieved successfully",
+        data=options,
+    )
+
+
 @router.get("/summary")
 def get_report_summary(
     db: DbSession,
@@ -218,7 +250,9 @@ def get_report_summary(
             fme_code=fme_code, user_type=user_type,
         )
         counts = report_repo.summary_counts(db, fact, where_sql, params)
-        options = report_repo.filter_options(db, fact)
+        options = report_repo.filter_options(
+            db, fact, division=division, zone=zone, cluster=cluster,
+        )
     except report_repo.MissingFactView as exc:
         logger.warning("report summary view missing: %s", exc)
         return _unavailable(extra=empty)
@@ -420,7 +454,9 @@ def get_feedback_fact(
         rows, total = report_repo.fetch_feedback_fact(
             db, where_sql, params, select_columns, order_sql,
         )
-        options = report_repo.filter_options(db, report_repo.FAT_VIEW)
+        options = report_repo.filter_options(
+            db, report_repo.FAT_VIEW, division=division, zone=zone, cluster=cluster,
+        )
     except report_repo.MissingFactView as exc:
         logger.warning("feedback fact view missing: %s", exc)
         return make_response(

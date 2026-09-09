@@ -1,12 +1,10 @@
-export type PeriodKind = "month" | "quarter" | "year" | "range";
+export type PeriodKind = "month" | "quarter" | "year";
 
 export type PeriodState = {
     kind: PeriodKind;
     month?: string;
     quarter?: string;
     year?: string;
-    start_date?: string;
-    end_date?: string;
 };
 
 function pad(value: number): string {
@@ -34,13 +32,6 @@ function lastDayOfMonth(year: number, monthIndex: number): Date {
 }
 
 export function datesForPeriod(period: PeriodState, now = new Date()): { start_date?: string; end_date?: string } {
-    if (period.kind === "range") {
-        return {
-            start_date: period.start_date || undefined,
-            end_date: period.end_date || undefined,
-        };
-    }
-
     if (period.kind === "month") {
         const value = period.month || currentMonthValue(now);
         const [yearText, monthText] = value.split("-");
@@ -70,10 +61,9 @@ export function datesForPeriod(period: PeriodState, now = new Date()): { start_d
 }
 
 export function defaultPeriod(kind: PeriodKind, now = new Date()): PeriodState {
-    if (kind === "month") return { kind, month: currentMonthValue(now) };
     if (kind === "quarter") {
         return { kind, year: currentYearValue(now), quarter: currentQuarterValue(now) };
     }
     if (kind === "year") return { kind, year: currentYearValue(now) };
-    return { kind, start_date: "", end_date: "" };
+    return { kind: "month", month: currentMonthValue(now) };
 }

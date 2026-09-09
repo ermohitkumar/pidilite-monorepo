@@ -2,10 +2,38 @@ import { useQuery } from "@tanstack/react-query";
 import {
     fetchReportConversation,
     fetchReportDetails,
+    fetchReportFilterOptions,
     fetchReportProducts,
     fetchReportSummary,
 } from "@/lib/api/reports";
 import type { ReportFilters } from "@/lib/reports/types";
+
+export function useReportFilterOptions(filters: Pick<ReportFilters, "division" | "zone" | "cluster">) {
+    return useQuery({
+        queryKey: ["reportFilterOptions", filters.division, filters.zone, filters.cluster],
+        queryFn: () => fetchReportFilterOptions(filters),
+        staleTime: 60_000,
+        retry: 1,
+        placeholderData: (previousData, previousQuery) => {
+            if (!previousData?.data) return previousData;
+            const prevKey = previousQuery?.queryKey ?? [];
+            const divisionChanged = prevKey[1] !== filters.division;
+            const zoneChanged = prevKey[2] !== filters.zone;
+            const clusterChanged = prevKey[3] !== filters.cluster;
+            if (!divisionChanged && !zoneChanged && !clusterChanged) return previousData;
+            return {
+                ...previousData,
+                data: {
+                    ...previousData.data,
+                    ...(divisionChanged || zoneChanged
+                        ? { clusters: [], rfmm_clusters: [], fme_codes: [] }
+                        : {}),
+                    ...(clusterChanged ? { fme_codes: [] } : {}),
+                },
+            };
+        },
+    });
+}
 
 export function useReportSummary(filters: ReportFilters) {
     return useQuery({

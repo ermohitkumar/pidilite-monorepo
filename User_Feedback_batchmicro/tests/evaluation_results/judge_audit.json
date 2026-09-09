@@ -1,0 +1,72 @@
+[
+  {
+    "file": "transcript_1.txt",
+    "evaluation": {
+      "score": 7,
+      "reasoning": "The extraction correctly identified positive feedback for Fevicol X-Per and Fevikwik 463. It also correctly identified the usage of Fevicol SH, Fevicol Nail Free, and Fevicol RELAM. However, it missed extracting the usage of Fevicol SH in two instances and the usage of Fevicol Nail Free and Fevicol RELAM.",
+      "weakness": "Missed several instances of product usage that could have been extracted as insights.",
+      "verdict": "The extraction is mostly correct but missed some product usage insights."
+    },
+    "tokens_used": {
+      "input": 2967,
+      "output": 128,
+      "total": 3095
+    }
+  },
+  {
+    "file": "transcript_2.txt",
+    "evaluation": {
+      "score": 9,
+      "reasoning": "The extraction is largely accurate, capturing key user feedback and product comparisons. The verbatim quotes are correctly attributed to the user, and the summaries accurately reflect the user's statements. The product names are correctly identified from the TSV. The FME's pitches and product introductions are correctly omitted from the insights, adhering to the hard rules. The bonus query from the user is also correctly captured as an insight.",
+      "weakness": "There are no significant weaknesses. All hard rules were followed, and the extraction is comprehensive and accurate.",
+      "verdict": "Excellent work. The extraction is precise, adheres to all guidelines, and effectively captures the relevant user feedback and product insights."
+    },
+    "tokens_used": {
+      "input": 5264,
+      "output": 158,
+      "total": 5422
+    }
+  },
+  {
+    "file": "transcript_3.txt",
+    "evaluation": {
+      "score": 9,
+      "reasoning": "The extraction is very good. All quotes are from the user and accurately reflect their feedback. The summaries are concise and correct. Product names are correctly identified or left null when the user is asking for a new product. There are no FME quotes or usage-only rows. The tags are appropriate.",
+      "weakness": "The only minor point is that the first three insights are very similar, all stemming from the same core issue with Fevicol HI-PER STAR's drying time. While technically distinct quotes, they could potentially be consolidated into a single, more comprehensive insight about the product's drying issue and the client's preference for Fevicol HI-PER.",
+      "verdict": "Excellent"
+    },
+    "tokens_used": {
+      "input": 4383,
+      "output": 166,
+      "total": 4549
+    }
+  },
+  {
+    "file": "transcript_4.txt",
+    "evaluation": {
+      "score": 9,
+      "reasoning": "The extraction is very good. All verbatim quotes are from the user, and the summaries accurately reflect the user's feedback. There are no FME pitches or usage-only rows. Product names are correctly mapped. The tags are appropriate for the content.",
+      "weakness": "There are no significant weaknesses. The extraction is comprehensive and accurate.",
+      "verdict": "Excellent extraction, very close to perfect."
+    },
+    "tokens_used": {
+      "input": 5802,
+      "output": 104,
+      "total": 5906
+    }
+  },
+  {
+    "file": "transcript_5.txt",
+    "evaluation": {
+      "score": 9,
+      "reasoning": "The extraction is very good, capturing all relevant insights and correctly identifying competitors and product names. The summaries are accurate and concise. The hard rules are followed, with all verbatim quotes attributed to the User and no FME pitches or usage-only rows treated as insights.",
+      "weakness": "The only minor point is that the product name 'Fevicol HI-PER' was inferred from 'HI-PER type product' in the first insight, which is a good inference but not a direct quote of the product name by the user in that specific instance. However, the user did mention 'Fevicol HI-PER STAR' earlier, so the FME's follow-up question about 'HI-PER type product' makes sense in context.",
+      "verdict": "Excellent work. The extraction is highly accurate and adheres to all guidelines."
+    },
+    "tokens_used": {
+      "input": 6450,
+      "output": 193,
+      "total": 6643
+    }
+  }
+]

@@ -7,6 +7,8 @@ import json
 import pytest
 from unittest.mock import patch
 
+from datetime import datetime, timezone
+
 from core.enums import JobStatus, BatchStatus
 from db.models import Job, ProcessedFile, Feedback, Product
 
@@ -63,6 +65,34 @@ class TestIngest:
         assert resp2.status_code == 200
         assert resp2.json()["data"]["job_id"] == job_id
         assert "already ingested" in resp2.json()["message"].lower()
+
+    def test_ingest_webm_octet_stream_stores_audio_mime(self, client, db_session):
+        payload = {
+            **self.PAYLOAD,
+            "name": "sitelead/visit.webm",
+            "contentType": "application/octet-stream",
+            "selfLink": "https://www.googleapis.com/storage/v1/b/input-bucket/o/sitelead/visit.webm",
+            "mediaLink": "https://www.googleapis.com/download/storage/v1/b/input-bucket/o/sitelead/visit.webm?alt=media",
+        }
+        resp = client.post("/api/v1/file", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"]["status"] == "PENDING"
+        job = db_session.get(Job, body["data"]["job_id"])
+        assert job.file_details.file_extension == "webm"
+        assert job.file_details.mime_type == "audio/webm"
+
+    def test_ingest_stores_gcs_time_created(self, client, db_session):
+        resp = client.post("/api/v1/file", json=self.PAYLOAD)
+        assert resp.status_code == 200
+        job = db_session.get(Job, resp.json()["data"]["job_id"])
+        uploaded = job.file_details.file_uploaded_at
+        assert uploaded is not None
+        if uploaded.tzinfo is None:
+            uploaded = uploaded.replace(tzinfo=timezone.utc)
+        expected = datetime(2026, 4, 30, 11, 18, 45, 123000, tzinfo=timezone.utc)
+        assert uploaded == expected
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -147,6 +177,30 @@ class TestSTTSubmit:
         assert kwargs["language_code"] == "hi-IN"
         assert kwargs["model"] == "latest_long"
         assert mock_speech_client.call_args.args[0] == job.gcs_input_uri
+
+    def test_stt_submit_accepts_webm_octet_stream(
+        self, client, create_test_job, mock_speech_client, db_session
+    ):
+        job = create_test_job(
+            status=JobStatus.BATCHED,
+            gcs_input_uri="gs://input-bucket/field/visit.webm",
+            file_name="visit.webm",
+        )
+        job.file_details.file_extension = "webm"
+        job.file_details.mime_type = "application/octet-stream"
+        db_session.commit()
+
+        payload = {
+            "job_id": job.id,
+            "gcs_input_uri": job.gcs_input_uri,
+            "gcs_output_uri_prefix": f"gs://output-bucket/stt-output/{job.id}/",
+        }
+        resp = client.post("/api/v1/files/transcription", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"]["status"] == "STT_SUBMITTED"
+        mock_speech_client.assert_called_once()
 
     def test_stt_submit_job_not_found(self, client, mock_speech_client):
         payload = {

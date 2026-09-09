@@ -7,6 +7,7 @@ and creates a new Job + FileDetails record in Cloud SQL with status PENDING.
 import logging
 import os
 import re
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from repositories import batch_repository
 from db.models import Job, FileDetails, FailedJob
 from core.enums import JobStatus
 from schemas.schemas import GCSObjectPayload, IngestResponseData
+from services.shared.stt_config import resolved_audio_mime
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,21 @@ def _extract_bucket_from_selflink(self_link: str | None) -> str:
         if match:
             return match.group(1)
     return settings.GCS_INPUT_BUCKET
+
+
+def _parse_gcs_time(value: str | None) -> datetime | None:
+    """Parse GCS object timeCreated / updated (RFC3339, often with Z)."""
+    if not value or not str(value).strip():
+        return None
+    raw = str(value).strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        logger.warning("Ignoring unparseable GCS timestamp: %s", value)
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 @router.post("/file", summary="Register a new uploaded file", status_code=status.HTTP_200_OK)
 def ingest_file(
@@ -63,8 +80,6 @@ def ingest_file(
     custom_meta = payload.metadata or {}
 
     # ── File Validation ──
-    # Supported audio/video extensions (zip is explicitly excluded)
-    # Supported audio/video extensions (zip is explicitly excluded)
     ALLOWED_EXTENSIONS = {"webm", "mp3", "wav", "ogg"}
 
     if extension not in ALLOWED_EXTENSIONS:
@@ -73,10 +88,15 @@ def ingest_file(
 
     file_details = FileDetails(
         file_name=file_name,
-        mime_type=payload.contentType or "audio/mpeg",
+        mime_type=resolved_audio_mime(extension, payload.contentType),
         file_size_bytes=payload.size,
         file_extension=extension,
         checksum_sha256=payload.md5Hash,
+        file_uploaded_at=(
+            _parse_gcs_time(payload.timeCreated)
+            or _parse_gcs_time(payload.updated)
+            or datetime.now(timezone.utc)
+        ),
         state=custom_meta.get("state"),
         division=custom_meta.get("division"),
         zone=custom_meta.get("zone"),

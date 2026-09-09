@@ -41,3 +41,13 @@ def test_v1_models_map_to_telephony():
     assert resolve_v2_model(None) == "telephony"
     assert resolve_v2_model("telephony") == "telephony"
     assert resolve_v2_model("chirp_2") == "chirp_2"
+
+
+def test_webm_octet_stream_resolves_to_audio_webm():
+    from services.shared.stt_config import is_audio_media, resolved_audio_mime
+
+    assert resolved_audio_mime("webm", "application/octet-stream") == "audio/webm"
+    assert resolved_audio_mime("webm", None) == "audio/webm"
+    assert is_audio_media("webm", "application/octet-stream") is True
+    assert resolved_audio_mime("webm", "video/webm") == "video/webm"
+    assert is_audio_media("json", "application/octet-stream") is False

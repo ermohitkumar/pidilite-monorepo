@@ -20,3 +20,4 @@ test_files/
 .db-dumps/
 scratch/
 samples/
+scripts/

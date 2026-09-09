@@ -12,7 +12,7 @@ import re
 from core.config import settings
 from core.exceptions import STTGeminiTransientError, STTInvalidArgumentError
 from services.shared.gcs_paths import build_stt_output_gcs_uri
-from services.shared.stt_config import file_extension
+from services.shared.stt_config import file_extension, resolved_audio_mime
 from services.shared.speakers import is_collapsed_speaker_transcript
 from services.shared.vertex_ai import (
     VertexRestAdapter,
@@ -34,20 +34,6 @@ GEMINI_FLASH_OP_PREFIX = "gemini-flash:"
 GEMINI_STT_MAX_ATTEMPTS = 3
 GEMINI_STT_MAX_OUTPUT_TOKENS = 65536
 GEMINI_STT_PROVIDER = "gemini_flash"
-
-_MIME_BY_EXT = {
-    "mp3": "audio/mpeg",
-    "mpeg": "audio/mpeg",
-    "wav": "audio/wav",
-    "webm": "audio/webm",
-    "weba": "audio/webm",
-    "m4a": "audio/mp4",
-    "mp4": "audio/mp4",
-    "ogg": "audio/ogg",
-    "opus": "audio/ogg",
-    "flac": "audio/flac",
-    "amr": "audio/amr",
-}
 
 _TRANSCRIBE_PROMPT = """Transcribe this field-visit audio in the spoken language(s).
 
@@ -77,8 +63,7 @@ def is_last_flash_attempt(retry_count: int) -> bool:
 
 
 def mime_type_for_audio(gcs_uri: str, source_hint: str | None = None) -> str:
-    ext = file_extension(gcs_uri, source_hint)
-    return _MIME_BY_EXT.get(ext, "audio/mpeg")
+    return resolved_audio_mime(file_extension(gcs_uri, source_hint))
 
 
 def gemini_stt_output_uri(job_id: str) -> str:

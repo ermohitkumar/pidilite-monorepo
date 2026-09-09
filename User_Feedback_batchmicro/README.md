@@ -199,7 +199,7 @@ poetry run python tests/test_evaluate_pipeline.py
 | [docs/architecture-change-gemini-flash-stt.md](docs/architecture-change-gemini-flash-stt.md) | ACR: optional Gemini Flash STT (async queue, v2 fallback, 2-week plan) |
 | [docs/filter-master-db-2week-plan.md](docs/filter-master-db-2week-plan.md) | 1–14 Sep 2026: filters + product master from Postgres (`Sample Data.xlsx`) |
 | [docs/prod-gcp-access.md](docs/prod-gcp-access.md) | Prod GCP IAM: services, roles, scope |
-| [docs/infra-questionnaire.md](docs/infra-questionnaire.md) | Pidilite infra form: **Production only** (UAT already exists) |
+| [docs/questions-for-pidilite.md](docs/questions-for-pidilite.md) | Open questions Pidilite must answer (prod + filters) |
 | [docs/site-visit-dw-integration-plan.md](docs/site-visit-dw-integration-plan.md) | Site visit → Azure warehouse filters (website vs Power BI) |
 | [docs/site-visit-dw-estimation.md](docs/site-visit-dw-estimation.md) | 2.5-week hour estimate (backend, UI / Power BI, DevOps, testing, docs) |
 | [docs/postman/User_Feedback_Pipeline.postman_collection.json](docs/postman/User_Feedback_Pipeline.postman_collection.json) | Postman collection for all endpoints |

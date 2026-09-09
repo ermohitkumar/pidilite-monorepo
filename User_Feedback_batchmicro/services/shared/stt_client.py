@@ -55,7 +55,11 @@ def recognizer_path() -> str:
 
 
 def build_recognition_config(language_code: str, model: str | None = None):
-    """v2 config: auto-detect container, telephony model, no diarization."""
+    """v2 config: auto-detect container, telephony model, no diarization.
+
+    asia-south1 telephony rejects features.diarization_config
+    (Recognizer does not support feature: speaker_diarization).
+    """
     resolved = resolve_v2_model(model)
     primary = (language_code or "hi-IN").strip() or "hi-IN"
     # asia-south1 telephony rejects en-IN (and other pool alts). Keep primary only.

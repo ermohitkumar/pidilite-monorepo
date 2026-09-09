@@ -35,7 +35,10 @@ TARGET_PRODUCTS = [
     "Fevicol MASTERLOK",
     "Fevicol MASTERLOK XTRA",
     "Fevicol HI-PER",
-    "Fevicol HI-PER STAR"
+    "Fevicol HI-PER STAR",
+    "Fevikwik 463",
+    "Fevicol Nail Free",
+    "Fevicol Terminator",
 ]
 
 def generate_short_code(product_name: str) -> str:

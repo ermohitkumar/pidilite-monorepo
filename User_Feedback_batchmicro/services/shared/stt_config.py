@@ -39,6 +39,27 @@ _ENCODING_BY_EXT: dict[str, tuple[str | None, int | None]] = {
     "flac": (None, None),
 }
 
+# Sitelead / GCS often omit Content-Type, so objects land as octet-stream.
+_GENERIC_MIMES = frozenset({
+    "",
+    "application/octet-stream",
+    "binary/octet-stream",
+    "application/binary",
+})
+_MIME_BY_EXT: dict[str, str] = {
+    "webm": "audio/webm",
+    "weba": "audio/webm",
+    "ogg": "audio/ogg",
+    "opus": "audio/ogg",
+    "mp3": "audio/mpeg",
+    "mpeg": "audio/mpeg",
+    "wav": "audio/wav",
+    "flac": "audio/flac",
+    "m4a": "audio/mp4",
+    "mp4": "audio/mp4",
+    "amr": "audio/amr",
+}
+
 
 def file_extension(gcs_uri: str, source_hint: str | None = None) -> str:
     if source_hint:
@@ -55,6 +76,27 @@ def encoding_and_sample_rate(ext: str) -> tuple[str | None, int | None]:
     if not ext:
         return "MP3", 16000
     return _ENCODING_BY_EXT.get(ext, ("MP3", 16000))
+
+
+def resolved_audio_mime(ext: str | None, mime_type: str | None = None) -> str:
+    """Prefer a real audio/video MIME; otherwise infer from the file extension.
+
+    GCS uploads without Content-Type are stored as application/octet-stream.
+    """
+    mime = (mime_type or "").strip().lower()
+    ext = (ext or "").lower().lstrip(".")
+    if mime and mime not in _GENERIC_MIMES and (
+        mime.startswith("audio/") or mime.startswith("video/")
+    ):
+        return mime
+    if ext in _MIME_BY_EXT:
+        return _MIME_BY_EXT[ext]
+    return mime or "audio/mpeg"
+
+
+def is_audio_media(ext: str | None, mime_type: str | None = None) -> bool:
+    mime = resolved_audio_mime(ext, mime_type)
+    return mime.startswith("audio/") or mime.startswith("video/")
 
 
 def alternative_language_codes(primary: str) -> list[str]:

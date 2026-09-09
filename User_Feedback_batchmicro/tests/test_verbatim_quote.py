@@ -30,6 +30,31 @@ def test_snap_returns_exact_substring_unchanged():
     assert snap_verbatim_quote_to_transcript(quote, transcript) == "We are applying Hyper."
 
 
+def test_snap_prefers_user_turn_over_fme_question():
+    transcript = (
+        "FME: No deficiencies? Everything is good?\n"
+        "User: Everything is good."
+    )
+    snapped = snap_verbatim_quote_to_transcript("Everything is good.", transcript)
+    assert snapped == "Everything is good."
+    assert not snapped.endswith("?")
+
+
+def test_snap_does_not_swallow_following_fme_turn():
+    transcript = (
+        "User: It's better than that, sir. Fevicol HI-PER STAR is better than Fevicol HI-PER.\n"
+        "FME: Yes, premium work, anti-bubble, waterproof also."
+    )
+    quote = (
+        "It's better than that, sir. Fevicol HI-PER STAR is better than Fevicol HI-PER. "
+        "Yes, premium work, anti-bubble, waterproof also."
+    )
+    snapped = snap_verbatim_quote_to_transcript(quote, transcript)
+    assert "FME" not in snapped
+    assert "anti-bubble" not in snapped
+    assert "HI-PER STAR is better" in snapped
+
+
 def test_snap_falls_back_when_nothing_matches():
     quote = "This quote is not in the call at all."
     assert snap_verbatim_quote_to_transcript(quote, "Speaker 1: Hello there.") == quote

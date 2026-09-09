@@ -11,6 +11,9 @@ def test_extraction_prompt_does_not_treat_site_recording_as_user_focus():
     system = mock.call_args.args[0]
     assert 'Do NOT create a "user" insight merely because the FME is recording on a site' in system
     assert "Product talk on a site is still \"product\", not \"user\"" in system
+    assert "Extract even brief usage" not in system
+    assert "DO NOT EXTRACT" in system
+    assert "FEEDBACK IS ALWAYS THE USER'S ANSWER" in system
     assert "site visits, loyalty" not in system
 
 
@@ -28,6 +31,8 @@ def test_categorize_prompt_omits_unmatched_and_restricts_site_visits():
     assert "OMIT that insight from the output array entirely" in system
     assert "NEVER because the audio was recorded on a job site" in system
     assert "reclassify to PDT GROUP with PDT tags" in system
+    assert "CATCH-ALL BANS" in system
+    assert "SUMMARY MUST JUSTIFY THE TAG" in system
 
 
 def test_categorize_drops_insights_with_empty_tag_ids():

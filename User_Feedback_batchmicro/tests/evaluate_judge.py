@@ -1,9 +1,8 @@
 """
 LLM-as-a-Judge Evaluator
 
-Reads pipeline results and uses gemini-2.5-pro to judge the extraction quality,
-detecting hallucinations, missing contexts, and overall accuracy.
-Generates an HTML report in tests/evaluation_results/judge_report.html
+Reads pipeline results and uses gemini-2.5-pro (asia-south1 REST, Flash fallback)
+to judge extraction quality. Writes tests/evaluation_results/judge_report.html
 """
 import json
 import os
@@ -13,17 +12,21 @@ from pathlib import Path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.config import settings
+from db.session import SessionLocal
+from services.shared.product_catalog import build_product_tsv
 from services.shared.vertex_ai import evaluate_as_judge
 
 RESULTS_DIR = Path(__file__).parent / "evaluation_results"
 TRANSCRIPTS_DIR = Path(__file__).parent / "transcripts"
 
+
 def generate_html_report(evaluations: list):
-    """Generates a styled HTML report from the evaluation results."""
     html_out = RESULTS_DIR / "judge_report.html"
-    
-    avg_score = sum(e["evaluation"]["score"] for e in evaluations) / len(evaluations) if evaluations else 0
-    
+    avg_score = (
+        sum(e["evaluation"]["score"] for e in evaluations) / len(evaluations)
+        if evaluations else 0
+    )
+
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,7 +43,7 @@ def generate_html_report(evaluations: list):
     <div class="max-w-6xl mx-auto">
         <header class="mb-10 text-center">
             <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">AI Pipeline Audit Report</h1>
-            <p class="text-lg text-gray-600 mt-2">LLM-as-a-Judge Evaluation (Gemini 2.5 Pro)</p>
+            <p class="text-lg text-gray-600 mt-2">LLM-as-a-Judge Evaluation (Gemini 2.5 Pro / Flash)</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
@@ -67,14 +70,13 @@ def generate_html_report(evaluations: list):
         score = eval_item["evaluation"]["score"]
         reasoning = eval_item["evaluation"]["reasoning"]
         weakness = eval_item["evaluation"]["weakness"]
-        output = eval_item["evaluation"]["output"]
-        
+        output = eval_item["evaluation"].get("verdict") or eval_item["evaluation"].get("output") or ""
         score_color = "text-green-600" if score >= 8 else "text-yellow-600" if score >= 5 else "text-red-600"
         weakness_alert = ""
-        if weakness.lower() not in ["none", "none.", "n/a", "no weaknesses found"]:
+        if (weakness or "").lower() not in ["none", "none.", "n/a", "no weaknesses found"]:
             weakness_alert = f"""
             <div class="mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r text-red-700 text-sm">
-                <strong>🚨 Weakness Detected:</strong> {weakness}
+                <strong>Weakness:</strong> {weakness}
             </div>"""
 
         html_content += f"""
@@ -83,7 +85,6 @@ def generate_html_report(evaluations: list):
                     <h3 class="text-xl font-bold text-gray-900">{file_name}</h3>
                     <span class="text-3xl font-black {score_color}">{score}/10</span>
                 </div>
-                
                 <div class="space-y-4 text-gray-700">
                     <div>
                         <span class="font-semibold text-gray-900">Verdict:</span> {output}
@@ -96,80 +97,76 @@ def generate_html_report(evaluations: list):
                 </div>
             </div>
         """
-        
+
     html_content += """
         </div>
     </div>
 </body>
 </html>
 """
-
     html_out.write_text(html_content, encoding="utf-8")
-    print(f"✅ HTML report generated: {html_out}")
+    print(f"HTML report generated: {html_out}")
+
 
 def main():
-    print("⚖️ Starting LLM-as-a-Judge Evaluation...")
-    print(f"🤖 Judge Model: gemini-2.5-pro")
-    
+    print("Starting LLM-as-a-Judge evaluation...")
     if not settings.GCP_PROJECT_ID or settings.GCP_PROJECT_ID == "my-project-id":
-        print("❌ ERROR: Set GCP_PROJECT_ID in .env first")
+        print("ERROR: Set GCP_PROJECT_ID in .env first")
         sys.exit(1)
 
     result_files = sorted(RESULTS_DIR.glob("result_*.json"))
     if not result_files:
-        print(f"❌ No result files found in {RESULTS_DIR}")
+        print(f"No result files found in {RESULTS_DIR}")
         sys.exit(1)
 
-    evaluations = []
+    try:
+        with SessionLocal() as db:
+            product_tsv = build_product_tsv(db)
+    except Exception:
+        product_tsv = ""
 
+    evaluations = []
     for fpath in result_files:
         print(f"\nEvaluating {fpath.name}...")
         try:
             with open(fpath, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
             transcript_file = TRANSCRIPTS_DIR / data["file"]
             if not transcript_file.exists():
-                print(f"⚠️ Transcript {data['file']} not found. Skipping.")
+                print(f"Transcript {data['file']} not found. Skipping.")
                 continue
-                
             hindi_text = transcript_file.read_text(encoding="utf-8").strip()
-            translated_text = data.get("translated_text", "")
-            insights = data.get("insights", [])
-
-            # Same product catalog as seed.py
-            PRODUCT_CATALOG_TSV = """1001|Fevicol SH|Adhesives
-1002|Fevikwik|Adhesives
-1003|Dr. Fixit LW+|Waterproofing
-1004|Roff Non-Skid Adhesive|Tiling
-1005|Fevicol Marine|Adhesives""".strip()
-
-            # Call Judge
-            evaluation, tokens = evaluate_as_judge(hindi_text, translated_text, insights, model_name="gemini-2.5-pro", product_catalog_tsv=PRODUCT_CATALOG_TSV)
-            
+            evaluation, tokens = evaluate_as_judge(
+                hindi_text,
+                data.get("translated_text", ""),
+                data.get("insights", []),
+                model_name="gemini-2.5-pro",
+                product_catalog_tsv=product_tsv,
+            )
             print(f"   Score: {evaluation.get('score')}/10")
-            print(f"   Verdict: {evaluation.get('output')}")
-            
+            print(f"   Verdict: {evaluation.get('verdict') or evaluation.get('output')}")
             evaluations.append({
                 "file": data["file"],
                 "evaluation": evaluation,
-                "tokens_used": tokens
+                "tokens_used": tokens,
             })
-            
         except Exception as exc:
-            print(f"❌ Failed to evaluate {fpath.name}: {exc}")
+            print(f"Failed to evaluate {fpath.name}: {exc}")
 
-    # Generate Report
     if evaluations:
         generate_html_report(evaluations)
-        
-        # Save JSON audit log
         audit_log = RESULTS_DIR / "judge_audit.json"
-        with open(audit_log, "w", encoding="utf-8") as f:
-            json.dump(evaluations, f, indent=2, ensure_ascii=False)
-        print(f"✅ JSON audit log saved: {audit_log}")
-    
-    print("\n🏁 LLM-as-a-Judge complete!")
+        audit_log.write_text(
+            json.dumps(evaluations, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        scores = [e["evaluation"]["score"] for e in evaluations]
+        avg = sum(scores) / len(scores)
+        print(f"JSON audit log saved: {audit_log}")
+        print(f"\nScores: {scores}  average={avg:.1f}/10")
+
+    print("\nLLM-as-a-Judge complete!")
+
 
 if __name__ == "__main__":
     main()

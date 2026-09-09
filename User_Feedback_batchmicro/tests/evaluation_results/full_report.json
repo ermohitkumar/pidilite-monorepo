@@ -2,124 +2,47 @@
   "model": "gemini-2.5-flash",
   "project": "pidilite-user-feedback-ai",
   "total_transcripts": 5,
-  "total_feedback_items": 67,
+  "total_feedback_items": 7,
   "total_tokens": {
-    "input": 39095,
-    "output": 17173,
-    "total": 77402
+    "input": 65268,
+    "output": 19129,
+    "total": 84397
   },
-  "estimated_cost_usd": 0.107496,
+  "estimated_cost_usd": 0.067403,
   "results": [
     {
       "file": "transcript_1.txt",
       "hindi_chars": 1280,
-      "translated_text": "Speaker 1: New site here?\nSpeaker 2: Yes.\nSpeaker 1: How much work remaining?\nSpeaker 2: 15-20 days.\nSpeaker 1: 15-20 more days?\nSpeaker 1: Which glue are you using this time?\nSpeaker 2: It arrived, but not used, just tested.\nSpeaker 1: Which glue is used here now?\nSpeaker 2: Pidilite SH.\nSpeaker 1: SH?\nSpeaker 1: Doing this work with material?\nSpeaker 2: With material, so SH.\nSpeaker 1: Okay. Where else is work ongoing?\nSpeaker 2: New work starting near Ring Road.\nSpeaker 1: Okay. That's also with material, two 60kg drums of SH sent there.\nSpeaker 1: Okay. Have you used our new product, X-per?\nSpeaker 2: Yes, used it.\nSpeaker 1: How was it?\nSpeaker 2: Excellent, superb.\nSpeaker 1: Okay. Have you used the new Fevikwik 463?\nSpeaker 2: Yes, used it, it's good too.\nSpeaker 1: Okay. Which products were used here?\nSpeaker 2: Nail Free, Relam.\nSpeaker 1: Relam?\nSpeaker 1: Okay. Good job here.\nSpeaker 1: Are you doing the kitchen work yourself?\nSpeaker 2: Kitchen work is also ours.\nSpeaker 1: Will you build everything?\nSpeaker 1: Building here or a side...?\nSpeaker 2: No, everything complete here, only doors-windows will arrive pre-made.\nSpeaker 1: Okay. Any new product or any deficiency in a product?\nSpeaker 2: No deficiency.\nSpeaker 1: No deficiency?\nSpeaker 1: Everything good?\nSpeaker 2: Everything good.",
+      "translated_text": "FME: How are you, brother?\nUser: I'm good. Is this a new site you've started here?\nFME: Yes. How much work is left here?\nUser: About 15-20 days.\nFME: 15-20 more days? Which glue are you using here this time?\nUser: No, this one came, but we didn't use it, we just tested it and left it.\nFME: So which glue is being used here now?\nUser: Pidilite Fevicol SH.\nFME: Fevicol SH? So you're doing this work with material?\nUser: It's with material, that's why it's Fevicol SH.\nFME: Okay. And tell me, where else have you started work?\nUser: Now we'll start new work towards Ring Road.\nFME: Okay. Is that also with material? Two 60 kg drums of Fevicol SH have been sent there. Okay. And have you used our new product, Fevicol X-Per?\nUser: Yes, I have.\nFME: How did you like it?\nUser: Excellent, superb.\nFME: Okay. And have you used the new Fevikwik 463?\nUser: Yes, I have, that's good too.\nFME: Okay. And which products have been used here?\nUser: Nail Free, Fevicol RELAM.\nFME: Fevicol RELAM? Okay. That's great, you've done a good job here. So you're doing the kitchen work yourself too?\nUser: The kitchen work is also ours.\nFME: Will you make everything and deliver it? Are you making it here or is there a side...?\nUser: No, no, everything is completed here, only the doors and windows will come pre-made.\nFME: Okay. And anything else, any new product or any deficiency you feel in any product?\nUser: There are no deficiencies.\nFME: No deficiencies? Everything is good?\nUser: Everything is good.",
       "translation_tokens": {
-        "input": 519,
-        "output": 422,
-        "total": 2054
+        "input": 3242,
+        "output": 934,
+        "total": 4176
       },
       "insights_tokens": {
-        "input": 5434,
-        "output": 1148,
-        "total": 6582
+        "input": 6710,
+        "output": 287,
+        "total": 6997
       },
       "total_tokens": {
-        "input": 5953,
-        "output": 1570,
-        "total": 8636
+        "input": 9952,
+        "output": 1221,
+        "total": 11173
       },
-      "total_time_s": 13.55,
-      "insights": [
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "It arrived, but not used, just tested.",
-          "summary": "Fevicol SH arrived and was tested, indicating a potential for performance evaluation or initial assessment rather than full application.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol SH"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Pidilite SH.",
-          "summary": "Fevicol SH is currently being used for the work, suggesting ongoing application and performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol SH"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "That's also with material, two 60kg drums of SH sent there.",
-          "summary": "Two 60kg drums of Fevicol SH were sent to a new work site near Ring Road, indicating a significant supply for a project.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol SH"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, used it. Excellent, superb.",
-          "summary": "Fevicol X-Per was used and received excellent and superb feedback, highlighting strong product performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol X-Per"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, used it, it's good too.",
-          "summary": "Fevikwik 463 was used and is considered good, indicating satisfactory performance.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Nail Free, Relam.",
-          "summary": "Fevicol Nail Free and Fevicol Relam were used at the site, suggesting their application in a specific project.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Nail Free, Relam.",
-          "summary": "Fevicol Nail Free and Fevicol Relam were used at the site, suggesting their application in a specific project.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol RELAM"
-        }
-      ],
+      "total_time_s": 16.47,
+      "insights": [],
       "validation": {
-        "total_items": 7,
+        "total_items": 0,
         "group_counts": {
+          "DEALER GROUP": 0,
           "User": 0,
+          "PDT GROUP": 0,
           "Dealer": 0,
-          "Product": 7
+          "USER GROUP": 0,
+          "Product": 0
         },
         "issues": [],
-        "all_tag_ids": [
-          6
-        ],
+        "all_tag_ids": [],
         "all_competitors": []
       },
       "raw_hindi": "और भाई साहब और सुनाओ क्या हाल-चाल है? बस बढ़िया। यहाँ पे लगा रखी है नयी साइट ये? हाँ। कितना रह गया और काम इसमें? अभी 15-20 दिन का है। 15-20 दिन का और रह गया? यहाँ पे ये कौन सा ग्लू लगा रहे हो यार अबकी बारी? नहीं, ये तो आया था लेकिन इसको लगाया नहीं, टेस्ट करके छोड़ दिया। तो यहाँ पे कौन सा ग्लू लगा है अभी यहाँ पे? पिडिलाइट एसएच (Pidilite SH)। एसएच? तो विद मटेरियल कर रहे हो ये वाला काम? विद मटेरियल है इसलिए एसएच है। अच्छा। और बताओ, और कहाँ लगा रखा है काम अभी? काम अब नया लगायेंगे उधर रिंग रोड की तरफ। अच्छा। वहां भी विद मटेरियल है, वहां एसएच के 60 किलो के दो ड्रम भेज दिए। अच्छा। और अभी जो अपना नया प्रोडक्ट आया है एक्सपर (X-per), वो काम में लिया आपने? हाँ लिया है ना। कैसा लगा आपको? बढ़िया, शानदार। अच्छा। और आपने जो फेविक्विक आई है नई 463, वो काम में ली? हाँ ली है, वो भी अच्छी है। अच्छा। और यहाँ पे कौन-कौन से प्रोडक्ट यूज़ में हुए हैं? नेल फ्री है, रेलम है। रिलेम (Relam) है? अच्छा। चलो बढ़िया है, काम अच्छा किया आपने यार यहाँ पे। तो किचन का काम भी खुद ही कर रहे हो आप? किचन का काम भी अपना ही है। पूरा सारा कुछ बना के दोगे आप? तो यहाँ पे बना रहे हो या यहाँ पे कोई साइड... नहीं-नहीं, सब कंप्लीट यहाँ पे है, केवल डोर-विंडो बन के आएँगे बस। अच्छा। और कुछ, कोई नया प्रोडक्ट या कुछ भी कमी लग रही हो आपको किसी प्रोडक्ट में? कोई कमी नहीं है। कोई कमी नहीं है। सब बढ़िया है? सब बढ़िया।"
@@ -127,119 +50,67 @@
     {
       "file": "transcript_2.txt",
       "hindi_chars": 5275,
-      "translated_text": "Speaker 1: My name is Roshan. I've replaced Mukut, visiting your site for the first time. We'll ask questions; this is being recorded for our company. Before visiting, we noted you use Hyper, Hyper Star, and Ezee Spray frequently. A question: I'm on your site, are you building a showroom?\nSpeaker 2: Yes, I'm building a Woodland showroom.\nSpeaker 1: Besides this commercial work, do you do builder or private sites?\nSpeaker 2: No, we only do Woodland commercial.\nSpeaker 1: You only do Woodland work?\nSpeaker 2: Yes, only Woodland.\nSpeaker 1: You're using our premium product here. Who told you about Hyper Star?\nSpeaker 2: Nitin told me.\nSpeaker 1: Nitin meets you regularly?\nSpeaker 2: Yes, he meets me, we talk.\nSpeaker 1: How do you like the product? Compared to Hyper, how is Hyper Star?\nSpeaker 2: It's better, Hyper Star is good compared to Hyper.\nSpeaker 1: Hyper Star is good? Work is faster?\nSpeaker 2: Faster, no fear of bubbling/swelling.\nSpeaker 1: Premium work, anti-bubble, waterproof. How do you like Ezee Spray?\nSpeaker 2: It's even better. Work is faster with it.\nSpeaker 1: Did you know Ezee Spray is multi-purpose? You can apply charcoal sheets, PVC sheets, louvers. Do you use louvers on your site?\nSpeaker 2: No, rarely. I only do Woodland work.\nSpeaker 1: So normal laminates are applied. Do you also work with PVC laminates on your site?\nSpeaker 2: No, not that.\nSpeaker 1: Not acrylic either?\nSpeaker 2: No.\nSpeaker 1: Do you charge labor rate, or...\nSpeaker 2: Yes, this is labor rate.\nSpeaker 1: Labor rate. Is it through an architect?\nSpeaker 2: No, direct through the company.\nSpeaker 1: Direct company contact. Your work must be pan-India then. I checked, you use all our new products. Do you ever need quick work, instant adhesion?\nSpeaker 2: No, I handle everything with Ezee Spray.\nSpeaker 1: No PVD strips used?\nSpeaker 1: We have two new products. One, Fevikwik 463, known as carpenter's Fevikwik, has been out a year. It gives 30 seconds to set, then cures. You can stick metal strips, louvers, charcoal sheets, edge banding tape. We have another product... The second product is 'Multilock.' It's unique. In winter, glues take time to dry, even 24 hours. Hyper, Hyper Star also take time. Multilock's specialty: in humid weather, like today's rain, it dries and sets in 2 to 2.5 hours. You can cut the board 2.5 hours after application. Some things to note; I'll send a video with precautions. If you had PVC or WPC board, I'd demonstrate. Good product. Single-side application. Good coverage, slightly higher rates. You get 8 points per pouch. It comes with a special comb; use that for application. If any site issues arise, contact me, Nitish, or Kirti (center contact); we'll be available. Any questions for you?\nSpeaker 2: I've been associated for so long, why isn't my bonus coming?\nSpeaker 1: Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8. So, the bonus slab is higher. You might be below the criteria, at 200-250 kg. I'll check your last quarter's usage. Any other bonus questions?\nSpeaker 2: No, no questions.\nSpeaker 1: Try Multilock, it's a great product. We expect you'll use Fevikwik too. As you've promoted other products, doing good, premium commercial work, we expect you'll promote this well too. Any other questions, ask me.\nSpeaker 2: No, none now.",
+      "translated_text": "FME: Vikram ji? Yes sir. How are you, sir?\nUser: I'm good, sir.\nFME: Vikram ji, my name is Roshan. I've come in Mukut ji's place, this is my first visit to your site.\nUser: Yes sir.\nFME: So we'll ask you some questions, and this is being recorded and will go to our company. So the first thing is, since this is my first time meeting you today, before coming to you, I saw that you use Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY a lot. So I had a question, since I've come to your site, are you building a showroom here?\nUser: Yes, I'm building a Woodland showroom.\nFME: So besides this commercial work, do you also do any builder work or private sites?\nUser: No sir, we only do commercial work for Woodland.\nFME: Oh, you only do Woodland work?\nUser: Yes, I only do Woodland work.\nFME: So you're using our premium products here, like Fevicol HI-PER STAR, which is great to see. Who told you about Fevicol HI-PER STAR?\nUser: Nitin ji told me.\nFME: Oh, Nitesh, our guy, he meets you regularly?\nUser: Yes, he meets me, we keep in touch.\nFME: So how do you like the product? If we compare our Fevicol HI-PER STAR with Fevicol HI-PER?\nUser: It's better than that, sir. Fevicol HI-PER STAR is better than Fevicol HI-PER.\nFME: Fevicol HI-PER STAR is better? Does the work get done faster?\nUser: It gets done faster and there's no fear of swelling, sir.\nFME: Yes, it's premium work, anti-bubble, and waterproof too, right? How do you like Fevicol EZEESPRAY?\nUser: That's even better, sir. That gets the work done much faster.\nFME: Do you know Fevicol EZEESPRAY is also for multipurpose use? You can also apply charcoal sheets and PVC sheets with it. You can also apply louvers. Do you use louvers on your site?\nUser: No sir, that's rare, it's not used at all, I only do Woodland work, sir.\nFME: Yes, yes, so whatever normal laminates you have, they are applied here. Do you also do PVC laminate work on your site?\nUser: No sir, not that.\nFME: Not acrylic either?\nUser: No, no.\nFME: Okay, do you take work on a labor rate basis?\nUser: Yes sir, this is on a labor rate basis for me, sir.\nFME: Okay, on a labor rate basis. Is it through an architect?\nUser: No, this is directly through the company, sir.\nFME: Oh, directly contacted by the company, very good. Then your work must be pan-India level somewhere. So as I was checking your work, I was very happy to see that you use all our new products.\nUser: Yes sir.\nFME: So have you ever needed to work quickly, or to stick something instantly? Do you ever have such a need?\nUser: No sir, not like that. I have Fevicol EZEESPRAY, I handle everything with that.\nFME: Okay, you don't use PVD strips? By the way, you must know about our two new products. One product has been running for a year, it's called Fevikwik 463, which we also call carpenter's Fevikwik. It gives you 30 seconds to set. After 30 seconds, it sets. You can stick metal strips, louvers, charcoal sheets, edge banding tape, everything with it. And we have another product... The second product is called Fevicol Multilock. This product is special, made in a different way. For example, it's winter now, and you must have seen that glue takes time to dry. It can even take 24 hours. Fevicol HI-PER and Fevicol HI-PER STAR also take time to dry. But Fevicol Multilock has a special feature: even in humid weather, like today when it's raining here, it dries and sets in 2 to 2.5 hours. You can cut the board after applying it in 2.5 hours. There are some things you need to keep in mind, which I will also send you a video about. If you watch that, it explains all the precautions. If you had PVC or WPC board here, I would have shown you a demo. It's a very good product. Single-side application. The coverage is also good, the rates are a bit higher. In terms of points, you get 8 points per pouch on this. It comes with a special comb, you have to apply this glue with that comb. Okay? Otherwise, if you feel there's any problem on the sites, you can contact me or Nitesh, or you'll have the number for Kirti from the center, who sits at the center. If you contact me, we'll be available at your site. Do you have any other questions?\nUser: Sir, I've been associated for so long, for a long time, so why am I not getting my bonus yet, sir?\nFME: See, as you know, since April, the points have increased on all products. So the bonus slab starts from 300 kg. Because you use Fevicol HI-PER, Fevicol HI-PER STAR, you must be getting 8 points per kg. A year ago (meaning 9 months back), you used to get 3.5 points on Fevicol HI-PER, 5 on Fevicol HI-PER STAR, and 3.5 on Fevicol HI-PER. So 5 has been made 8, and Fevicol HI-PER's 3.5 has been made 8. The 5 points you used to get on Fevicol EZEESPRAY have also been made 8. Okay? So because of this, the bonus slab is a bit higher. Perhaps you were below, at 200-250 kg, so you couldn't reach the bonus criteria. But I will check how much you did in the last quarter. Okay? Any other questions regarding the bonus?\nUser: No, I don't have any such questions, sir.\nFME: Yes, otherwise, try using Fevicol Multilock, it's a very good product. And we hope you will definitely use Fevikwik too. As for promoting the product, we expect it from people like you, you do good work, premium commercial work, so you will also push this well.\nUser: Yes, yes, sir.\nFME: Okay? Otherwise, if you have any other questions, you can ask me.\nUser: No, not anymore.",
       "translation_tokens": {
-        "input": 1645,
-        "output": 981,
-        "total": 7561
+        "input": 5461,
+        "output": 3120,
+        "total": 8581
       },
       "insights_tokens": {
-        "input": 6346,
-        "output": 2075,
-        "total": 8421
+        "input": 8022,
+        "output": 898,
+        "total": 8920
       },
       "total_tokens": {
-        "input": 7991,
-        "output": 3056,
-        "total": 15982
+        "input": 13483,
+        "output": 4018,
+        "total": 17501
       },
-      "total_time_s": 30.65,
+      "total_time_s": 21.84,
       "insights": [
         {
-          "group_type": "Product",
+          "group_type": "PDT GROUP",
           "category_type": "Product",
           "tag_ids": [
             6
           ],
-          "verbatim_quote": "How do you like the product? Compared to Hyper, how is Hyper Star? It's better, Hyper Star is good compared to Hyper.",
-          "summary": "Fevicol HI-PER STAR is considered better than Fevicol HI-PER in terms of product performance.",
+          "verbatim_quote": "It's better than that, sir. Fevicol HI-PER STAR is better than Fevicol HI-PER.",
+          "summary": "User states Fevicol HI-PER STAR has better performance than Fevicol HI-PER.",
           "competitors_mentioned": [],
           "product_name": "Fevicol HI-PER STAR"
         },
         {
-          "group_type": "Product",
+          "group_type": "PDT GROUP",
           "category_type": "Product",
           "tag_ids": [
             6
           ],
-          "verbatim_quote": "How do you like the product? Compared to Hyper, how is Hyper Star? It's better, Hyper Star is good compared to Hyper.",
-          "summary": "Fevicol HI-PER is compared unfavorably to Fevicol HI-PER STAR regarding product performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Hyper Star is good? Work is faster? Faster, no fear of bubbling/swelling.",
-          "summary": "Fevicol HI-PER STAR enables faster work and eliminates concerns about bubbling or swelling during application, indicating improved performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "How do you like Ezee Spray? It's even better. Work is faster with it.",
-          "summary": "Fevicol EZEESPRAY is considered even better and makes work faster, indicating improved performance.",
+          "verbatim_quote": "That's even better, sir. That gets the work done much faster.",
+          "summary": "User states Fevicol EZEESPRAY is better and gets work done much faster, indicating improved performance.",
           "competitors_mentioned": [],
           "product_name": "Fevicol EZEESPRAY"
         },
         {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "No, I handle everything with Ezee Spray.",
-          "summary": "The user handles all work with Fevicol EZEESPRAY, indicating high reliance and satisfaction with its performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol EZEESPRAY"
-        },
-        {
-          "group_type": "User",
+          "group_type": "USER GROUP",
           "category_type": "User Loyalty Program",
           "tag_ids": [
             22
           ],
-          "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
-          "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
+          "verbatim_quote": "Sir, I've been associated for so long, for a long time, so why am I not getting my bonus yet, sir?",
+          "summary": "User asks why they are not receiving their bonus despite long association, indicating an issue with a user scheme.",
           "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "User",
-          "category_type": "User Loyalty Program",
-          "tag_ids": [
-            22
-          ],
-          "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
-          "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "User",
-          "category_type": "User Loyalty Program",
-          "tag_ids": [
-            22
-          ],
-          "verbatim_quote": "Since April, all product points increased. Bonus slab starts at 300 kg. Hyper, Hyper Star now give 8 points/kg. A year ago, Hyper was 3.5 points, Hyper Star 5. Both are now 8. Ezee Spray's 5 points also became 8.",
-          "summary": "Points for Fevicol HI-PER, Fevicol HI-PER STAR, and Fevicol EZEESPRAY increased to 8 points/kg, up from 3.5, 5, and 5 respectively, impacting bonus eligibility for users.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol EZEESPRAY"
+          "product_name": null
         }
       ],
       "validation": {
-        "total_items": 8,
+        "total_items": 3,
         "group_counts": {
-          "User": 3,
+          "DEALER GROUP": 0,
+          "User": 0,
+          "PDT GROUP": 2,
           "Dealer": 0,
-          "Product": 5
+          "USER GROUP": 1,
+          "Product": 0
         },
         "issues": [],
         "all_tag_ids": [
@@ -253,255 +124,48 @@
     {
       "file": "transcript_3.txt",
       "hindi_chars": 3017,
-      "translated_text": "Speaker 1: Rajouri site fully operational?\nSpeaker 2: Yes, operational, last stage.\nSpeaker 1: Current labor count on site?\nSpeaker 2: 8 people working.\nSpeaker 1: 8 people working? Which Pidilite product are you using?\nSpeaker 2: Currently using Hyper.\nSpeaker 1: Using Hyper? Which other products are being used?\nSpeaker 2: Hyper and Relem.\nSpeaker 1: Using Relem? For what application?\nSpeaker 2: For bonding mica to mica.\nSpeaker 1: Any other new products used?\nSpeaker 2: We use all Fevicol products.\nSpeaker 1: Did you use Easy Spray, as requested?\nSpeaker 2: Yes, we ordered it for this purpose.\nSpeaker 1: Last month you ordered Hyper Star for this site, but now ordered Hyper again?\nSpeaker 2: Yes, it was taking too long to dry. The client said not to delay work, so use a faster-drying product. They requested Hyper due to drying issues with Hyper Star.\nSpeaker 1: So you ordered Hyper?\nSpeaker 2: Yes, I reordered Hyper.\nSpeaker 1: Try using Hyper Star. There are no issues. It's an NI pack, and product composition changes over 6 months, requiring a longer open time in winter. That's why I suggested it.\nSpeaker 2: For the next site, we'll order Hyper Star. Here, the client insisted on Hyper due to the previous issue.\nSpeaker 1: You've used Fevikwik in good quantity. We've given you Multi-Lock for trial. Where will you use it?\nSpeaker 2: We'll use it on PVC boards, for vertical surfaces; it's good for that.\nSpeaker 1: For acrylic sheets, where ProBond had issues, use this in vertical situations. It's suitable for WPC, mica, or any acrylic sheet. You can use it. Don't abandon Hyper Star.\nSpeaker 2: No, sir, for the next site, we will use Hyper Star.\nSpeaker 1: Okay.\nSpeaker 1: Any suggestions for new product launches?\nSpeaker 2: A suggestion: a good product for bonding acrylic to stone/granite.\nSpeaker 1: You want to bond acrylic to granite? We have Nail Free, but it won't bond acrylic. What's the acrylic thickness?\nSpeaker 2: 1 mm.\nSpeaker 1: 1 mm? What size piece?\nSpeaker 2: A 2x8 sheet.\nSpeaker 1: The entire 2x8 sheet?\nSpeaker 2: Yes.\nSpeaker 1: Understood. I'll provide feedback on this by tomorrow morning or evening.\nSpeaker 1: Continue using our New Gen products.\nSpeaker 2: Thank you, sir.",
+      "translated_text": "FME: Hello Chetar Ram ji, how are you?\nUser: Hello sir, I'm good. And is your Rajouri site still fully operational? Yes, it's running, it's in the last stage now.\nFME: So how many laborers do you have on site right now?\nUser: Right now, 8 people are working.\nFME: 8 people are working? And what Pidilite products are you using right now?\nUser: Right now, we are using Fevicol HI-PER.\nFME: You're using Fevicol HI-PER? And which other products are being used?\nUser: Fevicol HI-PER and Fevicol RELAM are also being used.\nFME: Oh, you're using Fevicol RELAM? What are you using Fevicol RELAM for?\nUser: For sticking mica on top of mica.\nFME: Okay. So have you used any other new product of ours?\nUser: We use all Fevicol products.\nFME: And you asked about Fevicol EZEESPRAY, did you use Fevicol EZEESPRAY?\nUser: Yes, we did, we ordered it for this purpose.\nFME: Okay. So you also ordered Fevicol HI-PER STAR last month for this site, so did you order Fevicol HI-PER again?\nUser: Yes, the reason was that it was taking a bit longer to dry. So the client said not to slow down the work, it's getting delayed. So use something that dries quickly.\nFME: Okay.\nUser: Yes, that's why they said to order Fevicol HI-PER, there was a slight issue with drying.\nFME: So you ordered Fevicol HI-PER again?\nUser: Yes, I brought Fevicol HI-PER again.\nFME: Try to get Fevicol HI-PER STAR, there's no issue with it. It's just that the NI pack, like our 6 months, the product changes, so in winter you need to give it a bit more open time.\nUser: Hmm.\nFME: Okay?\nUser: Okay.\nFME: So because of the open time, I told you that you could order that.\nUser: When we go to the next site, we will order Fevicol HI-PER STAR. Here, the client said to use Fevicol HI-PER because there was a slight issue.\nFME: Okay. And what else, you've used Fevikwik in good quantity. I've given you a trial of Fevicol Multilock, where will you use it?\nUser: We will use it on PVC boards, where there are vertical surfaces, it's very good for that.\nFME: See, for acrylic sheets, where you had an issue with Fevicol PROBOND, use this in vertical situations. And mainly for WPC, if you need to stick any mica, any acrylic sheet, this product is capable. So you can use it, and don't give up on Fevicol HI-PER STAR.\nUser: No, no sir, on the next site, we will use Fevicol HI-PER STAR.\nFME: Yes, okay. And Chetar Ram ji, how else is it going?\nUser: Everything else is good sir, it's going well.\nFME: And do you have any suggestions, like a new product that should be launched?\nUser: Sir, I have a suggestion, if we need to stick acrylic on stone or granite, if there's any good product for that...\nFME: For that, okay, you want to stick acrylic on granite?\nUser: Yes.\nFME: So for that, see, we have Nail Free right now, but you can't stick acrylic with Nail Free. How many mm is the acrylic?\nUser: It's 1 mm.\nFME: 1 mm? How big is the piece you want to stick?\nUser: It's a 2x8 sheet.\nFME: You want to stick the whole 2x8 sheet?\nUser: Yes.\nFME: Okay, I'll tell you about this... half a sheet...\nUser: Yes, I understand, I understand.\nFME: So no problem, I will give you feedback on this, by tomorrow morning or evening.\nUser: Okay sir.\nFME: Okay? Otherwise, you are using our new generation products, keep using them. Thank you.\nUser: Okay, thank you sir.",
       "translation_tokens": {
-        "input": 1010,
-        "output": 630,
-        "total": 3653
+        "input": 4270,
+        "output": 2008,
+        "total": 6278
       },
       "insights_tokens": {
-        "input": 6530,
-        "output": 3668,
-        "total": 10198
+        "input": 7314,
+        "output": 406,
+        "total": 7720
       },
       "total_tokens": {
-        "input": 7540,
-        "output": 4298,
-        "total": 13851
+        "input": 11584,
+        "output": 2414,
+        "total": 13998
       },
-      "total_time_s": 25.18,
+      "total_time_s": 16.22,
       "insights": [
         {
-          "group_type": "Product",
+          "group_type": "PDT GROUP",
           "category_type": "Product",
           "tag_ids": [
             6
           ],
-          "verbatim_quote": "Hyper and Relem.",
-          "summary": "Fevicol HI-PER and Fevicol RELAM are currently in use by the customer.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Hyper and Relem.",
-          "summary": "Fevicol HI-PER and Fevicol RELAM are currently in use by the customer.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol RELAM"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "For bonding mica to mica.",
-          "summary": "Fevicol RELAM is being used for bonding mica to mica, indicating its suitability for this specific application.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol RELAM"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, we ordered it for this purpose.",
-          "summary": "Fevicol EZEESPRAY was specifically ordered for a particular purpose, suggesting its utility in a defined application.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol EZEESPRAY"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "Yes, it was taking too long to dry.",
-          "summary": "Fevicol HI-PER STAR was taking too long to dry, causing delays in the application process.",
+          "verbatim_quote": "Yes, the reason was that it was taking a bit longer to dry. So the client said not to slow down the work, it's getting delayed. So use something that dries quickly.",
+          "summary": "Fevicol HI-PER STAR was taking longer to dry, causing delays, leading to a client request to switch to a faster-drying product.",
           "competitors_mentioned": [],
           "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "The client said not to delay work, so use a faster-drying product.",
-          "summary": "The client requested a faster-drying product due to Fevicol HI-PER STAR's slow drying time, which was causing project delays.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "They requested Hyper due to drying issues with Hyper Star.",
-          "summary": "The client requested Fevicol HI-PER due to drying issues experienced with Fevicol HI-PER STAR.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "They requested Hyper due to drying issues with Hyper Star.",
-          "summary": "The client requested Fevicol HI-PER due to drying issues experienced with Fevicol HI-PER STAR.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, I reordered Hyper.",
-          "summary": "Fevicol HI-PER was reordered by the customer, indicating continued usage.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "Here, the client insisted on Hyper due to the previous issue.",
-          "summary": "The client insisted on using Fevicol HI-PER due to a previous issue encountered with Fevicol HI-PER STAR, likely related to drying time.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "Here, the client insisted on Hyper due to the previous issue.",
-          "summary": "The client insisted on using Fevicol HI-PER due to a previous issue encountered with Fevicol HI-PER STAR, likely related to drying time.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "You've used Fevikwik in good quantity.",
-          "summary": "Fevikwik has been used in good quantity, suggesting high demand or frequent application.",
-          "competitors_mentioned": [],
-          "product_name": "Fevikwik"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We've given you Multi-Lock for trial.",
-          "summary": "Fevicol Multilock has been provided for trial, indicating an evaluation of its performance for specific applications.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol Multilock"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We'll use it on PVC boards, for vertical surfaces; it's good for that.",
-          "summary": "Fevicol Multilock will be used on PVC boards for vertical surfaces, as it is considered suitable for that specific application.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol Multilock"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "For acrylic sheets, where ProBond had issues, use this in vertical situations.",
-          "summary": "Fevicol Multilock is suggested for vertical applications with acrylic sheets, especially where Fevicol PROBOND previously encountered issues.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol Multilock"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "For acrylic sheets, where ProBond had issues, use this in vertical situations.",
-          "summary": "Fevicol PROBOND experienced issues when used with acrylic sheets in vertical situations, indicating a performance limitation.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "It's suitable for WPC, mica, or any acrylic sheet.",
-          "summary": "Fevicol Multilock is suitable for bonding WPC, mica, or any acrylic sheet, highlighting its versatility across various substrates.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol Multilock"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "No, sir, for the next site, we will use Hyper Star.",
-          "summary": "Fevicol HI-PER STAR will be used for the next site, indicating a planned application for an upcoming project.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "A suggestion: a good product for bonding acrylic to stone/granite.",
-          "summary": "A suggestion for a new product is to develop an adhesive specifically designed for effectively bonding acrylic to stone/granite.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We have Nail Free, but it won't bond acrylic.",
-          "summary": "Nail Free is available but is not suitable for bonding acrylic, indicating a limitation in its application range.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol Nail Free"
         }
       ],
       "validation": {
-        "total_items": 20,
+        "total_items": 1,
         "group_counts": {
+          "DEALER GROUP": 0,
           "User": 0,
+          "PDT GROUP": 1,
           "Dealer": 0,
-          "Product": 20
+          "USER GROUP": 0,
+          "Product": 0
         },
         "issues": [],
         "all_tag_ids": [
-          5,
           6
         ],
         "all_competitors": []
@@ -511,289 +175,72 @@
     {
       "file": "transcript_4.txt",
       "hindi_chars": 5505,
-      "translated_text": "Speaker 1: Work is good. Two-three sites active.\nSpeaker 2: How many workers now?\nSpeaker 1: Currently 12 workers.\nSpeaker 2: Which product is used more on each site? Hyper or Marine?\nSpeaker 1: Marine is more common. Used Hyper on one site recently.\nSpeaker 2: For plywood and laminate here, will acrylic or veneer be used on this site?\nSpeaker 1: Veneer is being used on site.\nSpeaker 2: Veneer arrived. Acrylic?\nSpeaker 1: Acrylic used in kitchen.\nSpeaker 2: You used Hyper Star last time, 20 kg. How is it?\nSpeaker 1: I liked it.\nSpeaker 2: Compared to Marine, what difference did you notice with Hyper?\nSpeaker 1: Hyper offers better coverage. Can use it.\nSpeaker 2: Hyper Star?\nSpeaker 1: Hyper Star.\nSpeaker 2: And Marine Coat?\nSpeaker 1: Marine Coat is a client requirement. We advise it. Most use PVC on the backside, but we still apply Marine Coat over it.\nSpeaker 2: So you haven't used it much for 12 months? Using PVC.\nSpeaker 2: Any feedback on our products you use: Hyper, Probond, Nail Free?\nSpeaker 1: Good. No complaints about your products, we use them fully. No complaints to date.\nSpeaker 2: Any new product needs or suggestions for innovation?\nSpeaker 1: You're already releasing new items constantly. We have all the products we need. No issues with usage.\nSpeaker 2: Any feedback on our FCC Meets or the gifts received?\nSpeaker 1: It's good. Gifts and meetings are timely. Well-arranged, no problems.\nSpeaker 2: You haven't redeemed any gift points in the last 6 months? Why?\nSpeaker 1: I was busy, didn't have time. I just scan them, planning to redeem later.\nSpeaker 2: Are you planning to redeem anything now?\nSpeaker 1: Yes, I'm planning to redeem something.\nSpeaker 2: What? A gift? A car?\nSpeaker 1: Yes, a car, or gold or something.\nSpeaker 2: You're using SH less often these days?\nSpeaker 1: Used SH initially, then Marine came. I liked Marine after using it. Then I used Hyper Star, also liked it. Can use that.\nSpeaker 2: Where is the material for this site coming from? Which dealer?\nSpeaker 1: From Konkan, or Vinayak Hardware. Half the material came from Vinayak Hardware.\nSpeaker 2: Vinayak Hardware. Not from one shop entirely?\nSpeaker 1: No, also from Prakash Traders.\nSpeaker 2: It's mixed.\nSpeaker 2: How much Fevicol material for this site?\nSpeaker 1: This site will use 150 kg Fevicol. Another site used 400 kg.\nSpeaker 2: Is MDF being used?\nSpeaker 1: Yes, MDF is used. We use MDF most.\nSpeaker 2: Where is it used most? For Deco paint? PU paint, Duco paint?\nSpeaker 1: Our team handles that.\nSpeaker 2: Your team?\nSpeaker 2: How is our Fevikwik? New Fevikwik 463?\nSpeaker 1: New Fevikwik is good.\nSpeaker 2: Used anywhere? After the demo?\nSpeaker 1: Brought it once, didn't check points due to urgency. Just used it.\nSpeaker 2: Yes, it's on top. All Fevikwik bottles and cans have points.\nSpeaker 1: It was urgent, nobody checked, used it, discarded the box.\nSpeaker 2: No, don't do that next time. Both 125g and 250g have points. 20g doesn't.\nSpeaker 2: Is Probond being used now?\nSpeaker 1: Probond is mandatory on my sites. We use Probond for all PVC.\nSpeaker 2: In acrylic? In both acrylic and this.\nSpeaker 1: New acrylic sheets have arrived, all use this.\nSpeaker 2: Do you use edge banding? All used this for edge banding.\nSpeaker 1: No, for laminate. Do you use edge banding more? This entire side uses edge banding. Yes, edge banding. We stick it with Probond.\nSpeaker 2: Any thoughts on competition? Other companies...\nSpeaker 1: We don't focus on competition. We only use Pidilite products. Many competitors exist, but we don't engage. For 20-22 years, only Pidilite Marine...\nSpeaker 2: How much Fevicol was used across your three sites in January?\nSpeaker 1: January just started, probably 100-150 kg used so far.\nSpeaker 2: 150 kg used? Three sites active?\nSpeaker 1: Yes, three sites active.\nSpeaker 2: Any other product concerns?\nSpeaker 1: No, everything is fine.",
+      "translated_text": "FME: Hello sir. Hello. And sir, how is all the work going?\nUser: It's going well, sir. Two or three sites are active.\nFME: Okay, are all the people there? How many people are there right now?\nUser: There are about 12 people right now.\nFME: Okay. Which one do you use more often on each site, sir? Fevicol HI-PER or Fevicol MARINE?\nUser: Fevicol MARINE is used more. I also used Fevicol HI-PER on one site recently.\nFME: Okay. The other items are always used, like Nail Free, Fevicol PROBOND... these are all common. So, for the plywood and laminate work here, will there be acrylic or veneer on this site?\nUser: Veneer is coming to the site now, veneer has arrived.\nFME: Has it arrived? Okay, okay. Veneer has arrived, and acrylic?\nUser: Acrylic is for the kitchen... acrylic has arrived for the kitchen.\nFME: You used Fevicol HI-PER STAR, right, last time, 20 kg? How is it now?\nUser: I found it good.\nFME: Compared to Fevicol HI-PER and Fevicol MARINE, what's the difference, how did it feel?\nUser: The difference is that it has better coverage, there's no issue. You can use Fevicol HI-PER.\nFME: Fevicol HI-PER STAR?\nUser: Fevicol HI-PER STAR.\nFME: Okay. And Fevicol MARINE?\nUser: Fevicol MARINE is still... some parties require Fevicol MARINE. Later, we tell them that it has to be done. Nowadays, most people put PVC on the back.\nFME: They put PVC on the back.\nUser: Even then, we still make them apply Fevicol MARINE over it.\nFME: So you haven't used it much for the last 12 months? Okay. They're putting PVC. And sir, do you have any feedback about our products that you use, like Fevicol HI-PER, Fevicol PROBOND, Nail Free, whatever you use?\nUser: It's good, there's nothing to say about your product, it's used completely. There has never been any complaint.\nFME: Okay. And apart from that, any other feedback from you? Overall feedback for Fevicol? Do you need any new products or can we do something new? Whatever is on your mind...\nUser: You already have new items coming out, there's no need to think. I mean, new things keep coming out. We have all the items we need from you, completely. And they are being used, there are no complaints.\nFME: And about our FCC Meet and all, or our FCC is coming, and you get gifts, any feedback on that?\nUser: Sir, yours is good, there's no issue. Gifts are received on time, meetings are also on time, everything is there. It's well arranged, no problem.\nFME: Okay. And sir, for the last 6 months, you haven't redeemed any points for gifts? Why? I mean...\nUser: I was busy, not free to do all that. I just keep scanning, thinking I'll look at it later, later.\nFME: So what are you thinking of getting now?\nUser: Yes, I'm thinking of getting something.\nFME: What? A gift? A car...\nUser: Yes, a car, or maybe gold or something like that.\nFME: And sir, you're using Fevicol SH very little these days?\nUser: I was using it initially, but then Fevicol MARINE came. After using Fevicol MARINE once or twice, I liked it more, thinking Fevicol MARINE is a good product. Then I started using Fevicol HI-PER STAR, and I liked that too. I can use that.\nFME: Okay. And sir, where is the material for this site coming from, the shop? The dealer... our dealer here... where did it come from?\nUser: It came from there, this Konkan... no, our Vinayak Hardware, half the material came from Vinayak Hardware.\nFME: Vinayak Hardware. So not from one single shop?\nUser: No, no, it also came from Prakash Traders...\nFME: Okay, okay. It's a mix. Okay. How much Fevicol material will be used on this site, sir?\nUser: On this site, Fevicol will be...\nFME: How much will it be in total?\nUser: On this site, it will be 150 kg, and 400 kg went to that site.\nFME: Okay. Is MDF being used, sir?\nUser: Yes, MDF is being used. We use MDF the most.\nFME: Where is it used most? For deco paint?\nUser: For PU paint, Duco paint.\nFME: Do you do it yourself?\nUser: Yes, it's our team.\nFME: It's your team? Very good. And sir, how is our Fevikwik? The new Fevikwik 463?\nUser: The new Fevikwik is also good. Was it used anywhere? Did you use it after the demo? I brought it once, did it have points?\nFME: Yes, the box has 125...\nUser: I brought it in an emergency, didn't check for points. We just used it.\nFME: Yes, it's on top. Sir, everyone checks the bottles, every product's bottle and can, for Fevikwik...\nUser: Yes, it was an emergency, no one checked, we used it and threw away the box.\nFME: No, no, don't do that next time. Both the 125 and 250 have points. The 20-gram one won't have it, but these two do. Is Fevicol PROBOND being used, sir?\nUser: Fevicol PROBOND is mandatory on my site. We only use Fevicol PROBOND for any PVC.\nFME: For acrylic?\nUser: For both acrylic and this. The new acrylic sheets that have come, everyone uses this for them.\nFME: Do you use edge banding?\nUser: We used this for edge banding too.\nFME: No, for laminate? Do you mostly use edge banding?\nUser: On some sites, we do the whole side with it.\nFME: Edge banding?\nUser: Yes, edge banding. We stick it with Fevicol PROBOND.\nFME: Okay, sir. And sir, what about competitors?\nUser: There are competitors, other companies... we don't pay attention to them. We only use Pidilite products. There are many, they come to the market, they have meetings, and all. But we don't go there. For 20, 22 years, it's only been Pidilite's Fevicol MARINE...\nFME: Okay. And sir, how much Fevicol did you get in January for all three sites?\nUser: January just started, so probably not much, maybe 100, 150 kg so far.\nFME: 150 kg? Are three sites currently active?\nUser: Yes, three sites are active.\nFME: Okay. And any concerns about any product?\nUser: No, nothing like that, everything is fine.\nFME: Okay, sir, okay. Thank you, sir.",
       "translation_tokens": {
-        "input": 1772,
-        "output": 1144,
-        "total": 10278
+        "input": 5731,
+        "output": 3406,
+        "total": 9137
       },
       "insights_tokens": {
-        "input": 7153,
-        "output": 4046,
-        "total": 11199
+        "input": 9139,
+        "output": 2725,
+        "total": 11864
       },
       "total_tokens": {
-        "input": 8925,
-        "output": 5190,
-        "total": 21477
+        "input": 14870,
+        "output": 6131,
+        "total": 21001
       },
-      "total_time_s": 56.21,
+      "total_time_s": 29.58,
       "insights": [
         {
-          "group_type": "Product",
-          "category_type": "Marine",
-          "tag_ids": [
-            9
-          ],
-          "verbatim_quote": "Marine is more common.",
-          "summary": "Fevicol Marine is a commonly used product, indicating its popularity and widespread acceptance among users.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol MARINE"
-        },
-        {
-          "group_type": "Product",
+          "group_type": "PDT GROUP",
           "category_type": "Product",
           "tag_ids": [
             6
           ],
-          "verbatim_quote": "Used Hyper on one site recently.",
-          "summary": "Fevicol Hi-per was recently used on a construction site, suggesting its application in ongoing projects.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Acrylic used in kitchen.",
-          "summary": "Acrylic sheets were used in a kitchen application, implying the use of an adhesive suitable for bonding acrylic in a kitchen environment.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "I liked it.",
-          "summary": "The user expressed satisfaction with Fevicol Hi-per Star after using it, indicating positive product performance.",
+          "verbatim_quote": "The difference is that it has better coverage, there's no issue. You can use Fevicol HI-PER.",
+          "summary": "User found Fevicol HI-PER STAR to have better coverage compared to Fevicol HI-PER and Fevicol MARINE.",
           "competitors_mentioned": [],
           "product_name": "Fevicol HI-PER STAR"
         },
         {
-          "group_type": "Product",
-          "category_type": "Product",
+          "group_type": "USER GROUP",
+          "category_type": "User Meets",
           "tag_ids": [
-            6
+            24
           ],
-          "verbatim_quote": "Hyper offers better coverage.",
-          "summary": "Fevicol Hi-per offers better coverage compared to Fevicol Marine, suggesting an advantage in application efficiency or spread.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Marine",
-          "tag_ids": [
-            9
-          ],
-          "verbatim_quote": "Marine Coat is a client requirement.",
-          "summary": "Fevicol Marine Coat is a specific requirement from clients, indicating its importance in project specifications and client preferences.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol MARINE"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Marine",
-          "tag_ids": [
-            9
-          ],
-          "verbatim_quote": "Most use PVC on the backside, but we still apply Marine Coat over it.",
-          "summary": "Despite the common practice of using PVC on the backside, Fevicol Marine Coat is still applied over it, highlighting its perceived value or necessity for additional protection or bonding.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol MARINE"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "No complaints about your products, we use them fully.",
-          "summary": "The user has no complaints about Pidilite products and utilizes them extensively, indicating high satisfaction and trust in the product range.",
+          "verbatim_quote": "Sir, yours is good, there's no issue. Gifts are received on time, meetings are also on time, everything is there. It's well arranged, no problem.",
+          "summary": "User is satisfied with the FCC Meets, timely receipt of gifts, and overall arrangement of user engagement activities.",
           "competitors_mentioned": [],
           "product_name": null
         },
         {
-          "group_type": "Product",
-          "category_type": "Product",
+          "group_type": "USER GROUP",
+          "category_type": "Systems",
           "tag_ids": [
-            6
+            12
           ],
-          "verbatim_quote": "Used SH initially, then Marine came.",
-          "summary": "Fevicol SH was used initially, but then Fevicol Marine became the preferred product, suggesting a shift in preference possibly due to performance or specific project requirements.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol SH"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Marine",
-          "tag_ids": [
-            9
-          ],
-          "verbatim_quote": "I liked Marine after using it.",
-          "summary": "The user expressed satisfaction with Fevicol Marine after using it, indicating a positive experience with the product's performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol MARINE"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Then I used Hyper Star, also liked it.",
-          "summary": "The user also expressed satisfaction with Fevicol Hi-per Star after using it, indicating a positive experience with this product as well.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "This site will use 150 kg Fevicol.",
-          "summary": "A specific site is projected to use 150 kg of Fevicol, indicating a significant volume requirement for an ongoing or upcoming project.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Another site used 400 kg.",
-          "summary": "Another site utilized 400 kg of Fevicol, highlighting a large-scale application and substantial product consumption.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, MDF is used.",
-          "summary": "MDF (Medium-density fibreboard) is being used, implying the need for an adhesive suitable for bonding this material.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We use MDF most.",
-          "summary": "MDF (Medium-density fibreboard) is the most frequently used material, indicating a high demand for adhesives compatible with MDF.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "New Fevikwik is good.",
-          "summary": "The new Fevikwik 463 is performing well and is considered good by the user, suggesting positive feedback on its improved formulation or features.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "Brought it once, didn't check points due to urgency.",
-          "summary": "The user purchased Fevikwik once but did not check for loyalty points due to the urgent need for the product, indicating that immediate utility sometimes overrides loyalty program engagement.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            5
-          ],
-          "verbatim_quote": "It was urgent, nobody checked, used it, discarded the box.",
-          "summary": "Due to the urgent need for Fevikwik, the product was used immediately, and the packaging was discarded without checking for loyalty points, highlighting a missed opportunity for loyalty program engagement during urgent purchases.",
-          "competitors_mentioned": [],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Probond is mandatory on my sites.",
-          "summary": "Fevicol Probond is a mandatory product on the user's sites, indicating its critical role and established preference in their operations.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We use Probond for all PVC.",
-          "summary": "Fevicol Probond is exclusively used for all PVC applications, highlighting its suitability and effectiveness for bonding PVC materials.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "New acrylic sheets have arrived, all use this.",
-          "summary": "New acrylic sheets have been received, and Fevicol Probond is being used for all of them, indicating its consistent application for new materials.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "We stick it with Probond.",
-          "summary": "Edge banding is being adhered using Fevicol Probond, demonstrating its application in finishing processes.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "January just started, probably 100-150 kg used so far.",
-          "summary": "Approximately 100-150 kg of Fevicol has been used across three active sites since the beginning of January, indicating ongoing consumption and project activity.",
+          "verbatim_quote": "I was busy, not free to do all that. I just keep scanning, thinking I'll look at it later, later.",
+          "summary": "User has not redeemed points for gifts due to being busy, but continues to scan them.",
           "competitors_mentioned": [],
           "product_name": null
         }
       ],
       "validation": {
-        "total_items": 23,
+        "total_items": 3,
         "group_counts": {
+          "DEALER GROUP": 0,
           "User": 0,
+          "PDT GROUP": 1,
           "Dealer": 0,
-          "Product": 23
+          "USER GROUP": 2,
+          "Product": 0
         },
         "issues": [],
         "all_tag_ids": [
-          9,
-          5,
+          24,
+          12,
           6
         ],
         "all_competitors": []
@@ -803,149 +250,37 @@
     {
       "file": "transcript_5.txt",
       "hindi_chars": 6412,
-      "translated_text": "Speaker 1: Jetharam, good work. Is all furniture done?\nSpeaker 2: All.\nSpeaker 1: All rooms complete?\nSpeaker 1: Which glue are you using? Century? No, which glue?\nSpeaker 2: Hyper Star.\nSpeaker 1: Star? Where is it? Can't see it.\nSpeaker 2: Drum is in kitchen.\nSpeaker 1: Okay. How many used?\nSpeaker 2: Six drums arrived.\nSpeaker 1: Six on this site?\nSpeaker 2: Four non-scheme, actually five, plus one non-scheme.\nSpeaker 1: Okay, that's not coming now. Right. Six drums. Where did you apply it?\nSpeaker 1: Is this acrylic sheet?\nSpeaker 2: Yes, acrylic.\nSpeaker 1: What did you use to fix acrylic?\nSpeaker 2: Probond.\nSpeaker 1: Used Probond? Excellent. Kitchen is well-made. Ongoing. Base ready tomorrow, all profile shutters.\nSpeaker 1: Okay. How much more time here?\nSpeaker 2: By Feb 15-20.\nSpeaker 1: Good work. Are you doing design or architect?\nSpeaker 2: Architect.\nSpeaker 1: Which other products are being used here?\nSpeaker 2: Easy, Realm, Probond, all.\nSpeaker 1: Terminator... used Terminator too? Excellent.\nSpeaker 1: So Marine Coat wasn't used?\nSpeaker 2: We use Century based on customer requirement.\nSpeaker 1: Using a good brand, so no need for it. Terminator used heavily.\nSpeaker 1: Terminator, about 15-20 liters sold here.\nSpeaker 1: Was 463 also ordered?\nSpeaker 2: Yes, 463 is coming. No count for 400.\nSpeaker 1: How many bottles ordered? 10-12 bottles each round.\nSpeaker 1: Okay. Excellent. Nowadays, all edge banding is done with this.\nSpeaker 1: Who is supplying material?\nSpeaker 2: Manoj ji.\nSpeaker 1: All from Manoj ji? Old Mandi? Manoj ji Bhanani.\nSpeaker 1: Lovely design. We changed interior, nothing negative. Luxury. Client spending fully.\nSpeaker 1: What was your budget?\nSpeaker 2: My budget was 35 lakhs.\nSpeaker 1: Excellent work for 35 lakhs. What about upstairs?\nSpeaker 2: Not upstairs, only downstairs.\nSpeaker 1: Only downstairs? Nothing upstairs yet? Okay. Lobby pending. That wall, this padded wall. Staircase wall. Will profiles and lighting be done here too?\nSpeaker 2: Yes.\nSpeaker 1: These are rooms?\nSpeaker 2: This is kids' room.\nSpeaker 1: Okay, study room?\nSpeaker 2: It has a bed, an almirah, and a study table.\nSpeaker 1: Kitchen is lovely.\nSpeaker 1: Is this washing area?\nSpeaker 2: Washing area will have grill above.\nSpeaker 1: Okay, large basket below. This is a drawer, these are shutters, these are also shutters. Excellent.\nSpeaker 1: How much Easy Spray used here?\nSpeaker 2: Easy, no count, don't know how much.\nSpeaker 1: Roughly?\nSpeaker 2: Roughly 30-35 bottles. 30-35 pieces used.\nSpeaker 1: This is uncle's room?\nSpeaker 2: Okay. Fully cushioned.\nSpeaker 1: Okay. How long has this site been active?\nSpeaker 2: 3.5 to 4 months.\nSpeaker 1: How many other sites are active?\nSpeaker 2: One in Vyas Colony.\nSpeaker 1: Another in Vyas Colony? Team working properly there? How many workers deployed?\nSpeaker 2: 7-8 workers.\nSpeaker 1: 7-8? Okay. And here?\nSpeaker 2: No, there are three people there, and five-six people. Here, total 7-8 people work.\nSpeaker 1: Okay. Good. Work slows in winter. As days get warmer, work will pick up. Work will start gradually tomorrow.\nSpeaker 1: Any feedback or suggestions?\nSpeaker 2: Pidilite products are number one. Astral Adhesive is gaining market share, getting calls.\nSpeaker 1: Where is this coming from? Many calls... Astral? Astral Adhesive? Yes. Do they call you?\nSpeaker 2: Yes, calls keep coming, they invite for meetings.\nSpeaker 1: Any deals?\nSpeaker 2: Yes, they offer a lot.\nSpeaker 1: They talk a lot. But we don't go. We went once, got gifts. So you went to their meeting once?\nSpeaker 2: Went once, brought product, tried it. It's okay, but Pidilite is different.\nSpeaker 1: Which Astral product did you try?\nSpeaker 2: Tried their glue... SR bond type... this glue.\nSpeaker 1: Hyper-type product?\nSpeaker 2: Yes, Hyper type.\nSpeaker 1: How was it?\nSpeaker 2: It's okay, works, but Pidilite is different.\nSpeaker 1: So you prefer us?\nSpeaker 2: Yes, we are different. How can we compare with them?\nSpeaker 1: You've used products for 30 years... 30? 40 years! They just entered market.\nSpeaker 1: What else are they offering? Is it a very high offer? Giving more? Yes, giving more... double-triple? You could say double.\nSpeaker 1: Product price is also lower?\nSpeaker 2: Price is very low, and discount is high.\nSpeaker 1: But quality?\nSpeaker 2: Quality is okay, it works, but Pidilite is different.\nSpeaker 1: Right.\nSpeaker 1: Any other companies emerging?\nSpeaker 2: No other company... many call, but we don't pay attention.",
+      "translated_text": "FME: Hello sir, greetings. Greetings. How are you? I'm fine. Are you touring here? It has started. No problem. Our work is like that, right? Wow! Jetharam ji, I had come to this site before, right? When you needed some material, I think Joginder and I came? No, they came here. No, they came around Holi or some such time, maybe.\nUser: Diwali time, sir, on Diwali day. We met on Diwali day on the way. But first, we came here, then we went there because you were going to take time, then we met on the way.\nFME: Yes, we came once. Yes, absolutely. Very good. What is this girl... Jetharam ji, you are doing a great job, is the whole furniture done?\nUser: Whole.\nFME: So, all the rooms and everything is complete? Wow! So, which one of ours is coming, sir? Century? No, no, which glue of ours is coming?\nUser: Fevicol HI-PER STAR.\nFME: Oh, Fevicol HI-PER STAR is coming? Where is it, I can't see it?\nUser: The drum is inside the kitchen.\nFME: Oh. Wow! They take it inside and keep it empty. How many have you installed?\nUser: Six drums have arrived.\nFME: Six have arrived on this site? What are you saying?\nUser: Four of those came without the scheme, the scheme ones. Four, no, five came, and this one is a non-scheme one.\nFME: Oh, yes, that one is not coming now. Correct. Six drums have arrived. So, where did you apply it? Where did you apply it? Correct. Is this an acrylic sheet, sir? Is this acrylic?\nUser: Yes, acrylic.\nFME: So, with what did you apply the acrylic?\nUser: Fevicol PROBOND.\nFME: You applied it with Fevicol PROBOND? Very good, sir. The kitchen is also well made.\nUser: It's ongoing. The base below will be ready tomorrow, all the profile shutters will be there.\nFME: Okay. How much more time will it take here?\nUser: We will finish by February 15th. By February 15th-20th.\nFME: The work is well done, sir. Does that mean you are providing the design or is there an architect?\nUser: There is an architect.\nFME: And sir, which other products of ours are being used here?\nUser: Fevicol EZEESPRAY, Fevicol RELAM, Fevicol PROBOND, and all of them are being used. Terminator...\nFME: You also used Terminator? Very good. But Pidilite doesn't always do that, no problem, where there is love, there are complaints and everything. So, you left out Fevicol MARINE, didn't you apply it?\nUser: We use Century, we do it according to the customer's requirement.\nFME: Oh, you are using a good brand, so you don't need that then.\nUser: There is no need. And in this, it becomes different.\nFME: And you use Terminator? Okay, a lot. Terminator, I think, about 15-20 liters have been sold here. Did you also order our 463?\nUser: Yes, 463 is always coming. We haven't counted how many bottles of 400 we've ordered. In every round, 10-12, 10-12 bottles come.\nFME: Oh. Very good. Nowadays, all the joints and everything are being done with this. Hmm hmm hmm. Is this an LCD panel you prepared? Jetharam ji, include us too! We will also learn the art of craftsmanship! Wow! From whom is the material coming, sir?\nUser: It's coming from Manoj ji.\nFME: Oh, all of it is coming from Manoj ji? Old market?\nUser: It's coming from Manoj ji Bhanani.\nFME: He has given a very lovely design. We changed some of the interior, there was nothing minus in the interior. Luxury, meaning! And the client is spending a lot of money. What budget did you give?\nUser: My budget for this was 35 lakhs.\nFME: You did a great job for 35 lakhs then, sir. Will there be something upstairs too?\nUser: Not upstairs, it's only downstairs.\nFME: Oh, it's only downstairs? Not doing anything upstairs yet? Okay, okay, okay.\nUser: The lobby and everything is still left. That's a wall, there's a padded wall here.\nFME: Oh, this is the entire wall for the stairs. So, will there be profiles here too, and will the lighting work also be done?\nUser: Yes.\nFME: Are these rooms?\nUser: This is the children's room.\nFME: Oh, study room?\nUser: It has a bed and an almirah. Oh, and a study table.\nFME: Okay. You made the kitchen very lovely. Is this the washing area?\nUser: The washing area will have a grill on top. Oh, below is a large basket. These are drawers, these are shutters, these are also shutters.\nFME: Very good. So, how much Fevicol EZEESPRAY have you used here, sir?\nUser: Fevicol EZEESPRAY, there's no count, I don't know how many come.\nFME: Approximately, still?\nUser: Approximately, 30-35 bottles must have come.\nFME: 30-35 pieces have been installed. Okay. Is this uncle's room? Okay. It has full cushioning. Okay, yes, absolutely, that will be there, sir. How long has this site been running for you?\nUser: Three and a half to four months.\nFME: So, how many other sites are running along with this, sir?\nUser: Currently, one is running in Vyas Colony.\nFME: Another one in Vyas Colony? So, a proper team is working on that too? How many people have you employed?\nUser: 7-8, 7-8 people.\nFME: 7-8? Okay. And here?\nUser: No, there are three people there, and five-six people. Here, a total of 7-8 people work.\nFME: Okay, okay. Good, good, sir. What happens is, work doesn't come out much in winter, right? Now, as the days get a little warmer, open up, work will start. Work will start little by little tomorrow. Okay, sir. But considering projects like these, if one or two are running, that's enough, sir. There's no question of saying that there's a shortage of work. Such a lovely project is being prepared, such good work is being done, so it's good. Since I came to Bikaner, I haven't felt any need for work at all, although it's always full. Any feedback, any suggestions? What happens is, Pidilite's products are number one. Now, if you tell me, Astral Adhesive is coming, it has a lot in the market right now, calls keep coming, calls keep coming. Where is this coming from?\nUser: Yes, these calls are coming a lot... Astral... Astral? Astral is coming, right? Astral Adhesive? Yes.\nFME: Do they call you?\nUser: Yes, calls keep coming, they also invite us to meetings.\nFME: Oh, are they offering any deals?\nUser: Yes, they say a lot, sir, they say a lot. Yes, tell me, they keep talking about all this. But we don't go, we don't go. We went once, they gave us a gift and everything.\nFME: So, you went to their meeting once?\nUser: We went once, then I also brought their product, I tried it, it's okay, it works, but Pidilite is different.\nFME: So, which Astral product did you try?\nUser: I tried their glue... that SR bond type... I tried this glue, this one.\nFME: Oh, Fevicol HI-PER type product?\nUser: Yes, Fevicol HI-PER type, Fevicol HI-PER type.\nFME: Oh, how was it?\nUser: It's... okay, it works, but Pidilite is different.\nFME: So, you are above us, right?\nUser: Yes, ours is different, how can we compare ourselves to them now? You have been for 30 years...\nFME: 30 years?\nUser: 40 years! Their product for 40 years... they just came into the market!\nFME: And what are they saying, are they giving any offer that is very high? Are they giving more?\nUser: They are giving more, yes, they are giving more... Double-triple? Double... you can say double, something like that.\nFME: Oh, is their product price also low?\nUser: The price is very low, and the discount is more.\nFME: But quality?\nUser: The quality is okay, it just works, but Pidilite is different.\nFME: Correct, correct. And any other company coming?\nUser: No, no other company... actually, many come, everyone calls, but we don't pay attention.\nFME: Okay, very good, sir. Okay, thank you.",
       "translation_tokens": {
-        "input": 2059,
-        "output": 1365,
-        "total": 9135
+        "input": 6466,
+        "output": 4302,
+        "total": 10768
       },
       "insights_tokens": {
-        "input": 6627,
-        "output": 1694,
-        "total": 8321
+        "input": 8913,
+        "output": 1043,
+        "total": 9956
       },
       "total_tokens": {
-        "input": 8686,
-        "output": 3059,
-        "total": 17456
+        "input": 15379,
+        "output": 5345,
+        "total": 20724
       },
-      "total_time_s": 38.51,
-      "insights": [
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Six drums arrived.",
-          "summary": "Six drums of Fevicol HI-PER STAR arrived at the site, indicating product usage and availability.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol HI-PER STAR"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Used Probond? Excellent.",
-          "summary": "Fevicol PROBOND was used to fix acrylic sheets in the kitchen, and the user expressed satisfaction with its performance.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol PROBOND"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Competition",
-          "tag_ids": [
-            1
-          ],
-          "verbatim_quote": "We use Century based on customer requirement.",
-          "summary": "Century was used based on customer requirement, implying that Fevicol MARINE was not needed for the specific application, suggesting a competitive product preference.",
-          "competitors_mentioned": [
-            "Century"
-          ],
-          "product_name": "Fevicol MARINE"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Terminator, about 15-20 liters sold here.",
-          "summary": "Approximately 15-20 liters of Terminator were sold and used at the site, indicating product demand and application.",
-          "competitors_mentioned": [],
-          "product_name": "Terminator"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Yes, 463 is coming. No count for 400.",
-          "summary": "Product 463 is being supplied to the site, but there is no specific quantity recorded for product 400, indicating usage of 463.",
-          "competitors_mentioned": [],
-          "product_name": "463"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Product",
-          "tag_ids": [
-            6
-          ],
-          "verbatim_quote": "Roughly 30-35 bottles. 30-35 pieces used.",
-          "summary": "Roughly 30-35 bottles/pieces of Fevicol EZEESPRAY were used at the site, indicating significant product consumption.",
-          "competitors_mentioned": [],
-          "product_name": "Fevicol EZEESPRAY"
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Competition",
-          "tag_ids": [
-            1
-          ],
-          "verbatim_quote": "Pidilite products are number one. Astral Adhesive is gaining market share, getting calls.",
-          "summary": "While Pidilite products are considered superior, Astral Adhesive is actively gaining market share by engaging with users through calls, indicating competitive activity.",
-          "competitors_mentioned": [
-            "Astral Adhesive"
-          ],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Competition",
-          "tag_ids": [
-            1
-          ],
-          "verbatim_quote": "Went once, brought product, tried it. It's okay, but Pidilite is different.",
-          "summary": "A user tried an Astral Adhesive glue, described as an SR bond type or Hyper type, and found its quality to be 'okay' but explicitly stated a preference for Pidilite products, highlighting a perceived quality difference.",
-          "competitors_mentioned": [
-            "Astral Adhesive"
-          ],
-          "product_name": null
-        },
-        {
-          "group_type": "Product",
-          "category_type": "Competition",
-          "tag_ids": [
-            2
-          ],
-          "verbatim_quote": "Price is very low, and discount is high.",
-          "summary": "Astral Adhesive products are noted for their very low price and high discount offerings, which may attract users despite their quality being perceived as only 'okay' compared to Pidilite.",
-          "competitors_mentioned": [
-            "Astral Adhesive"
-          ],
-          "product_name": null
-        }
-      ],
+      "total_time_s": 28.06,
+      "insights": [],
       "validation": {
-        "total_items": 9,
+        "total_items": 0,
         "group_counts": {
+          "DEALER GROUP": 0,
           "User": 0,
+          "PDT GROUP": 0,
           "Dealer": 0,
-          "Product": 9
+          "USER GROUP": 0,
+          "Product": 0
         },
         "issues": [],
-        "all_tag_ids": [
-          1,
-          2,
-          6
-        ],
-        "all_competitors": [
-          "Astral Adhesive",
-          "Century"
-        ]
+        "all_tag_ids": [],
+        "all_competitors": []
       },
       "raw_hindi": "अजी साहब नमस्कार। नमस्कार। क्या हाल है जी? ठीक है। यहां तो दौरे आओ? चालू हो गया है। कोई बात नहीं। अपना काम ही ऐसा है यार है ना! वाह जी वाह! यार जेठाराम जी इस साइड पे तो मैं पहले भी आया था? जब आपको कुछ सामान चाहिए था पता नहीं मैं और जोगिंदर आए थे? नहीं, वो आए थे यहां पे। नहीं वो अपने होली वाले टाइम या कुछ ऐसे टाइम आए थे शायद। दीवाली के टाइम सर, दीवाली के दिन। दीवाली के दिन यहां रास्ते में मिले थे। लेकिन पहले यहां आए थे फिर अपन वहां आ गए थे क्योंकि आपको टाइम लगना था, फिर अपन रास्ते में मिल लिए थे। हां, एक बार आए थे। हां, बिल्कुल बिल्कुल। बहुत ही बढ़िया। ये क्या लौंडिया... अज्जा लौंडिया... अज्जा लौंडिया... जेठाराम जी काम तो बढ़िया कर रहे हो यार, पूरा फर्नीचर रह गया? पूरा। मतलब सारे रूम और सारा ही कंप्लीट है? वाह जी वाह। तो अपना कौन सा आ रहा है सर? सेंचुरी? नहीं नहीं, अपना ग्लू कौन सा आ रहा है? वो हाइपर स्टार। अच्छा स्टार आ रहा है क्या? कहां पड़ा है, दिख नहीं रहा? ड्रम वो अंदर किचन में पड़ा है। अच्छा। वाह जी वाह! ले जाते हैं अंदर तो खाली रखते हैं। अच्छा कितने लगा दिए? छह ड्रम आ गए। छह आ गए इस साइड पे? क्या बात कर रहे हो? चार तो वो आ गए जो बिना स्कीम वाले, स्कीम वाले अच्छा। चार क्या पांच आ गए, और एक ये नॉन स्कीम वाला है। अच्छा, हां अभी वो नहीं आ रहा ना। सही है। 6 ड्रम आ गए। तो कहां पोता है आपने? कहां पोता है इसको? सही है। ये क्या एक्रेलिक है क्या सर शीट? ये एक्रेलिक है क्या? हां एक्रेलिक। तो किससे लगाई आपने एक्रेलिक? ये प्रोबॉन्ड। प्रोबॉन्ड से लगाई है? बहुत ही बढ़िया सर। अच्छा बनाया है किचन भी। ये चल रहा है। अभी कल बेस नीचे का रेडी हो जाएगा, पूरा प्रोफाइल वाले पल्ले रहेंगे। अच्छा। कितना टाइम लगेगा और यहां? 15 फरवरी तक कर देंगे। 15-20 फरवरी तक। काम अच्छा करवाया है सर। इसका मतलब डिजाइनिंग आप दे रहे हो या आर्किटेक्ट है? आर्किटेक्ट है। और सर कौन-कौन से प्रोडक्ट लग रहे हैं अपने यहां पे? ईजी, रेलम, प्रोबॉन्ड, और सारे ही लग रहे हैं। टर्मिनेटर... टर्मिनेटर भी यूज़ किया है? बहुत ही बढ़िया। लेकिन पिडिलाइट हमेशा नहीं करती है, कोई बात नहीं, जहां प्यार है वहां गिले-शिकवे सब ही हैं। तो मरीन कोट छोड़ दिया वो नहीं लगाया? सेंचुरी यूज़ करते हैं हम तो कस्टमर की रिक्वायरमेंट में करते हैं। अच्छा ब्रांड यूज़ कर रहे हो तो इसमें फिर आपको वो नीड ही नहीं है। नीड ही नहीं होती। और इसमें अदर हो जाता है। और टर्मिनेटर यूज़ कर देते हो? ठीक है, दबा के। टर्मिनेटर यहां लगभग मेरे हिसाब से 15-20 लीटर बिक चुका है। वो भी मंगवाया था क्या अपना 463 मंगवाया था? हां 463 तो आ ही रहा है। 400 में तो कोई गिनती नहीं की। कितनी बोतलें मंगवा ली? हर राउंड में 10-12, 10-12 बोतलें आती हैं। अच्छा। बहुत ही बढ़िया। आजकल क्या है टक्कर-वक्कर ये सब टोटल इसी से ही लगाने लग गए। हम्म हम्म हम्म। ये एलसीडी पैनल रेडी किया है क्या? यार अपने जेठाराम जी, अपने साथ ही मिला लो यार हमें तो यार! और यार हाथ की कलाकारी सीख लेंगे हम भी यार! वाह जी वाह। किससे आ रहा है माल सर? मनोज जी से ही आ रहा है। अच्छा सारा मनोज जी से ही आ रहा है क्या? पुरानी मंडी? मनोज जी भनानी से ही आ रहा है। बड़ा प्यारा डिज़ाइन दिया है यार। कुछ अपन ने चेंज कर दिया इंटीरियर, कुछ माइनस था ही नहीं इंटीरियर में। लग्ज़री मतलब! और फुल पार्टी पैसा लगा रही है। क्या बजट दिया है आपने? बजट कुछ मेरा था इसका 35 लाख का। 35 में ही बहुत बढ़िया काम कर दिया फिर तो भाई साहब। ऊपर भी तो होगा? ऊपर का नहीं, नीचे-नीचे का है। अच्छा नीचे-नीचे का ही है? ऊपर का अभी कुछ नहीं कर रहे? ठीक है, ठीक है, ठीक है। अभी लोबी-वोबी पूरी बाकी पड़ी है। वो वॉल है, इधर पेडिंग वाली वॉल है। अच्छा सीढ़ियों वाली ये वॉल है पूरी। तो इसमें भी प्रोफाइलें आएंगी अभी लाइट-वाइट का काम भी होगा इसमें? हां। ये कमरे हैं? ये बच्चों का रूम है। अच्छा, स्टडी रूम? इसमें एक बेड है और एक ये अलमीरा है। अच्छा और स्टडी टेबल है। ठीक है। किचन बहुत प्यारा बनाया यार आपने यार। ये वॉशिंग एरिया है? ये वॉशिंग ऊपर ग्रिल आएगी। अच्छा, नीचे एक बड़ा बास्केट है। ये ड्रॉर है, ये पल्ले हैं, ये भी पल्ले हैं। बहुत ही बढ़िया। तो ईजी स्प्रे कितना लगा दिया सर आपने यहां पे? ईजी यार गिनती नहीं है, पता नहीं बस कितनी आती है। अंदाजन फिर भी? अंदाजन आ गई होनी 30-35 बोतलें। 30-35 पीस तो लगा दिए। ठीक है। ये अंकल का रूम है? ठीक है। इसपे पूरी कुशन है। ओके, हां बिल्कुल वो तो होगा सर। कितना टाइम हो गया इस साइट को चलते हुए आपके? साढ़े तीन से चार महीने। तो इसके साथ और कितनी साइटें चल रही हैं सर? अभी एक व्यास कॉलोनी में चल रही है। एक और व्यास कॉलोनी में? मतलब उसपे भी टीम कर रही है प्रॉपर काम? कितने बंदे लगा रखे हैं? 7-8, 7-8 बंदे। 7-8 हैं? ठीक है। और यहां पे? नहीं वहां पे तो तीन आदमी हैं, और पांच-छह आदमी हैं। यहां काम कर रहे हैं टोटल जो है 7-8 आदमी रहते हैं। ठीक है, ठीक है। बढ़िया है, बढ़िया है सर। क्या है सर्दी में काम इतना निकलता नहीं है ना। अब जैसे-जैसे दिन थोड़े गर्म होंगे, खुलेंगे तो काम शुरू होगा। कल काम शुरू होगा थोड़ा-थोड़ा। ठीक है सर। लेकिन जिस हिसाब से ऐसे प्रोजेक्ट हैं ना, तो इस हिसाब से एक-दो चलते हों, बहुत है सर। कोई वो नहीं है काम की अपन बोल दें कि जी कमी है। इतना प्यारा मतलब प्रोजेक्ट रेडी हो रहा है, इतना अच्छा काम हो रहा है, तो बढ़िया है। मैं जब से बीकानेर आया हूं ना, तब से काम की तो नीड बिल्कुल ही अपने को रही नहीं है, हालांकि फुल रहता है हमेशा। कोई फीडबैक कोई सजेशन? क्या है ना यार, पिडिलाइट का तो पहला नंबर पे है सब प्रोडक्ट। अभी सब बताओ तो एस्ट्रो नम एड हिसाव (Astral Adhesive) आ रहा है ना, उसका काफी है मार्केट में अभी, फोन आते रहते हैं, कॉल आते रहते हैं। ये कहां से आ रहा है? हां, ये कॉल आ रही हैं बहुत... एस्ट्रो... एस्ट्रल (Astral)? एस्ट्रल आ रहा है ना? एस्ट्रल एड हिसाव? हां। उनकी कॉल आती है? हां, कॉल आती रहती हैं, मीट-वीट भी बुलाते हैं। अच्छा, कोई डील-शील दे रहे हैं? हां, बहुत बोलते हैं सर, बहुत बोलते हैं। हां बताओ, ये सब बाते करते रहते हैं। बट हम जाते नहीं, हम जाते नहीं हैं। एक बार गए थे, एक गिफ्ट-विफ्ट सब दे दिया। मतलब एक बार गए थे उनकी मीटिंग में? एक बार गए थे, फिर प्रोडक्ट भी लाया था, मैंने ट्राई किया था उनका, ठीक है, चलता है, मगर पिडिलाइट अलग है। तो एस्ट्रल का कौन सा प्रोडक्ट ट्राई किया था? प्रोडक्ट ट्राई किया उनका ग्लू किया... वो एसआर (SR) बॉन्ड टाइप... जो ये ग्लू ट्राई किया था, ये। अच्छा, हाइपर टाइप प्रोडक्ट? हां, हाइपर टाइप, हाइपर टाइप। अच्छा, कैसा लगा? वो... ठीक-ठाक है, चलता है, मगर पिडिलाइट अलग है। मतलब हमारे ही ऊपर हो ना? हां, हमारा ही अलग है, हम उन लोगों के बराबर में कैसे जाए अब? आप 30 साल से... 30 साल? 40 साल! 40 साल से उन लोगों का प्रोडक्ट... वो लोग तो अभी आए हैं मार्केट में! और क्या बोल रहे हैं, कोई ऐसा ऑफर दे रहे हैं जो कि बहुत ज्यादा है? ज्यादा दे रहे हैं? ज्यादा तो दे ही रहे हैं, हां ज्यादा दे रहे हैं... डबल-ट्रिपल क्या? डबल... डबल बोल सकते हो, कुछ ऐसा है। अच्छा, प्रोडक्ट प्राइस भी कम है उनका? प्राइस मतलब बहुत कम है उनका, और डिस्काउंट ज्यादा। बट क्वालिटी? क्वालिटी ठीक है, चलता है बस, पिडिलाइट अलग है। सही है सही है। और कोई और कंपनी कोई आ रही है? नहीं, कोई और कंपनी... वैसे तो बहुत आती हैं, सबकी कॉल आती हैं, मगर हम ध्यान नहीं देते। ठीक है, बहुत ही बढ़िया सर। ठीक है, धन्यवाद।"
     }

@@ -147,6 +147,7 @@ const DEMO_FILTERS: FilterOptions = {
     divisions: ["Fevicol"],
     zones: ["West"],
     clusters: ["Mumbai"],
+    rfmm_clusters: ["Mumbai"],
     states: ["Maharashtra"],
     products: ["FV", "Marine"],
     data_sources: ["M-Power"],

@@ -40,6 +40,7 @@ from services.shared.stt_client import (
     reset_speech_client,
     submit_batch_recognize,
 )
+from services.shared.stt_config import is_audio_media
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +188,8 @@ def submit_stt(
                 error=error_msg
             )
         
-        mime = file_details.mime_type or ""
-        if not (mime.startswith("audio/") or mime.startswith("video/")):
-            error_msg = f"Invalid mime type: {mime}"
+        if not is_audio_media(file_details.file_extension, file_details.mime_type):
+            error_msg = f"Invalid mime type: {file_details.mime_type or ''}"
             db.add(FailedJob(job_id=job.id, file_name=file_details.file_name, error_message=error_msg, pipeline_stage="STT"))
             batch_repository.update_job_status(db, payload.job_id, status=JobStatus.FAILED, error_message=error_msg)
             db.commit()

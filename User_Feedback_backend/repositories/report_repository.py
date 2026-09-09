@@ -14,7 +14,20 @@ from sqlalchemy.orm import Session
 
 SLIM_VIEW = "vw_pbi_feedback_fact_slim"
 FAT_VIEW = "vw_pbi_feedback_fact"
+FILTER_VIEW = "vw_filter_options"
+HIERARCHY_VIEW = "vw_filter_hierarchy"
 NO_PRODUCT_LABEL = "(No product)"
+MASTER_FILTER_LIMIT = 5000
+
+# vw_filter_options.filter_type → report API keys (clusters also get RFMM).
+_FILTER_TYPE_KEYS = {
+    "division": ("divisions",),
+    "zone": ("zones",),
+    "rfmm_cluster": ("clusters", "rfmm_clusters"),
+    "fme_code": ("fme_codes",),
+    "user_type": ("user_types",),
+    "product": ("products",),
+}
 
 DIM_SEARCH = (
     "("
@@ -100,7 +113,9 @@ def build_filters(
     eq("feedback_sub_tag", feedback_sub_tag)
     eq("division", division)
     eq("zone", zone)
-    eq("cluster", cluster)
+    if cluster:
+        clauses.append("(cluster = :cluster OR rfmm_cluster = :cluster)")
+        params["cluster"] = cluster
     eq("state", state)
     eq("data_source", data_source)
     eq("fme_code", fme_code)
@@ -270,8 +285,127 @@ def _distinct_values(
     return out
 
 
-def filter_options(db: Session, fact: str, limit: int = 400) -> dict[str, list]:
-    """Dimension lists from file_details / catalog, then the fact view."""
+def _merge_values(*lists: list, limit: int) -> list:
+    seen: set[str] = set()
+    out: list = []
+    for values in lists:
+        for value in values:
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            out.append(value)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def _sorted_unique(values: list) -> list:
+    seen: set[str] = set()
+    out: list = []
+    for value in values:
+        text_value = _serialize(value)
+        if not text_value or text_value in seen:
+            continue
+        seen.add(text_value)
+        out.append(text_value)
+    out.sort(key=lambda item: item.casefold())
+    return out
+
+
+def _options_from_filter_view(db: Session) -> dict[str, list]:
+    """Official dropdowns from vw_filter_options. Empty dict if the view is missing."""
+    sql = (
+        f"SELECT filter_type, value FROM {FILTER_VIEW} "
+        "WHERE value IS NOT NULL AND TRIM(CAST(value AS TEXT)) <> '' "
+        "ORDER BY filter_type, value "
+        f"LIMIT {MASTER_FILTER_LIMIT}"
+    )
+    try:
+        rows = execute(db, sql, {}).fetchall()
+    except (MissingFactView, ProgrammingError, OperationalError):
+        return {}
+
+    out: dict[str, list] = {}
+    seen: dict[str, set[str]] = {}
+    for filter_type, value in rows:
+        text_value = _serialize(value)
+        if not text_value:
+            continue
+        for key in _FILTER_TYPE_KEYS.get(str(filter_type), ()):
+            bucket = out.setdefault(key, [])
+            used = seen.setdefault(key, set())
+            if text_value in used:
+                continue
+            used.add(text_value)
+            bucket.append(text_value)
+    return out
+
+
+def _options_from_hierarchy(
+    db: Session,
+    *,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+) -> dict[str, list]:
+    """Linked Division → Zone → RFMM → FME lists from vw_filter_hierarchy."""
+    sql = (
+        f"SELECT division, zone, rfmm_cluster, fme_code FROM {HIERARCHY_VIEW} "
+        f"LIMIT {MASTER_FILTER_LIMIT}"
+    )
+    try:
+        rows = execute(db, sql, {}).fetchall()
+    except (MissingFactView, ProgrammingError, OperationalError):
+        return {}
+    if not rows:
+        return {}
+
+    paths = [
+        {
+            "division": _serialize(row[0]),
+            "zone": _serialize(row[1]),
+            "rfmm_cluster": _serialize(row[2]),
+            "fme_code": _serialize(row[3]),
+        }
+        for row in rows
+    ]
+    divisions = _sorted_unique([path["division"] for path in paths])
+
+    scoped = paths
+    if division:
+        scoped = [path for path in scoped if path["division"] == division]
+    zones = _sorted_unique([path["zone"] for path in scoped])
+
+    if zone:
+        scoped = [path for path in scoped if path["zone"] == zone]
+    rfmms = _sorted_unique([path["rfmm_cluster"] for path in scoped])
+
+    if cluster:
+        scoped = [path for path in scoped if path["rfmm_cluster"] == cluster]
+    fmes = _sorted_unique([path["fme_code"] for path in scoped])
+
+    return {
+        "divisions": divisions,
+        "zones": zones,
+        "clusters": rfmms,
+        "rfmm_clusters": rfmms,
+        "fme_codes": fmes,
+    }
+
+
+def filter_options(
+    db: Session,
+    fact: Optional[str] = None,
+    limit: int = 400,
+    *,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+) -> dict[str, list]:
+    """Masters from hierarchy / vw_filter_options; file_details only if masters are empty."""
+    linked = _options_from_hierarchy(db, division=division, zone=zone, cluster=cluster)
+    master = _options_from_filter_view(db)
+    fill_limit = MASTER_FILTER_LIMIT if (linked or master) else limit
     geo = {
         "divisions": "division",
         "zones": "zone",
@@ -281,19 +415,39 @@ def filter_options(db: Session, fact: str, limit: int = 400) -> dict[str, list]:
         "fme_codes": "fme_code",
         "user_types": "user_type",
     }
-    out: dict[str, list] = {}
+    geo_from_hierarchy = {"divisions", "zones", "clusters", "fme_codes"}
+    # When hierarchy is present, keep scoped RFMM/FME even if the zone has none.
+    # Do not refill from the unscoped master view.
+    out: dict[str, list] = {
+        "rfmm_clusters": list(
+            linked.get("rfmm_clusters", []) if linked else master.get("rfmm_clusters", [])
+        ),
+    }
     for key, column in geo.items():
-        out[key] = _distinct_values(
-            db,
-            [("file_details", column), (fact, column)],
-            limit,
-        )
+        if linked and key in geo_from_hierarchy:
+            out[key] = list(linked.get(key, []))
+            continue
+        preferred = master.get(key, [])
+        fallback_tables: list[tuple[str, str]] = []
+        if not preferred:
+            fallback_tables.append(("file_details", column))
+            if fact:
+                fallback_tables.append((fact, column))
+            if key == "clusters":
+                fallback_tables.extend(
+                    [("file_details", "rfmm_cluster")]
+                    + ([(fact, "rfmm_cluster")] if fact else [])
+                )
+        fallback = _distinct_values(db, fallback_tables, fill_limit) if fallback_tables else []
+        out[key] = _merge_values(preferred or [], fallback, limit=fill_limit)
 
-    out["products"] = _distinct_values(
-        db,
-        [("products", "product_name")],
-        limit,
+    out["products"] = _merge_values(
+        master.get("products", []),
+        _distinct_values(db, [("products", "product_name")], fill_limit),
+        limit=fill_limit,
     )
+    if not out["rfmm_clusters"]:
+        out["rfmm_clusters"] = list(out.get("clusters", []))
     return out
 
 

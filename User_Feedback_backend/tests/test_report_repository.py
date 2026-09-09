@@ -20,6 +20,7 @@ from repositories.report_repository import (
 def _reset_fact_view(db_session):
     db_session.execute(text("DROP VIEW IF EXISTS vw_pbi_feedback_fact"))
     db_session.execute(text("DROP VIEW IF EXISTS vw_pbi_feedback_fact_slim"))
+    db_session.execute(text("DROP VIEW IF EXISTS vw_filter_options"))
     db_session.execute(text("DROP TABLE IF EXISTS _report_fact"))
     db_session.commit()
 
@@ -200,6 +201,86 @@ def test_filter_options_from_fact(fact_view):
     assert "zones" in options
     assert "FME001" in options["fme_codes"]
     assert "Dealer" in options["user_types"]
+    assert "rfmm_clusters" in options
+
+
+def test_filter_options_prefers_master_view(fact_view):
+    fact_view.execute(text("""
+        CREATE VIEW vw_filter_options AS
+        SELECT 'division' AS filter_type, 'N000105' AS code,
+               'FV-RETAIL-NSM' AS name, 'FV-RETAIL-NSM' AS value
+        UNION ALL
+        SELECT 'product', 'SH', 'Fevicol SH', 'Fevicol SH'
+        UNION ALL
+        SELECT 'user_type', 'IMR', 'IMR', 'IMR'
+    """))
+    fact_view.commit()
+    fact = fact_table(fact_view)
+    options = filter_options(fact_view, fact)
+    assert "FV-RETAIL-NSM" in options["divisions"]
+    assert "Fevicol" not in options["divisions"]
+    assert "Fevicol SH" in options["products"]
+    assert "IMR" in options["user_types"]
+    assert "Dealer" not in options["user_types"]
+
+
+def test_filter_options_cascades_from_hierarchy(fact_view):
+    fact_view.execute(text("""
+        CREATE VIEW vw_filter_hierarchy AS
+        SELECT 'FV-RETAIL-NSM' AS division, 'West' AS zone,
+               'PUNE 1' AS rfmm_cluster, 'TY07220' AS fme_code
+        UNION ALL
+        SELECT 'FV-RETAIL-NSM', 'East', 'AMFC-Kolkata', 'FCSCAL1'
+        UNION ALL
+        SELECT 'Other Div', 'East', 'Other RFMM', 'OTHER1'
+    """))
+    fact_view.execute(text("""
+        CREATE VIEW vw_filter_options AS
+        SELECT 'product' AS filter_type, 'SH' AS code,
+               'Fevicol SH' AS name, 'Fevicol SH' AS value
+    """))
+    fact_view.commit()
+    fact = fact_table(fact_view)
+
+    all_opts = filter_options(fact_view, fact)
+    assert all_opts["divisions"] == ["FV-RETAIL-NSM", "Other Div"]
+    assert "West" in all_opts["zones"]
+    assert "East" in all_opts["zones"]
+    assert "TY07220" in all_opts["fme_codes"]
+    assert "Fevicol SH" in all_opts["products"]
+
+    west = filter_options(fact_view, fact, division="FV-RETAIL-NSM", zone="West")
+    assert west["divisions"] == ["FV-RETAIL-NSM", "Other Div"]
+    assert west["zones"] == ["East", "West"]
+    assert west["clusters"] == ["PUNE 1"]
+    assert west["rfmm_clusters"] == ["PUNE 1"]
+    assert west["fme_codes"] == ["TY07220"]
+    assert "FCSCAL1" not in west["fme_codes"]
+
+    fact_view.execute(text("""
+        DROP VIEW IF EXISTS vw_filter_options
+    """))
+    fact_view.execute(text("""
+        CREATE VIEW vw_filter_options AS
+        SELECT 'rfmm_cluster' AS filter_type, 'X' AS code,
+               'AMFC-Kolkata' AS name, 'AMFC-Kolkata' AS value
+        UNION ALL
+        SELECT 'fme_code', 'Y', 'FCSCAL1', 'FCSCAL1'
+        UNION ALL
+        SELECT 'product', 'SH', 'Fevicol SH', 'Fevicol SH'
+    """))
+    fact_view.commit()
+    west_only = filter_options(fact_view, fact, zone="West")
+    assert west_only["rfmm_clusters"] == ["PUNE 1"]
+    assert west_only["fme_codes"] == ["TY07220"]
+    assert "AMFC-Kolkata" not in west_only["rfmm_clusters"]
+    assert "FCSCAL1" not in west_only["fme_codes"]
+
+
+def test_build_filters_cluster_matches_rfmm():
+    where_sql, params = build_filters(cluster="PUNE 1")
+    assert "cluster = :cluster OR rfmm_cluster = :cluster" in where_sql
+    assert params["cluster"] == "PUNE 1"
 
 
 def test_build_filters_product_and_fme():
