@@ -37,6 +37,15 @@ def test_alias_unique_match():
     assert pid == 1
 
 
+def test_nail_free_ultra_quick_maps_to_catalog():
+    products = _products() + [
+        SimpleNamespace(id=5, product_name="Fevicol Nail Free", short_code="F-NF"),
+    ]
+    name, pid = resolve_product_from_master("Nail-Free Ultra Quick", products)
+    assert name == "Fevicol Nail Free"
+    assert pid == 5
+
+
 def test_reject_unknown_product():
     name, pid = resolve_product_from_master("Some Fake Glue", _products())
     assert name is None

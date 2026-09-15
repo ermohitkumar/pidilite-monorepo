@@ -19,6 +19,8 @@ from repositories import batch_repository
 from db.models import Job, FileDetails, FailedJob
 from core.enums import JobStatus
 from schemas.schemas import GCSObjectPayload, IngestResponseData
+from services.shared.dw_lookup import resolve_file_metadata
+from services.shared.filename_metadata import FILENAME_METADATA_PATTERN  # noqa: F401
 from services.shared.stt_config import resolved_audio_mime
 
 logger = logging.getLogger(__name__)
@@ -75,9 +77,9 @@ def ingest_file(
         )
 
     job = Job(gcs_input_uri=gcs_uri, status=JobStatus.PENDING)
-    
-    # Extract custom metadata injected by the frontend during GCS upload
+
     custom_meta = payload.metadata or {}
+    resolved = resolve_file_metadata(db, file_name, custom_meta)
 
     # ── File Validation ──
     ALLOWED_EXTENSIONS = {"webm", "mp3", "wav", "ogg"}
@@ -85,6 +87,10 @@ def ingest_file(
     if extension not in ALLOWED_EXTENSIONS:
         logger.warning("Rejected ingest: Unsupported file extension '%s' for %s", extension, file_name)
         job.status = JobStatus.FAILED
+
+    call_date = resolved.get("call_date")
+    if isinstance(call_date, str):
+        call_date = _parse_gcs_time(call_date)
 
     file_details = FileDetails(
         file_name=file_name,
@@ -97,18 +103,26 @@ def ingest_file(
             or _parse_gcs_time(payload.updated)
             or datetime.now(timezone.utc)
         ),
-        state=custom_meta.get("state"),
-        division=custom_meta.get("division"),
-        zone=custom_meta.get("zone"),
-        cluster=custom_meta.get("cluster"),
-        rfmm_cluster=custom_meta.get("rbdm_cluster") or custom_meta.get("rfmm_cluster"),
-        town_city=custom_meta.get("town_city"),
-        tsi_territory_code=custom_meta.get("tsi_territory_code"),
-        fme_code=custom_meta.get("fme_code"),
-        tty_code=custom_meta.get("tty_code"),
-        user_id_metadata=custom_meta.get("user_id"),
-        user_type=custom_meta.get("user_type"),
-        data_source=custom_meta.get("data_source", "Voice Conversations")
+        call_date=call_date,
+        state=resolved.get("state"),
+        division=resolved.get("division"),
+        zone=resolved.get("zone"),
+        cluster=resolved.get("cluster"),
+        rfmm_cluster=resolved.get("rfmm_cluster") or resolved.get("rbdm_cluster"),
+        town_city=resolved.get("town_city"),
+        tsi_territory_code=resolved.get("tsi_territory_code"),
+        fme_code=resolved.get("fme_code") or resolved.get("bde_code"),
+        tty_code=resolved.get("tty_code"),
+        user_id_metadata=resolved.get("user_id"),
+        user_type=resolved.get("user_type"),
+        data_source=resolved.get("data_source", "Voice Conversations"),
+        site_number=resolved.get("site_number"),
+        membership_no=resolved.get("membership_no"),
+        bde_code=resolved.get("bde_code"),
+        visit_sfid=resolved.get("visit_sfid"),
+        cmdi_code=resolved.get("cmdi_code"),
+        site_id=resolved.get("site_id"),
+        additional_event_id=resolved.get("additional_event_id"),
     )
 
     try:

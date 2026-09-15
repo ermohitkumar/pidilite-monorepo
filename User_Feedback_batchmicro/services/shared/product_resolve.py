@@ -63,6 +63,14 @@ def resolve_product_from_master(
         compact_key = key.replace("-", "").replace(" ", "")
         if compact_key and compact_key in compact_name and len(compact_key) >= 4:
             candidates[p.id] = p
+        # "Nail-Free Ultra Quick" → "Fevicol Nail Free"
+        raw_tokens = set(key.replace("-", " ").split())
+        catalog_tokens = [
+            t for t in pname.replace("-", " ").split()
+            if t not in {"fevicol"} and len(t) >= 3
+        ]
+        if catalog_tokens and set(catalog_tokens).issubset(raw_tokens):
+            candidates[p.id] = p
 
     if len(candidates) == 1:
         p = next(iter(candidates.values()))

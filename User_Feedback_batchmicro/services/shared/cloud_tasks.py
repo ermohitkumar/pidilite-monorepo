@@ -49,7 +49,11 @@ def enqueue_http_task(
         return None
 
     if not url:
-        raise ValueError("Cloud Tasks callback URL is not configured")
+        logger.warning(
+            "Cloud Tasks callback URL empty — skip enqueue job_id=%s queue=%s",
+            job_id, queue_name,
+        )
+        return None
     if not settings.GCP_PROJECT_ID or not settings.GCP_LOCATION:
         raise ValueError("GCP_PROJECT_ID and GCP_LOCATION must be set for Cloud Tasks")
 

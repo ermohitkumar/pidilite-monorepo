@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/files", tags=["Files"])
 
 _GEMINI_STT_ALLOWED = frozenset({
+    JobStatus.PENDING,
     JobStatus.BATCHED,
     JobStatus.STT_SUBMITTED,
     JobStatus.ERROR,

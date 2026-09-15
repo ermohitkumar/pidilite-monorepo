@@ -94,6 +94,54 @@ class TestIngest:
         expected = datetime(2026, 4, 30, 11, 18, 45, 123000, tzinfo=timezone.utc)
         assert uploaded == expected
 
+    def test_ingest_parses_visit_filename_into_file_details(self, client, db_session):
+        name = "4401427-105231111924433-BDDEL03-00Ufw00000T3PfWEAV-1784221654.webm"
+        payload = {
+            **self.PAYLOAD,
+            "name": f"test02/{name}",
+            "contentType": "audio/webm",
+            "selfLink": f"https://www.googleapis.com/storage/v1/b/input-bucket/o/test02/{name}",
+            "mediaLink": f"https://www.googleapis.com/download/storage/v1/b/input-bucket/o/test02/{name}?alt=media",
+            "metadata": {},
+        }
+        resp = client.post("/api/v1/file", json=payload)
+        assert resp.status_code == 200
+        job = db_session.get(Job, resp.json()["data"]["job_id"])
+        fd = job.file_details
+        assert fd.site_number == "4401427"
+        assert fd.membership_no == "105231111924433"
+        assert fd.bde_code == "BDDEL03"
+        assert fd.visit_sfid == "00Ufw00000T3PfWEAV"
+        assert fd.fme_code == "BDDEL03"
+        assert fd.cmdi_code == "BDDEL03"
+        assert fd.user_type == "BDE"
+        call_date = fd.call_date
+        if call_date.tzinfo is None:
+            call_date = call_date.replace(tzinfo=timezone.utc)
+        assert call_date == datetime.fromtimestamp(1784221654, tz=timezone.utc)
+
+    def test_ingest_gcs_metadata_overrides_filename(self, client, db_session):
+        name = "4401427-105231111924433-BDDEL03-00Ufw00000T3PfWEAV-1784221654.webm"
+        payload = {
+            **self.PAYLOAD,
+            "name": f"test02/{name}",
+            "contentType": "audio/webm",
+            "metadata": {
+                "division": "FV-RETAIL-NSM",
+                "zone": "FV-DELHI NCR ZONE",
+                "rfmm_cluster": "RBDM-DELHI-1",
+                "fme_code": "BDDEL03",
+                "user_type": "BDE",
+            },
+        }
+        resp = client.post("/api/v1/file", json=payload)
+        assert resp.status_code == 200
+        fd = db_session.get(Job, resp.json()["data"]["job_id"]).file_details
+        assert fd.division == "FV-RETAIL-NSM"
+        assert fd.zone == "FV-DELHI NCR ZONE"
+        assert fd.rfmm_cluster == "RBDM-DELHI-1"
+        assert fd.fme_code == "BDDEL03"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT 2 — POST /api/v1/batch

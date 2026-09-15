@@ -110,6 +110,15 @@ class FileDetails(Base):
     user_type = Column(String(100), nullable=True, index=True)
     data_source = Column(String(100), nullable=True, default="Voice Conversations", index=True)
 
+    # Keys parsed from GCS filename: sitenumber-MembershipNo-BDEcode-VisitSfid-epoch.ext
+    site_number = Column(String(50), nullable=True, index=True)
+    membership_no = Column(String(50), nullable=True, index=True)
+    bde_code = Column(String(50), nullable=True, index=True)
+    visit_sfid = Column(String(50), nullable=True, index=True)
+    cmdi_code = Column(String(110), nullable=True, index=True)
+    site_id = Column(String(40), nullable=True, index=True)
+    additional_event_id = Column(String(150), nullable=True, index=True)
+
     job = relationship("Job", back_populates="file_details")
 
 
