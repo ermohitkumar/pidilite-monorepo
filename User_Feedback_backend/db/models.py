@@ -20,8 +20,8 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, Float, ForeignKey,
-    Integer, String, Text, Enum as SAEnum, func,
+    BigInteger, Boolean, Column, Date, DateTime, Float, ForeignKey,
+    Index, Integer, String, Text, UniqueConstraint, Enum as SAEnum, func,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -133,6 +133,7 @@ class FileDetails(Base):
     user_type = Column(String(100), nullable=True, index=True)
     data_source = Column(String(100), nullable=True,
                          default="Voice Conversations", index=True)
+    call_date = Column(DateTime(timezone=True), nullable=True, index=True)
 
     job = relationship("Job", back_populates="file_details")
 
@@ -252,6 +253,46 @@ class JobSummary(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     job = relationship("Job", back_populates="summary")
+
+
+# ── PERIOD SUMMARIES (BDE / RFMM / Zone / Division / Product / Tag rollups) ───
+class PeriodSummary(Base):
+    __tablename__ = "period_summaries"
+    __table_args__ = (
+        UniqueConstraint(
+            "grain", "grain_key", "period_type", "period_key", "version",
+            name="uq_period_summaries_version",
+        ),
+        Index(
+            "ix_period_summaries_current",
+            "grain", "grain_key", "period_type", "period_key", "is_current",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    grain = Column(String(20), nullable=False, index=True)
+    grain_key = Column(String(200), nullable=False, index=True)
+    grain_label = Column(String(200), nullable=True)
+    parent_key = Column(String(200), nullable=True, index=True)
+    period_type = Column(String(20), nullable=False, index=True)
+    period_key = Column(String(20), nullable=False, index=True)
+    period_start = Column(Date, nullable=False)
+    period_end = Column(Date, nullable=False)
+    summary_text = Column(Text, nullable=True)
+    highlights_json = Column(JSONB, nullable=False, default=dict)
+    source_kind = Column(String(40), nullable=False, default="insights")
+    source_count = Column(Integer, nullable=False, default=0)
+    call_count = Column(Integer, nullable=False, default=0)
+    insight_count = Column(Integer, nullable=False, default=0)
+    status = Column(String(20), nullable=False, default="ok", index=True)
+    version = Column(Integer, nullable=False, default=1)
+    is_current = Column(Boolean, nullable=False, default=True, index=True)
+    superseded_at = Column(DateTime(timezone=True), nullable=True)
+    model_name = Column(String(100), nullable=True)
+    prompt_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    error_message = Column(Text, nullable=True)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now(), default=lambda: datetime.now(timezone.utc))
 
 
 # ── KEYWORD_DICTIONARY ────────────────────────────────────────────────────────

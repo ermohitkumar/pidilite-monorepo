@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   LuChevronLeft,
   LuChevronRight,
+  LuFileText,
   LuLogOut,
   LuPackage,
   LuSquareActivity,
@@ -33,6 +34,12 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
         title: "Reports",
         href: "/reports",
         icon: LuTable,
+        resource: "reports",
+      },
+      {
+        title: "Summaries",
+        href: "/reports/summaries",
+        icon: LuFileText,
         resource: "reports",
       },
       {
@@ -140,9 +147,11 @@ export default function SideBar() {
                 })
                 .map((item) => {
                   const isActive =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`) ||
-                    (pathname === "/" && item.href === "/reports");
+                    item.href === "/reports"
+                      ? pathname === "/reports"
+                      : pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`) ||
+                        (pathname === "/" && item.href === "/reports");
                   const Icon = item.icon;
                   return (
                     <li key={item.title}>

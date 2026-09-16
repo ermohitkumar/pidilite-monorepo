@@ -65,5 +65,20 @@ export function defaultPeriod(kind: PeriodKind, now = new Date()): PeriodState {
         return { kind, year: currentYearValue(now), quarter: currentQuarterValue(now) };
     }
     if (kind === "year") return { kind, year: currentYearValue(now) };
-    return { kind: "month", month: currentMonthValue(now) };
+    const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { kind: "month", month: `${previous.getFullYear()}-${pad(previous.getMonth() + 1)}` };
+}
+
+export function restrictToAvailable(live: string[], allowed?: string[]): string[] {
+    // Empty allowed (month with no stored summaries) must not hide every dropdown.
+    if (!allowed || allowed.length === 0) return live;
+    const set = new Set(allowed.map((value) => value.trim().toLowerCase()));
+    return live.filter((value) => set.has(value.trim().toLowerCase()));
+}
+
+export function hasVisibleSummary(record?: { status?: string; summary_text?: string | null } | null): boolean {
+    if (!record || record.status !== "ok") return false;
+    const text = (record.summary_text || "").trim();
+    if (!text) return false;
+    return !text.toLowerCase().startsWith("no insights");
 }

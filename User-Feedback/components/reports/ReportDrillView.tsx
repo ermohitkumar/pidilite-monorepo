@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LuArrowLeft, LuLoader } from "react-icons/lu";
 
 import { ReportTable } from "@/components/reports/ReportTable";
+import { FormattedSummary } from "@/components/reports/FormattedSummary";
 import { useReportDetails, useReportProducts } from "@/lib/hooks/reports";
 import {
     buildDetailRowsFromItems,
@@ -19,6 +20,7 @@ import type {
     DrillScope,
     MatrixColumn,
     MatrixRow,
+    PeriodSummaryRecord,
     ReportFilters,
 } from "@/lib/reports/types";
 
@@ -30,12 +32,18 @@ export function ReportDrillView({
     onBack,
     onDrill,
     onTextClick,
+    tagNarrative,
+    nationwideCaption,
+    periodProducts = [],
 }: Readonly<{
     drill: DrillScope;
     filters: ReportFilters;
     onBack: () => void;
     onDrill: (next: DrillScope) => void;
     onTextClick: (column: MatrixColumn, row: MatrixRow) => void;
+    tagNarrative?: string;
+    nationwideCaption?: boolean;
+    periodProducts?: PeriodSummaryRecord[];
 }>) {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
@@ -43,7 +51,7 @@ export function ReportDrillView({
     const [sortDir, setSortDir] = useState<"asc" | "desc" | null>("desc");
 
     const drillFilters = useMemo(() => filtersForDrill(filters, drill), [filters, drill]);
-    const wantProducts = !drill.product_name && drill.group === "PDT GROUP";
+    const wantProducts = !drill.product_name;
     const productsQuery = useReportProducts(drillFilters, wantProducts);
     const productItems = productsQuery.data?.data?.items || [];
     const showProductBreakdown = wantProducts && productItems.length > 0;
@@ -66,8 +74,8 @@ export function ReportDrillView({
     }, [drill, filters, pageSize, sortBy, sortDir]);
 
     const productRows = useMemo(
-        () => buildProductRowsFromCounts(drill, productItems),
-        [drill, productItems],
+        () => buildProductRowsFromCounts(drill, productItems, periodProducts),
+        [drill, productItems, periodProducts],
     );
     const detailItems = detailsQuery.data?.data?.items || [];
     const detailRows = useMemo(
@@ -79,6 +87,7 @@ export function ReportDrillView({
         ? productsQuery.data?.data?.total ?? productItems.reduce((sum, row) => sum + (row.feedback_count || 0), 0)
         : detailMeta?.total_items ?? 0;
     const includeProduct = Boolean(drill.product_name) || detailRows.some((row) => row.product_name);
+    const showHeaderNarratives = !drill.product_name;
     const crumbs = drillPath(drill);
     const context = [
         { label: COLUMN_LABELS.feedback_group, value: drill.group },
@@ -132,6 +141,19 @@ export function ReportDrillView({
                     ))}
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-slate-900">{drillTitle(drill)}</h2>
+                {showHeaderNarratives && tagNarrative ? (
+                    <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                            Tag summary
+                        </p>
+                        <FormattedSummary text={tagNarrative} />
+                    </div>
+                ) : null}
+                {showHeaderNarratives && nationwideCaption ? (
+                    <p className="mt-2 text-xs text-slate-500">
+                        Narrative is all India for this period; counts follow your filters.
+                    </p>
+                ) : null}
                 <p className="mt-1 text-sm text-slate-500">
                     {itemCount} feedback item{itemCount === 1 ? "" : "s"} in this selection.
                     {showProductBreakdown
@@ -163,6 +185,7 @@ export function ReportDrillView({
                         context={context}
                         itemLabel="product rows"
                         onCountClick={(row) => row.drill && onDrill(row.drill)}
+                        onTextClick={onTextClick}
                     />
                 </section>
             ) : null}

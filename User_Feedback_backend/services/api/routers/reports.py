@@ -10,7 +10,8 @@ import math
 from datetime import date
 from typing import Annotated, Any, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.exceptions import APIException
@@ -21,6 +22,16 @@ from db.session import get_db
 from repositories import report_repository as report_repo
 from repositories.batch_repository import get_file_details_by_job_id, get_job
 from services.api.gcs_audio import content_type_for_name, is_allowed_audio_uri
+from services.period_summarize import store as period_store
+from services.period_summarize.period_keys import (
+    group_token,
+    infer_period,
+    list_grain_for_filters,
+    previous_period,
+    resolve_grain,
+    slice_grains_for_geo,
+)
+from services.period_summarize.runner import run as run_period_summaries
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +99,19 @@ _DEFAULT_ORDER = (
 )
 
 
+class PeriodSummaryRunRequest(BaseModel):
+    period_type: Optional[str] = Field(None, description="month | quarter | year")
+    period_key: Optional[str] = Field(None, description="2026-09, 2026-Q3, or 2026")
+    force: bool = False
+
+
+def _period_from_dates(start_date: Optional[date], end_date: Optional[date]) -> tuple[str, str]:
+    if not start_date:
+        from services.period_summarize.period_keys import current_month_key
+        return "month", current_month_key()
+    return infer_period(start_date, end_date or start_date)
+
+
 def _serialize(value: Any) -> Any:
     if value is None:
         return None
@@ -138,6 +162,121 @@ def _pagination_meta(page: int, page_size: int, total: int) -> dict:
         "has_next": page < total_pages,
         "has_previous": page > 1,
     }
+
+
+def _narrative_for_tag_row(row: Any) -> tuple[Optional[str], Optional[str]]:
+    if row is None:
+        return None, None
+    if not period_store.is_visible_summary(row):
+        status = getattr(row, "status", None)
+        if status == "error":
+            return "Updating…", status
+        return None, status
+    return row.summary_text, getattr(row, "status", None)
+
+
+def _serialize_visible(row: Any) -> Optional[dict[str, Any]]:
+    if not period_store.is_visible_summary(row):
+        return None
+    return period_store.serialize_row(row)
+
+
+def _attach_tag_ai_summaries(
+    db: Session,
+    tags: list[dict[str, Any]],
+    period_type: str,
+    period_key: str,
+    *,
+    feedback_group: Optional[str] = None,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+    fme_code: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    token = group_token(feedback_group)
+    geo_grain, geo_key = resolve_grain(
+        fme_code=fme_code, cluster=cluster, zone=zone, division=division,
+    )
+    slices = slice_grains_for_geo(geo_grain)
+    tag_grain = slices["tag"]
+    rows = period_store.list_current(
+        db, grain=tag_grain, period_type=period_type, period_key=period_key,
+    )
+    rows = period_store.filter_group(rows, token, identity=geo_key if geo_grain else None)
+    if not rows and tag_grain != "tag":
+        rows = period_store.list_current(
+            db, grain="tag", period_type=period_type, period_key=period_key,
+        )
+        rows = period_store.filter_group(rows, token)
+    if not rows:
+        latest = period_store.latest_period(db, grain=tag_grain, period_type=period_type)
+        if not latest and tag_grain != "tag":
+            latest = period_store.latest_period(db, grain="tag", period_type=period_type)
+            tag_grain = "tag"
+        if latest:
+            period_type, period_key = latest
+            rows = period_store.filter_group(
+                period_store.list_current(
+                    db, grain=tag_grain, period_type=period_type, period_key=period_key,
+                ),
+                token,
+                identity=geo_key if geo_grain and tag_grain != "tag" else None,
+            )
+    by_label: dict[str, Any] = {}
+    for row in rows:
+        if not period_store.is_visible_summary(row):
+            continue
+        for key in period_store.label_keys(row.grain_label) + period_store.label_keys(row.grain_key):
+            by_label.setdefault(key, row)
+    attached = []
+    for tag in tags:
+        item = dict(tag)
+        row = None
+        for key in period_store.label_keys(item.get("feedback_tag")):
+            row = by_label.get(key)
+            if row:
+                break
+        summary, status = _narrative_for_tag_row(row)
+        item["ai_summary"] = summary
+        item["summary_status"] = status
+        attached.append(item)
+    return attached
+
+
+def _lookup_geo_summary(db, grain, grain_key, period_type, period_key, token):
+    if not grain or not grain_key:
+        return None
+    return period_store.get_current_scoped(db, grain, grain_key, period_type, period_key, token)
+
+
+def _lookup_product_summary(db, product_name, period_type, period_key, token, geo_grain, geo_key):
+    if not product_name:
+        return None
+    if geo_grain and geo_key:
+        slice_grain = slice_grains_for_geo(geo_grain)["product"]
+        row = period_store.get_current_by_label(
+            db, slice_grain, product_name, period_type, period_key,
+            group_token=token, identity=geo_key,
+        )
+        if row:
+            return row
+    return period_store.get_current_scoped(db, "product", product_name, period_type, period_key, token)
+
+
+def _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, geo_grain, geo_key):
+    if not feedback_tag:
+        return None
+    if geo_grain and geo_key:
+        slice_grain = slice_grains_for_geo(geo_grain)["tag"]
+        row = period_store.get_current_by_label(
+            db, slice_grain, feedback_tag, period_type, period_key,
+            group_token=token, identity=geo_key,
+        )
+        if row:
+            return row
+    return period_store.get_current_by_label(
+        db, "tag", feedback_tag, period_type, period_key, group_token=token,
+    )
 
 
 def _unavailable(message: str = _VIEW_MISSING_MSG, extra: Optional[dict] = None):
@@ -221,6 +360,238 @@ def get_report_filter_options(
     )
 
 
+@router.get("/period-summary")
+def get_period_summary(
+    db: DbSession,
+    division: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    cluster: Optional[str] = Query(None),
+    fme_code: Optional[str] = Query(None),
+    product_name: Optional[str] = Query(None),
+    feedback_tag: Optional[str] = Query(None),
+    feedback_group: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    include_previous: bool = Query(True),
+):
+    """Stored narrative for the most specific filter grain. Does not call Gemini."""
+    period_type, period_key = _period_from_dates(start_date, end_date)
+    token = group_token(feedback_group)
+    grain, grain_key = resolve_grain(
+        fme_code=fme_code, cluster=cluster, zone=zone, division=division,
+    )
+    current = None
+    if grain and grain_key:
+        current = _serialize_visible(
+            _lookup_geo_summary(db, grain, grain_key, period_type, period_key, token)
+        )
+    product = _serialize_visible(
+        _lookup_product_summary(db, product_name, period_type, period_key, token, grain, grain_key)
+    )
+    tag = _serialize_visible(
+        _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, grain, grain_key)
+    )
+    previous = None
+    previous_product = None
+    previous_tag = None
+    if include_previous:
+        prev_type, prev_key = previous_period(period_type, period_key)
+        if grain and grain_key:
+            previous = _serialize_visible(
+                _lookup_geo_summary(db, grain, grain_key, prev_type, prev_key, token)
+            )
+        previous_product = _serialize_visible(
+            _lookup_product_summary(db, product_name, prev_type, prev_key, token, grain, grain_key)
+        )
+        previous_tag = _serialize_visible(
+            _lookup_tag_summary(db, feedback_tag, prev_type, prev_key, token, grain, grain_key)
+        )
+    return make_response(
+        success=True,
+        message="Period summary retrieved successfully",
+        data={
+            "period_type": period_type,
+            "period_key": period_key,
+            "grain": grain,
+            "grain_key": grain_key,
+            "current": current,
+            "previous": previous,
+            "product": product,
+            "previous_product": previous_product,
+            "tag": tag,
+            "previous_tag": previous_tag,
+        },
+    )
+
+
+@router.get("/period-summaries")
+def get_period_summaries(
+    db: DbSession,
+    division: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    cluster: Optional[str] = Query(None),
+    fme_code: Optional[str] = Query(None),
+    product_name: Optional[str] = Query(None),
+    feedback_group: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+):
+    """List stored current rows for the selected period (division cards when unfiltered)."""
+    period_type, period_key = _period_from_dates(start_date, end_date)
+    token = group_token(feedback_group)
+    grain = list_grain_for_filters(
+        fme_code=fme_code, cluster=cluster, zone=zone, division=division,
+    )
+    geo_grain, geo_key = resolve_grain(
+        fme_code=fme_code, cluster=cluster, zone=zone, division=division,
+    )
+    parent_identity = None
+    identity = None
+    if fme_code:
+        identity = fme_code
+    elif cluster:
+        parent_identity = cluster
+    elif zone:
+        parent_identity = zone
+    elif division:
+        parent_identity = division
+    rows = period_store.filter_group(
+        period_store.list_current(
+            db,
+            grain=grain,
+            period_type=period_type,
+            period_key=period_key,
+            status="ok",
+        ),
+        token,
+        identity=identity,
+        parent_identity=parent_identity,
+    )
+    items = [period_store.serialize_row(row) for row in rows if period_store.is_visible_summary(row)]
+    slices = slice_grains_for_geo(geo_grain)
+    product_grain = slices["product"]
+    tag_grain = slices["tag"]
+    product_rows = period_store.filter_group(
+        period_store.list_current(
+            db, grain=product_grain, period_type=period_type, period_key=period_key, status="ok",
+        ),
+        token,
+        identity=geo_key if geo_grain and product_grain != "product" else None,
+    )
+    if not product_rows and product_grain != "product":
+        product_rows = period_store.filter_group(
+            period_store.list_current(
+                db, grain="product", period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
+        )
+    products = [
+        period_store.serialize_row(row)
+        for row in product_rows
+        if period_store.is_visible_summary(row)
+    ]
+    tag_rows = period_store.filter_group(
+        period_store.list_current(
+            db, grain=tag_grain, period_type=period_type, period_key=period_key, status="ok",
+        ),
+        token,
+        identity=geo_key if geo_grain and tag_grain != "tag" else None,
+    )
+    if not tag_rows and tag_grain != "tag":
+        tag_rows = period_store.filter_group(
+            period_store.list_current(
+                db, grain="tag", period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
+        )
+    tags = [
+        period_store.serialize_row(row)
+        for row in tag_rows
+        if period_store.is_visible_summary(row)
+    ]
+    available_filters = {
+        "divisions": period_store.display_values(
+            period_store.filter_group(
+                period_store.list_current(
+                    db, grain="division", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+        ),
+        "zones": period_store.display_values(
+            period_store.filter_group(
+                period_store.list_current(
+                    db, grain="zone", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+        ),
+        "rfmm_clusters": period_store.display_values(
+            period_store.filter_group(
+                period_store.list_current(
+                    db, grain="rfmm", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+        ),
+        "fme_codes": period_store.display_values(
+            period_store.filter_group(
+                period_store.list_current(
+                    db, grain="bde", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+        ),
+        "products": list(dict.fromkeys(
+            (row.grain_label or "")
+            for row in product_rows
+            if period_store.is_visible_summary(row) and row.grain_label
+        )),
+    }
+    return make_response(
+        success=True,
+        message="Period summaries retrieved successfully",
+        data={
+            "period_type": period_type,
+            "period_key": period_key,
+            "grain": grain,
+            "items": items,
+            "products": products,
+            "tags": tags,
+            "available_filters": available_filters,
+        },
+    )
+
+
+@router.post("/period-summaries/run")
+def run_period_summary_job(
+    db: DbSession,
+    payload: PeriodSummaryRunRequest = Body(default=PeriodSummaryRunRequest()),
+):
+    """Nightly / ops job: generate stored period summaries. Scheduler hits this path."""
+    try:
+        result = run_period_summaries(
+            db,
+            period_type=payload.period_type,
+            period_key=payload.period_key,
+            force=payload.force,
+        )
+    except ValueError as exc:
+        raise APIException(status_code=400, message=str(exc), error="Validation Error") from exc
+    except Exception:
+        logger.exception("Period summary run failed")
+        raise APIException(
+            status_code=500,
+            message="Failed to run period summaries",
+            error="Internal Error",
+        )
+    return make_response(
+        success=True,
+        message="Period summaries run completed",
+        data=result,
+    )
+
+
 @router.get("/summary")
 def get_report_summary(
     db: DbSession,
@@ -250,6 +621,18 @@ def get_report_summary(
             fme_code=fme_code, user_type=user_type,
         )
         counts = report_repo.summary_counts(db, fact, where_sql, params)
+        period_type, period_key = _period_from_dates(start_date, end_date)
+        counts["tags"] = _attach_tag_ai_summaries(
+            db,
+            counts.get("tags") or [],
+            period_type,
+            period_key,
+            feedback_group=feedback_group,
+            division=division,
+            zone=zone,
+            cluster=cluster,
+            fme_code=fme_code,
+        )
         options = report_repo.filter_options(
             db, fact, division=division, zone=zone, cluster=cluster,
         )

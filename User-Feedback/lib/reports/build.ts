@@ -7,6 +7,7 @@ import {
     type FeedbackGroup,
     type MatrixColumn,
     type MatrixRow,
+    type PeriodSummaryRecord,
     type ReportFilters,
     type ReportProductCount,
     type ReportSummaryCategory,
@@ -35,6 +36,25 @@ function display(value?: string | null): string {
 
 function displayBody(value?: string | null): string {
     return (value || "").replaceAll("\u00a0", " ").replaceAll("\r\n", "\n").trim();
+}
+
+function labelKeys(value?: string | null): string[] {
+    const needle = norm(value);
+    if (!needle) return [];
+    const keys = [needle];
+    const suffix = needle.split(" - ").pop()?.trim();
+    if (suffix && !keys.includes(suffix)) keys.push(suffix);
+    return keys;
+}
+
+function labelsOverlap(left?: string | null, right?: string | null): boolean {
+    const a = new Set(labelKeys(left));
+    if (!a.size) return false;
+    return labelKeys(right).some((key) => a.has(key));
+}
+
+export function tagLabelsMatch(left?: string | null, right?: string | null): boolean {
+    return labelsOverlap(left, right);
 }
 
 function distinctCount(ids: Iterable<string>): number {
@@ -175,7 +195,7 @@ export function buildTagMatrixFromSummary(
     group: FeedbackGroup,
     tags: ReportSummaryTag[],
     categories: ReportSummaryCategory[] = [],
-    options: { showSubTags?: boolean; categoryTotals?: boolean; search?: string } = {},
+    options: { showSubTags?: boolean; categoryTotals?: boolean; search?: string; periodTags?: PeriodSummaryRecord[] } = {},
 ): MatrixRow[] {
     const showSubTags = options.showSubTags ?? false;
     const categoryTotals = options.categoryTotals ?? group !== "PDT GROUP";
@@ -209,11 +229,17 @@ export function buildTagMatrixFromSummary(
             categoryHasRows = false;
         }
         const count = summaryTagCount(tags, tax.feedback_category, tax.feedback_tag);
+        const narrative = summaryTagNarrative(
+            tags,
+            tax.feedback_category,
+            tax.feedback_tag,
+            options.periodTags,
+        );
         if (needle) {
             const labelHit =
                 norm(tax.feedback_tag).includes(needle) ||
                 norm(tax.feedback_category).includes(needle);
-            if (!labelHit && !count) continue;
+            if (!labelHit) continue;
         }
         categorySum += count;
         grand += count;
@@ -225,7 +251,8 @@ export function buildTagMatrixFromSummary(
             feedback_category: tax.feedback_category,
             feedback_tag: tax.feedback_tag,
             feedback_sub_tag: sub || undefined,
-            feedback_count: count || null,
+            feedback_count: count,
+            feedback_summary_ai: narrative,
             drill: {
                 group,
                 level: sub ? "sub_tag" : "tag",
@@ -261,12 +288,46 @@ function summaryTagCount(tags: ReportSummaryTag[], category: string, tag: string
     return total;
 }
 
+function summaryTagNarrative(
+    tags: ReportSummaryTag[],
+    category: string,
+    tag: string,
+    periodTags: PeriodSummaryRecord[] = [],
+): string | undefined {
+    const cat = norm(category);
+    const fromCounts =
+        tags.find((row) => norm(row.feedback_category) === cat && labelsOverlap(row.feedback_tag, tag)) ||
+        tags.find((row) => labelsOverlap(row.feedback_tag, tag));
+    if (fromCounts) {
+        if (fromCounts.summary_status === "error") return "Updating…";
+        const text = displayBody(fromCounts.ai_summary);
+        if (text) return text;
+    }
+    const fromPeriod = periodTags.find((row) => labelsOverlap(row.grain_label || row.grain_key, tag));
+    if (!fromPeriod) return undefined;
+    if (fromPeriod.status === "error") return "Updating…";
+    return displayBody(fromPeriod.summary_text) || undefined;
+}
+
 export function buildProductRowsFromCounts(
     drill: DrillScope,
     items: ReportProductCount[],
+    periodProducts: PeriodSummaryRecord[] = [],
 ): MatrixRow[] {
-    return items.map((item) => {
+    return items
+        .filter((item) => (item.feedback_count || 0) > 0)
+        .map((item) => {
         const product = display(item.product_name) || NO_PRODUCT_LABEL;
+        const period = periodProducts.find(
+            (row) =>
+                norm(row.grain_label) === norm(product) ||
+                norm(row.grain_key) === norm(product) ||
+                (row.grain_key || "").split("::").includes(product),
+        );
+        const narrative =
+            period?.status === "error"
+                ? "Updating…"
+                : displayBody(period?.summary_text);
         return {
             kind: "data" as const,
             feedback_group: drill.group,
@@ -274,6 +335,7 @@ export function buildProductRowsFromCounts(
             feedback_category: drill.feedback_category,
             feedback_tag: drill.feedback_tag,
             feedback_count: item.feedback_count || null,
+            feedback_summary_ai: narrative || undefined,
             drill: {
                 group: drill.group,
                 level: drill.feedback_sub_tag ? "sub_tag" : drill.feedback_tag ? "tag" : "product",
@@ -459,7 +521,7 @@ export function buildDetailRows(
 }
 
 export function columnsForOverview(): MatrixColumn[] {
-    return ["feedback_category", "feedback_tag", "feedback_count"];
+    return ["feedback_category", "feedback_tag", "feedback_count", "feedback_summary_ai"];
 }
 
 export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
@@ -467,7 +529,7 @@ export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
     if (drill.level === "group" || drill.level === "category" || !drill.feedback_tag) {
         cols.push("feedback_category", "feedback_tag");
     }
-    cols.push("feedback_count");
+    cols.push("feedback_count", "feedback_summary_ai");
     return cols;
 }
 

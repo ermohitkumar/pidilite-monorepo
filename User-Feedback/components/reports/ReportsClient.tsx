@@ -6,16 +6,23 @@ import { LuLoader } from "react-icons/lu";
 
 import { ConversationThread } from "@/components/reports/ConversationThread";
 import { FileSourceLink } from "@/components/reports/FileSourceLink";
+import { FormattedSummary } from "@/components/reports/FormattedSummary";
 import { ReportDrillView } from "@/components/reports/ReportDrillView";
 import { ReportModal } from "@/components/reports/ReportModal";
 import { exportMatrixCsv, ReportTable } from "@/components/reports/ReportTable";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
-import { useReportConversation, useReportFilterOptions, useReportSummary } from "@/lib/hooks/reports";
-import { buildTagMatrixFromSummary, columnsForOverview } from "@/lib/reports/build";
+import { useReportConversation, useReportFilterOptions, useReportSummary, usePeriodSummaries } from "@/lib/hooks/reports";
+import { buildTagMatrixFromSummary, columnsForOverview, tagLabelsMatch } from "@/lib/reports/build";
 import { isFullConversationTitle, parseConversationTurns } from "@/lib/reports/conversation";
-import { datesForPeriod, defaultPeriod, type PeriodKind, type PeriodState } from "@/lib/reports/period";
+import {
+    datesForPeriod,
+    defaultPeriod,
+    restrictToAvailable,
+    type PeriodKind,
+    type PeriodState,
+} from "@/lib/reports/period";
 import {
     COLUMN_LABELS,
     GROUP_TABS,
@@ -56,6 +63,34 @@ function withAll(values: string[]): { label: string; value: string }[] {
     return [{ label: "All", value: "ALL" }, ...values.map((value) => ({ label: value, value }))];
 }
 
+function OptionalSelect({
+    label,
+    value,
+    onChange,
+    options,
+    selectKey,
+}: {
+    label: string;
+    value?: string;
+    onChange: (value: string) => void;
+    options: string[];
+    selectKey?: string;
+}) {
+    if (!options.length) return null;
+    return (
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            {label}
+            <Select
+                key={selectKey}
+                className="mt-1"
+                value={value || "ALL"}
+                onChange={onChange}
+                options={withAll(options)}
+            />
+        </div>
+    );
+}
+
 function applySelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
     const next = { ...prev };
     if (!value || value === "ALL") delete next[key];
@@ -93,6 +128,7 @@ function sanitizeFilters(draft: ReportFilters, search: string, dates: Pick<Repor
 
 export default function ReportsClient() {
     const [group, setGroup] = useState<FeedbackGroup>("PDT GROUP");
+    const [period, setPeriod] = useState<PeriodState>(() => defaultPeriod("month"));
     const [filters, setFilters] = useState<ReportFilters>({});
     const [draft, setDraft] = useState<ReportFilters>({});
     const [search, setSearch] = useState("");
@@ -105,7 +141,6 @@ export default function ReportsClient() {
         jobId?: string;
     } | null>(null);
     const [showFilters, setShowFilters] = useState(true);
-    const [period, setPeriod] = useState<PeriodState>(defaultPeriod("month"));
 
     const appliedFilters = useMemo(
         () => ({ ...filters, feedback_group: group }),
@@ -113,6 +148,15 @@ export default function ReportsClient() {
     );
 
     const { data, isLoading, isFetching } = useReportSummary(appliedFilters);
+    const periodListQuery = usePeriodSummaries({
+        division: appliedFilters.division,
+        zone: appliedFilters.zone,
+        cluster: appliedFilters.cluster,
+        fme_code: appliedFilters.fme_code,
+        product_name: appliedFilters.product_name,
+        feedback_group: group,
+        ...datesForPeriod(period),
+    });
     const conversationQuery = useReportConversation(textModal?.feedbackId, textModal?.jobId);
     const filterQuery = useReportFilterOptions({
         division: draft.division,
@@ -134,10 +178,18 @@ export default function ReportsClient() {
         filterOptions.fme_codes = linkedOptions?.fme_codes ?? [];
     }
     const source = data?.data?.source;
-    const rfmmOptions = filterOptions.rfmm_clusters?.length
+    const available = periodListQuery.data?.data?.available_filters;
+    const rfmmLive = filterOptions.rfmm_clusters?.length
         ? filterOptions.rfmm_clusters
         : filterOptions.clusters;
+    const divisionOptions = restrictToAvailable(filterOptions.divisions, available?.divisions);
+    const zoneOptions = restrictToAvailable(filterOptions.zones, available?.zones);
+    const rfmmOptions = restrictToAvailable(rfmmLive, available?.rfmm_clusters);
+    const fmeOptions = restrictToAvailable(filterOptions.fme_codes || [], available?.fme_codes);
+    // Keep every catalog product. Stored product summaries cover only a subset,
+    // so intersecting with available_filters.products hid HEATX, MARINE, etc.
     const productOptions = filterOptions.products || [];
+    const userTypeOptions = filterOptions.user_types || [];
 
     const rows = useMemo(
         () =>
@@ -149,12 +201,29 @@ export default function ReportsClient() {
                     showSubTags: false,
                     categoryTotals: group !== "PDT GROUP",
                     search: appliedFilters.search,
+                    periodTags: periodListQuery.data?.data?.tags || [],
                 },
             ),
-        [data?.data?.tags, data?.data?.categories, group, appliedFilters.search],
+        [data?.data?.tags, data?.data?.categories, group, appliedFilters.search, periodListQuery.data?.data?.tags],
     );
 
     const columns = columnsForOverview();
+    const geoFiltered = Boolean(
+        appliedFilters.division || appliedFilters.zone || appliedFilters.cluster || appliedFilters.fme_code,
+    );
+    const selectedTagNarrative = useMemo(() => {
+        if (!drill?.feedback_tag) return undefined;
+        const tagName = drill.feedback_tag;
+        const match = (data?.data?.tags || []).find((row) => tagLabelsMatch(row.feedback_tag, tagName));
+        if (match?.summary_status === "error") return "Updating…";
+        const fromCounts = (match?.ai_summary || "").trim();
+        if (fromCounts) return fromCounts;
+        const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
+            tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+        );
+        if (periodMatch?.status === "error") return "Updating…";
+        return (periodMatch?.summary_text || "").trim() || undefined;
+    }, [drill?.feedback_tag, data?.data?.tags, periodListQuery.data?.data?.tags]);
 
     const applyFilters = () => {
         setFilters(sanitizeFilters(draft, search, datesForPeriod(period)));
@@ -169,13 +238,18 @@ export default function ReportsClient() {
     };
     const selectPeriod = (kind: PeriodKind) => {
         const next = defaultPeriod(kind);
+        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
+        setDraft((prev) => ({ ...prev, ...dates }));
+        setFilters((prev) => sanitizeFilters(prev, search, dates));
+        setDrill(null);
     };
     const updatePeriod = (patch: Partial<PeriodState>) => {
         const next = { ...period, ...patch };
+        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
+        setDraft((prev) => ({ ...prev, ...dates }));
+        setFilters((prev) => sanitizeFilters(prev, search, dates));
     };
 
     const switchGroup = (next: FeedbackGroup) => {
@@ -205,6 +279,7 @@ export default function ReportsClient() {
     };
 
     const isConversation = isFullConversationTitle(textModal?.title);
+    const isAiSummary = textModal?.title === COLUMN_LABELS.feedback_summary_ai;
     const conversationBody = isConversation
         ? conversationQuery.data?.data?.full_conversation || ""
         : textModal?.body || "";
@@ -269,62 +344,44 @@ export default function ReportsClient() {
                     </button>
                     {showFilters ? (
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            Division
-                            <Select
-                                className="mt-1"
-                                value={draft.division || "ALL"}
-                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "division", value))}
-                                options={withAll(filterOptions.divisions)}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            Zone
-                            <Select
-                                className="mt-1"
-                                value={draft.zone || "ALL"}
-                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "zone", value))}
-                                options={withAll(filterOptions.zones)}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            RFMM Cluster
-                            <Select
-                                key={`rfmm-${draft.division || "all"}-${draft.zone || "all"}`}
-                                className="mt-1"
-                                value={draft.cluster || "ALL"}
-                                onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
-                                options={withAll(rfmmOptions)}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            FME
-                            <Select
-                                key={`fme-${draft.division || "all"}-${draft.zone || "all"}-${draft.cluster || "all"}`}
-                                className="mt-1"
-                                value={draft.fme_code || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
-                                options={withAll(filterOptions.fme_codes || [])}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            Product
-                            <Select
-                                className="mt-1"
-                                value={draft.product_name || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "product_name", value))}
-                                options={withAll(productOptions)}
-                            />
-                        </div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                            User type
-                            <Select
-                                className="mt-1"
-                                value={draft.user_type || "ALL"}
-                                onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
-                                options={withAll(filterOptions.user_types || [])}
-                            />
-                        </div>
+                        <OptionalSelect
+                            label="Division"
+                            value={draft.division}
+                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "division", value))}
+                            options={divisionOptions}
+                        />
+                        <OptionalSelect
+                            label="Zone"
+                            value={draft.zone}
+                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "zone", value))}
+                            options={zoneOptions}
+                        />
+                        <OptionalSelect
+                            label="RFMM Cluster"
+                            value={draft.cluster}
+                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
+                            options={rfmmOptions}
+                            selectKey={`rfmm-${draft.division || "all"}-${draft.zone || "all"}`}
+                        />
+                        <OptionalSelect
+                            label="FME / BDE"
+                            value={draft.fme_code}
+                            onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
+                            options={fmeOptions}
+                            selectKey={`fme-${draft.division || "all"}-${draft.zone || "all"}-${draft.cluster || "all"}`}
+                        />
+                        <OptionalSelect
+                            label="Product"
+                            value={draft.product_name}
+                            onChange={(value) => setDraft((prev) => applySelect(prev, "product_name", value))}
+                            options={productOptions}
+                        />
+                        <OptionalSelect
+                            label="User type"
+                            value={draft.user_type}
+                            onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
+                            options={userTypeOptions}
+                        />
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
                             Time period
                             <Select
@@ -408,18 +465,29 @@ export default function ReportsClient() {
                     onBack={() => setDrill(null)}
                     onDrill={setDrill}
                     onTextClick={openCell}
+                    tagNarrative={selectedTagNarrative}
+                    nationwideCaption={geoFiltered}
+                    periodProducts={periodListQuery.data?.data?.products || []}
                 />
             ) : (
-                <ReportTable
-                    key={group}
-                    columns={columns}
-                    rows={rows}
-                    context={[{ label: "FEEDBACK GROUP", value: group }]}
-                    itemLabel="tags"
-                    onCountClick={(row) => {
-                        if (row.drill) setDrill(row.drill);
-                    }}
-                />
+                <>
+                    {geoFiltered ? (
+                        <p className="mb-3 text-xs text-slate-500">
+                            Narrative is all India for this period; counts follow your filters.
+                        </p>
+                    ) : null}
+                    <ReportTable
+                        key={group}
+                        columns={columns}
+                        rows={rows}
+                        context={[{ label: "FEEDBACK GROUP", value: group }]}
+                        itemLabel="tags"
+                        onCountClick={(row) => {
+                            if (row.drill) setDrill(row.drill);
+                        }}
+                        onTextClick={openCell}
+                    />
+                </>
             )}
 
             <ReportModal
@@ -446,6 +514,8 @@ export default function ReportsClient() {
                         text={conversationBody || "Full conversation is not available for this row."}
                         excerpt={textModal?.excerpt || conversationQuery.data?.data?.feedback_excerpt || undefined}
                     />
+                ) : isAiSummary ? (
+                    <FormattedSummary text={textModal?.body} emptyLabel="No summary for this row." />
                 ) : (
                     <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-800">
                         {textModal?.body}

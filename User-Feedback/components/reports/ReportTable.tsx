@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LuArrowDown, LuArrowUp, LuSettings2 } from "react-icons/lu";
 
 import { AudioPlayer } from "@/components/reports/AudioPlayer";
@@ -128,9 +128,10 @@ function cellClassName(column: MatrixColumn): string {
     if (column === "call_datetime") parts.push("whitespace-nowrap w-40");
     if (column === "audio") parts.push("whitespace-nowrap w-24");
     if (column === "file_name") parts.push("min-w-[160px] max-w-[260px]");
-    if (column === "feedback_excerpt" || column === "feedback_summary_ai") {
+    if (column === "feedback_summary_ai") parts.push("min-w-[280px] max-w-[520px]");
+    if (column === "feedback_excerpt") {
         parts.push("min-w-[280px] max-w-[560px]");
-    } else if (DETAIL_COLUMNS.has(column)) {
+    } else if (DETAIL_COLUMNS.has(column) && column !== "feedback_summary_ai") {
         parts.push("min-w-[220px] max-w-[360px]");
     }
     return parts.join(" ");
@@ -167,7 +168,29 @@ function CellContent({
     if (column === "call_datetime") {
         return <span className="tabular-nums text-slate-700">{value || "—"}</span>;
     }
-    if (column === "feedback_excerpt" || column === "feedback_summary_ai") {
+    if (column === "feedback_summary_ai") {
+        if (!value) return "—";
+        return (
+            <ClampedSummary
+                value={value}
+                onViewMore={
+                    onTextClick && row.kind === "data" ? () => onTextClick(column, row) : undefined
+                }
+            />
+        );
+    }
+    if (column === "feedback_excerpt") {
+        if (onTextClick && value && row.kind === "data") {
+            return (
+                <button
+                    type="button"
+                    className="whitespace-pre-wrap break-words text-left text-slate-800 hover:underline"
+                    onClick={() => onTextClick(column, row)}
+                >
+                    {value}
+                </button>
+            );
+        }
         return <p className="whitespace-pre-wrap break-words text-slate-800">{value}</p>;
     }
     if (column === "full_conversation") {
@@ -183,6 +206,44 @@ function CellContent({
         );
     }
     return value;
+}
+
+function ClampedSummary({
+    value,
+    onViewMore,
+}: {
+    value: string;
+    onViewMore?: () => void;
+}) {
+    const textRef = useRef<HTMLParagraphElement>(null);
+    const [truncated, setTruncated] = useState(false);
+
+    useLayoutEffect(() => {
+        const el = textRef.current;
+        if (!el) return;
+        const check = () => setTruncated(el.scrollHeight > el.clientHeight + 1);
+        check();
+        const observer = new ResizeObserver(check);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [value]);
+
+    return (
+        <div>
+            <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
+                {value}
+            </p>
+            {onViewMore && truncated ? (
+                <button
+                    type="button"
+                    className="mt-1 text-xs font-semibold text-brand hover:underline"
+                    onClick={onViewMore}
+                >
+                    View more
+                </button>
+            ) : null}
+        </div>
+    );
 }
 
 function CountLink({

@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     SESSION_SECRET_KEY: str    # No default — app will refuse to start without it
     SESSION_MAX_AGE: int = 28800   # 8 hours
 
+    # ── Vertex / Gemini (period summaries) ─────────────────────────────────────
+    GCP_PROJECT_ID: str = ""
+    GCP_LOCATION: str = "asia-south1"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+
     # ── SSO / Azure AD ─────────────────────────────────────────────────────────
     AZURE_CLIENT_ID: str = ""  # Add your Microsoft App/Client ID in .env
     AZURE_TENANT_ID: str = ""  # Add your Microsoft Tenant ID in .env

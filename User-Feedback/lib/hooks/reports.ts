@@ -5,6 +5,8 @@ import {
     fetchReportFilterOptions,
     fetchReportProducts,
     fetchReportSummary,
+    fetchPeriodSummaries,
+    fetchPeriodSummary,
 } from "@/lib/api/reports";
 import type { ReportFilters } from "@/lib/reports/types";
 
@@ -70,6 +72,26 @@ export function useReportConversation(feedbackId?: string, jobId?: string) {
         queryFn: () => fetchReportConversation(feedbackId as string, jobId),
         enabled: Boolean(feedbackId),
         staleTime: 5 * 60_000,
+        retry: 1,
+    });
+}
+
+export function usePeriodSummary(filters: ReportFilters, enabled = true) {
+    return useQuery({
+        queryKey: ["periodSummary", filters],
+        queryFn: () => fetchPeriodSummary(filters),
+        enabled,
+        staleTime: 30_000,
+        retry: 1,
+    });
+}
+
+export function usePeriodSummaries(filters: ReportFilters, enabled = true) {
+    return useQuery({
+        queryKey: ["periodSummaries", filters],
+        queryFn: () => fetchPeriodSummaries(filters),
+        enabled,
+        staleTime: 30_000,
         retry: 1,
     });
 }

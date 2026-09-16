@@ -19,7 +19,7 @@ CI/CD identity (GitHub Actions via Workload Identity Federation):
 | GCP service | Identity | Role | Scope |
 |-------------|----------|------|-------|
 | Cloud Run | `cloud-run-api@PROJECT_ID` | `roles/run.invoker` | Services `pidilite-pipeline-svc`, `pidilite-dashboard` (OIDC from Cloud Tasks + Cloud Scheduler + Eventarc). Not on `pidilite-frontend` unless internal invoke is required. |
-| Cloud Run | Cloud Scheduler agent `service-PROJECT_NUMBER@gcp-sa-cloudscheduler.iam.gserviceaccount.com` | `roles/iam.serviceAccountUser` | SA `cloud-run-api@PROJECT_ID` (mint OIDC for `/api/v1/batch` and `/api/v1/checker/run`) |
+| Cloud Run | Cloud Scheduler agent `service-PROJECT_NUMBER@gcp-sa-cloudscheduler.iam.gserviceaccount.com` | `roles/iam.serviceAccountUser` | SA `cloud-run-api@PROJECT_ID` (mint OIDC for `/api/v1/batch`, `/api/v1/checker/run`, and dashboard `POST /api/v1/reports/period-summaries/run`) |
 | Cloud Run | Cloud Tasks agent `service-PROJECT_NUMBER@gcp-sa-cloudtasks.iam.gserviceaccount.com` | `roles/iam.serviceAccountUser` | SA `cloud-run-api@PROJECT_ID` (mint OIDC for STT / translate / post-process / Gemini STT tasks) |
 | Cloud Run | Eventarc trigger SA (`cloud-run-api@PROJECT_ID` or dedicated `eventarc-trigger@PROJECT_ID`) | `roles/run.invoker` | Service `pidilite-pipeline-svc` (`POST /api/v1/file`, `POST /api/v1/files/stt-complete`) |
 | Cloud Run | Eventarc trigger SA | `roles/eventarc.eventReceiver` | Project |
@@ -108,9 +108,18 @@ Prod services must **reject unauthenticated** requests (`--no-allow-unauthentica
 | Caller | How it authenticates | Target |
 |--------|----------------------|--------|
 | Cloud Tasks | OIDC as `cloud-run-api@` | `pidilite-pipeline-svc` worker URLs |
-| Cloud Scheduler | OIDC as `cloud-run-api@` | `/api/v1/batch`, `/api/v1/checker/run` |
+| Cloud Scheduler | OIDC as `cloud-run-api@` | `/api/v1/batch`, `/api/v1/checker/run`, `pidilite-dashboard` `POST /api/v1/reports/period-summaries/run` |
 | Eventarc (GCS) | Invoke as Eventarc trigger SA | `/api/v1/file`, `/api/v1/files/stt-complete` |
 | Website users | Entra ID on `pidilite-frontend`; frontend → `pidilite-dashboard` | No public invoke of the pipeline |
 | M-Power / upload | Write object to **prod input bucket** (their own identity). Eventarc starts the pipeline. | Bucket IAM only — not Cloud Run |
 
 M-Power (or the upload path) needs `roles/storage.objectCreator` on the **prod input bucket** only. That identity is Pidilite-owned; Bootlabs does not mint it.
+
+## Period summaries (reports backend)
+
+Nightly Cloud Scheduler job on `pidilite-dashboard`:
+
+`POST /api/v1/reports/period-summaries/run`
+
+OIDC as `cloud-run-api@PROJECT_ID`, same pattern as `/api/v1/batch`. Refreshes the current month. On the first two days of a month it also freezes the previous month and emits quarter/year when that month closed the period. Optional JSON body: `{"period_type":"month","period_key":"2026-09","force":false}`.
+

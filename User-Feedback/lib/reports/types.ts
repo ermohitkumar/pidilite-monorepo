@@ -87,6 +87,8 @@ export type ReportSummaryTag = {
     feedback_category?: string | null;
     feedback_tag?: string | null;
     feedback_count: number;
+    ai_summary?: string | null;
+    summary_status?: string | null;
 };
 
 export type ReportSummaryCategory = {
@@ -152,6 +154,98 @@ export type ReportConversationResponse = {
         job_id?: string | null;
         feedback_excerpt?: string | null;
         full_conversation?: string | null;
+    };
+    error?: string | null;
+};
+
+export type PeriodSummaryGrain =
+    | "bde"
+    | "rfmm"
+    | "zone"
+    | "division"
+    | "product"
+    | "tag"
+    | "bde_pt"
+    | "rfmm_pt"
+    | "zone_pt"
+    | "div_pt"
+    | "bde_p"
+    | "rfmm_p"
+    | "zone_p"
+    | "div_p"
+    | "bde_t"
+    | "rfmm_t"
+    | "zone_t"
+    | "div_t";
+
+export type PeriodSummaryRecord = {
+    id: string;
+    grain: PeriodSummaryGrain | string;
+    grain_key: string;
+    grain_label?: string | null;
+    parent_key?: string | null;
+    period_type: string;
+    period_key: string;
+    period_start?: string | null;
+    period_end?: string | null;
+    summary_text?: string | null;
+    highlights?: {
+        call_count?: number;
+        insight_count?: number;
+        themes?: string[];
+        products?: string[];
+        risks?: string[];
+        truncated?: boolean;
+        coverage?: Record<string, unknown>;
+        missing?: string[];
+        errored?: string[];
+        [key: string]: unknown;
+    };
+    source_kind?: string;
+    source_count?: number;
+    call_count?: number;
+    insight_count?: number;
+    status?: string;
+    version?: number;
+    generated_at?: string | null;
+    error_message?: string | null;
+};
+
+export type PeriodSummaryResponse = {
+    success: boolean;
+    message: string;
+    data?: {
+        period_type: string;
+        period_key: string;
+        grain?: string | null;
+        grain_key?: string | null;
+        current?: PeriodSummaryRecord | null;
+        previous?: PeriodSummaryRecord | null;
+        product?: PeriodSummaryRecord | null;
+        previous_product?: PeriodSummaryRecord | null;
+        tag?: PeriodSummaryRecord | null;
+        previous_tag?: PeriodSummaryRecord | null;
+    };
+    error?: string | null;
+};
+
+export type PeriodSummariesResponse = {
+    success: boolean;
+    message: string;
+    data?: {
+        period_type: string;
+        period_key: string;
+        grain: string;
+        items: PeriodSummaryRecord[];
+        products?: PeriodSummaryRecord[];
+        tags?: PeriodSummaryRecord[];
+        available_filters?: {
+            divisions?: string[];
+            zones?: string[];
+            rfmm_clusters?: string[];
+            fme_codes?: string[];
+            products?: string[];
+        };
     };
     error?: string | null;
 };

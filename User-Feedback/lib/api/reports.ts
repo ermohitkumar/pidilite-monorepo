@@ -6,6 +6,8 @@ import type {
     ReportFilters,
     ReportProductsResponse,
     ReportSummaryResponse,
+    PeriodSummariesResponse,
+    PeriodSummaryResponse,
 } from "@/lib/reports/types";
 
 function buildQuery(params: Record<string, unknown>): string {
@@ -60,5 +62,37 @@ export async function fetchReportConversation(
     const qs = buildQuery({ feedback_id: feedbackId, job_id: jobId });
     const res = await apiFetch(`/api/v1/reports/conversation?${qs}`);
     if (!res.ok) throw new Error("Failed to fetch conversation");
+    return res.json();
+}
+
+export async function fetchPeriodSummary(
+    params: Pick<
+        ReportFilters,
+        | "division"
+        | "zone"
+        | "cluster"
+        | "fme_code"
+        | "product_name"
+        | "feedback_tag"
+        | "feedback_group"
+        | "start_date"
+        | "end_date"
+    > = {},
+): Promise<PeriodSummaryResponse> {
+    const qs = buildQuery({ ...params, include_previous: true });
+    const res = await apiFetch(`/api/v1/reports/period-summary${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw new Error("Failed to fetch period summary");
+    return res.json();
+}
+
+export async function fetchPeriodSummaries(
+    params: Pick<
+        ReportFilters,
+        "division" | "zone" | "cluster" | "fme_code" | "product_name" | "feedback_group" | "start_date" | "end_date"
+    > = {},
+): Promise<PeriodSummariesResponse> {
+    const qs = buildQuery(params);
+    const res = await apiFetch(`/api/v1/reports/period-summaries${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw new Error("Failed to fetch period summaries");
     return res.json();
 }
