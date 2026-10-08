@@ -14,10 +14,16 @@ from core.exceptions import STTGeminiTransientError, STTInvalidArgumentError
 from services.shared.gcs_paths import build_stt_output_gcs_uri
 from services.shared.stt_config import file_extension, resolved_audio_mime
 from services.shared.speakers import is_collapsed_speaker_transcript
+from services.shared.transcript import (
+    TOO_FEW_WORDS_MESSAGE,
+    transcript_meets_min_words,
+    word_count,
+)
 from services.shared.vertex_ai import (
     VertexRestAdapter,
     _SAFETY_OFF,
     _THINKING_OFF,
+    _rest_token_count,
     split_collapsed_speaker_transcript,
 )
 
@@ -31,7 +37,8 @@ except ImportError:
     _HAS_GCS = False
 
 GEMINI_FLASH_OP_PREFIX = "gemini-flash:"
-GEMINI_STT_MAX_ATTEMPTS = 3
+# Attempt 0 = Flash (asia-south1); attempt 1 = Pro (us-central1); then Speech v2.
+GEMINI_STT_MAX_ATTEMPTS = 2
 GEMINI_STT_MAX_OUTPUT_TOKENS = 65536
 GEMINI_STT_PROVIDER = "gemini_flash"
 
@@ -62,8 +69,30 @@ def is_last_flash_attempt(retry_count: int) -> bool:
     return int(retry_count or 0) >= GEMINI_STT_MAX_ATTEMPTS - 1
 
 
+def resolve_stt_attempt(retry_count: int) -> dict:
+    """Pick model/location/thinking for this Cloud Tasks attempt.
+
+    Attempt 0: Flash in GCP_LOCATION (asia-south1).
+    Attempt 1 (last Gemini try): Pro in GEMINI_STT_PRO_LOCATION (us-central1).
+    """
+    if int(retry_count or 0) <= 0:
+        return {
+            "model_name": settings.gemini_stt_model,
+            "location": (settings.GCP_LOCATION or "asia-south1").strip(),
+            "thinking_config": _THINKING_OFF,
+            "label": "flash",
+        }
+    budget = int(settings.GEMINI_STT_PRO_THINKING_BUDGET or 1024)
+    return {
+        "model_name": settings.gemini_stt_pro_model,
+        "location": settings.gemini_stt_pro_location,
+        "thinking_config": {"thinkingBudget": max(1, budget)},
+        "label": "pro",
+    }
+
+
 def mime_type_for_audio(gcs_uri: str, source_hint: str | None = None) -> str:
-    return resolved_audio_mime(file_extension(gcs_uri, source_hint))
+    return resolved_audio_mime(file_extension(gcs_uri, source_hint)) or "audio/mpeg"
 
 
 def gemini_stt_output_uri(job_id: str) -> str:
@@ -80,8 +109,8 @@ def _strip_fences(text: str) -> str:
     return text.strip()
 
 
-def _vertex_generate_url(model_name: str) -> str:
-    loc = settings.GCP_LOCATION or "asia-south1"
+def _vertex_generate_url(model_name: str, location: str | None = None) -> str:
+    loc = (location or settings.GCP_LOCATION or "asia-south1").strip()
     project = settings.GCP_PROJECT_ID
     return (
         f"https://{loc}-aiplatform.googleapis.com/v1/"
@@ -95,6 +124,8 @@ def transcribe_audio_gcs(
     *,
     source_hint: str | None = None,
     model_name: str | None = None,
+    location: str | None = None,
+    thinking_config: dict | None = None,
 ) -> dict:
     """Call Vertex generateContent with fileData.fileUri. Returns GCS JSON payload.
 
@@ -104,6 +135,8 @@ def transcribe_audio_gcs(
     import requests
 
     name = model_name or settings.gemini_stt_model
+    loc = (location or settings.GCP_LOCATION or "asia-south1").strip()
+    think = thinking_config if thinking_config is not None else _THINKING_OFF
     mime = mime_type_for_audio(gcs_uri, source_hint)
     timeout = int(settings.GEMINI_STT_TIMEOUT_SECONDS or 540)
     payload = {
@@ -119,7 +152,7 @@ def transcribe_audio_gcs(
         "generationConfig": {
             "temperature": 0.0,
             "maxOutputTokens": GEMINI_STT_MAX_OUTPUT_TOKENS,
-            "thinkingConfig": _THINKING_OFF,
+            "thinkingConfig": think,
         },
         "safetySettings": _SAFETY_OFF,
     }
@@ -127,7 +160,7 @@ def transcribe_audio_gcs(
     try:
         creds = VertexRestAdapter._get_credentials()
         res = requests.post(
-            _vertex_generate_url(name),
+            _vertex_generate_url(name, loc),
             headers={
                 "Authorization": f"Bearer {creds.token}",
                 "Content-Type": "application/json",
@@ -136,17 +169,21 @@ def transcribe_audio_gcs(
             timeout=timeout,
         )
     except requests.Timeout as exc:
-        raise STTGeminiTransientError(f"Gemini STT timed out after {timeout}s") from exc
+        raise STTGeminiTransientError(
+            f"Gemini STT timed out after {timeout}s ({name}@{loc})"
+        ) from exc
     except requests.RequestException as exc:
-        raise STTGeminiTransientError(f"Gemini STT request failed: {exc}") from exc
+        raise STTGeminiTransientError(
+            f"Gemini STT request failed ({name}@{loc}): {exc}"
+        ) from exc
 
     if res.status_code in (408, 429, 500, 502, 503, 504):
         raise STTGeminiTransientError(
-            f"Gemini STT HTTP {res.status_code}: {(res.text or '')[:300]}"
+            f"Gemini STT HTTP {res.status_code} ({name}@{loc}): {(res.text or '')[:300]}"
         )
     if res.status_code >= 400:
         raise STTInvalidArgumentError(
-            f"Gemini STT HTTP {res.status_code}: {(res.text or '')[:300]}"
+            f"Gemini STT HTTP {res.status_code} ({name}@{loc}): {(res.text or '')[:300]}"
         )
 
     try:
@@ -181,20 +218,34 @@ def transcribe_audio_gcs(
     transcript = _strip_fences(text)
     if not transcript:
         raise STTGeminiTransientError("Gemini STT returned an empty transcript")
+
+    spoken = word_count(transcript)
+    if not transcript_meets_min_words(transcript):
+        raise STTInvalidArgumentError(
+            f"{TOO_FEW_WORDS_MESSAGE} Got {spoken} word(s)."
+        )
     if not re.search(r"Speaker\s+\d+\s*:", transcript, re.IGNORECASE):
         logger.warning("Gemini STT transcript has no Speaker N labels; keeping raw text")
 
+    tokens = _rest_token_count(res_json)
     if is_collapsed_speaker_transcript(transcript):
         logger.warning("Gemini STT collapsed speakers into few lines; splitting turns")
-        split_text, _ = split_collapsed_speaker_transcript(transcript, model_name=name)
+        split_text, split_tokens = split_collapsed_speaker_transcript(transcript, model_name=name)
         if split_text:
             transcript = split_text
+            tokens = {
+                "input": int(tokens.get("input") or 0) + int(split_tokens.get("input") or 0),
+                "output": int(tokens.get("output") or 0) + int(split_tokens.get("output") or 0),
+                "total": int(tokens.get("total") or 0) + int(split_tokens.get("total") or 0),
+            }
 
     return {
         "provider": GEMINI_STT_PROVIDER,
         "model": name,
+        "location": loc,
         "transcript": transcript,
         "detected_languages": [],
+        "tokens": tokens,
     }
 
 

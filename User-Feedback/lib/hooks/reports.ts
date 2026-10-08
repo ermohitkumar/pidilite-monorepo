@@ -7,6 +7,7 @@ import {
     fetchReportSummary,
     fetchPeriodSummaries,
     fetchPeriodSummary,
+    fetchCompliance,
 } from "@/lib/api/reports";
 import type { ReportFilters } from "@/lib/reports/types";
 
@@ -14,7 +15,7 @@ export function useReportFilterOptions(filters: Pick<ReportFilters, "division" |
     return useQuery({
         queryKey: ["reportFilterOptions", filters.division, filters.zone, filters.cluster],
         queryFn: () => fetchReportFilterOptions(filters),
-        staleTime: 60_000,
+        staleTime: 5 * 60_000,
         retry: 1,
         placeholderData: (previousData, previousQuery) => {
             if (!previousData?.data) return previousData;
@@ -41,8 +42,9 @@ export function useReportSummary(filters: ReportFilters) {
     return useQuery({
         queryKey: ["reportSummary", filters],
         queryFn: () => fetchReportSummary(filters),
-        staleTime: 30_000,
+        staleTime: 5 * 60_000,
         retry: 1,
+        placeholderData: (previous) => previous,
     });
 }
 
@@ -51,8 +53,9 @@ export function useReportProducts(filters: ReportFilters, enabled = true) {
         queryKey: ["reportProducts", filters],
         queryFn: () => fetchReportProducts(filters),
         enabled,
-        staleTime: 30_000,
+        staleTime: 5 * 60_000,
         retry: 1,
+        placeholderData: (previous) => previous,
     });
 }
 
@@ -61,8 +64,9 @@ export function useReportDetails(filters: ReportFilters, enabled = true) {
         queryKey: ["reportDetails", filters],
         queryFn: () => fetchReportDetails(filters),
         enabled,
-        staleTime: 15_000,
+        staleTime: 2 * 60_000,
         retry: 1,
+        placeholderData: (previous) => previous,
     });
 }
 
@@ -81,8 +85,9 @@ export function usePeriodSummary(filters: ReportFilters, enabled = true) {
         queryKey: ["periodSummary", filters],
         queryFn: () => fetchPeriodSummary(filters),
         enabled,
-        staleTime: 30_000,
+        staleTime: 5 * 60_000,
         retry: 1,
+        placeholderData: (previous) => previous,
     });
 }
 
@@ -91,7 +96,19 @@ export function usePeriodSummaries(filters: ReportFilters, enabled = true) {
         queryKey: ["periodSummaries", filters],
         queryFn: () => fetchPeriodSummaries(filters),
         enabled,
-        staleTime: 30_000,
+        staleTime: 5 * 60_000,
         retry: 1,
+        placeholderData: (previous) => previous,
+    });
+}
+
+export function useCompliance(filters: ReportFilters, enabled = true) {
+    return useQuery({
+        queryKey: ["compliance", filters],
+        queryFn: () => fetchCompliance(filters),
+        enabled,
+        staleTime: 5 * 60_000,
+        retry: 1,
+        placeholderData: (previous) => previous,
     });
 }

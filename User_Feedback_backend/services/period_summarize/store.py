@@ -13,6 +13,7 @@ from services.period_summarize.period_keys import (
     display_key,
     key_group_token,
     matches_group,
+    parse_insight_key,
     scoped_key,
 )
 
@@ -124,6 +125,24 @@ def matches_identity(row: PeriodSummary, identity: Optional[str], group_token: O
     if identity and display_key(row.grain_key) != identity and (row.grain_key or "") != identity:
         return False
     return matches_group(row.grain_key, group_token)
+
+
+def matches_product(row: PeriodSummary, product_name: Optional[str]) -> bool:
+    if not product_name:
+        return True
+    needle = norm_label(product_name)
+    if not needle:
+        return True
+    try:
+        found = parse_insight_key(row.grain, row.grain_key).get("product_name")
+    except ValueError:
+        found = None
+    if found and norm_label(found) == needle:
+        return True
+    return needle in {
+        norm_label(row.grain_label),
+        norm_label(display_key(row.grain_key)),
+    }
 
 
 def filter_group(
@@ -307,6 +326,10 @@ def persist(
         current.superseded_at = generated_at
         version = int(current.version or 1) + 1
 
+    tracking = dict(highlights or {})
+    tracking.setdefault("summary_updated_at", generated_at.isoformat())
+    tracking.setdefault("tracking_checked_at", generated_at.isoformat())
+
     row = PeriodSummary(
         id=str(uuid4()),
         grain=grain,
@@ -318,7 +341,7 @@ def persist(
         period_start=period_start,
         period_end=period_end,
         summary_text=summary_text,
-        highlights_json=highlights or {},
+        highlights_json=tracking,
         source_kind=source_kind,
         source_count=source_count,
         call_count=call_count,
@@ -335,3 +358,23 @@ def persist(
     db.add(row)
     db.flush()
     return row, False
+
+
+def touch_tracking(
+    db: Session,
+    row: PeriodSummary,
+    *,
+    tracking: dict[str, Any],
+    now: Optional[datetime] = None,
+) -> PeriodSummary:
+    """Update tracking fields on the current row without a new summary version."""
+    checked_at = now or datetime.now(timezone.utc)
+    highlights = dict(row.highlights_json or {})
+    highlights.update(tracking or {})
+    highlights["tracking_checked_at"] = checked_at.isoformat()
+    if "summary_updated_at" not in highlights and row.generated_at:
+        highlights["summary_updated_at"] = row.generated_at.isoformat()
+    row.highlights_json = highlights
+    db.add(row)
+    db.flush()
+    return row

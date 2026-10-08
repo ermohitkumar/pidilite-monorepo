@@ -103,7 +103,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
                 <div className="text-body-md text-text-subtle">
                     You do not have permission to view any pages on this platform. Please contact an administrator to assign you roles and permissions.
                 </div>
-                <form action="/api/logout" method="post" className="mt-4">
+                <form action="/bff/logout" method="post" className="mt-4">
                     <button
                         type="submit"
                         className="rounded-md border border-border bg-surface px-6 py-2 text-body-sm font-medium text-text-subtle hover:bg-surface-raised hover:text-text transition-colors shadow-sm cursor-pointer"

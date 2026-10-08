@@ -39,6 +39,17 @@ def _norm_text(value: str | None) -> str:
     return " ".join((value or "").split()).strip().lower()
 
 
+def _normalize_sentiment(value: str | None) -> str | None:
+    raw = (value or "").strip().lower()
+    if raw in {"positive", "pos"}:
+        return "Positive"
+    if raw in {"negative", "neg"}:
+        return "Negative"
+    if raw in {"neutral", "neu"}:
+        return "Neutral"
+    return None
+
+
 def _feedback_dedupe_key(
     product_name: str | None,
     group_type: str | None,
@@ -260,6 +271,9 @@ def _process_job(job_id: str, db: Session) -> dict:
                 category_type=feedback_data.get("category_type"),
                 verbatim_quote=quote,
                 ai_summary=summary,
+                sentiment_label=_normalize_sentiment(
+                    feedback_data.get("sentiment") or feedback_data.get("sentiment_label")
+                ),
                 created_at=datetime.now(timezone.utc),
             )
             db.add(fb)
@@ -329,6 +343,7 @@ def _process_job(job_id: str, db: Session) -> dict:
             "status": "COMPLETED",
             "job_id": job_id,
             "insights_generated": saved_count > 0,
+            "tokens": _tokens,
         }
 
     except Exception as exc:

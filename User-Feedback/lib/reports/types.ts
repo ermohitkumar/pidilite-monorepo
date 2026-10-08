@@ -45,6 +45,7 @@ export type FeedbackFactRow = {
     data_source?: string | null;
     job_status?: string | null;
     audio_gcs_uri?: string | null;
+    sentiment_label?: string | null;
 };
 
 export type FilterOptions = {
@@ -191,7 +192,29 @@ export type PeriodSummaryRecord = {
     summary_text?: string | null;
     highlights?: {
         call_count?: number;
+        site_visit_count?: number;
+        user_count?: number;
+        user_issue_count?: number;
         insight_count?: number;
+        sentiment?: string;
+        topics?: Array<{ label: string; user_count?: number }>;
+        findings?: Array<{
+            title?: string;
+            product?: string;
+            summary?: string;
+            data?: string;
+            quotes?: string[];
+            user_count?: number;
+            sentiment?: string;
+            points?: Array<{
+                theme?: string;
+                line?: string;
+                detail?: string;
+                summary?: string;
+                user_count?: number;
+                sentiment?: string;
+            }>;
+        }>;
         themes?: string[];
         products?: string[];
         risks?: string[];
@@ -250,6 +273,29 @@ export type PeriodSummariesResponse = {
     error?: string | null;
 };
 
+export type ComplianceRow = {
+    division: string;
+    time_period: string;
+    zone: string;
+    user_type: string;
+    rfmm_cluster: string;
+    fme_code: string;
+    fme_period: string;
+    fme_name: string;
+    sites_visited: number;
+    sites_recorded: number;
+    conversation_rate: number;
+    avg_conversation_seconds: number | null;
+};
+
+export type ComplianceResponse = {
+    success: boolean;
+    data?: {
+        items: ComplianceRow[];
+        filter_options?: FilterOptions;
+    };
+};
+
 export type ReportFilters = {
     feedback_group?: string;
     feedback_category?: string;
@@ -284,7 +330,8 @@ export type MatrixColumn =
     | "full_conversation"
     | "file_name"
     | "call_datetime"
-    | "audio";
+    | "audio"
+    | "sentiment";
 
 export type DrillLevel = "group" | "product" | "category" | "tag" | "sub_tag" | "item";
 
@@ -322,6 +369,7 @@ export type MatrixRow = {
     call_datetime?: string;
     job_id?: string;
     feedback_id?: string;
+    sentiment?: string;
     drill?: DrillScope;
 };
 
@@ -338,10 +386,33 @@ export const COLUMN_LABELS: Record<MatrixColumn, string> = {
     file_name: "File name",
     call_datetime: "Date & time",
     audio: "Audio",
+    // Rollup/matrix default; insight-level detail rows use columnLabel(..., { insightLevel: true }).
+    sentiment: "Net Sentiment",
 };
 
+/** Rollup views use Net Sentiment; insight/detail rows use Sentiment. */
+export function columnLabel(
+    column: MatrixColumn,
+    opts?: { insightLevel?: boolean },
+): string {
+    if (column === "sentiment" && opts?.insightLevel) return "Sentiment";
+    return COLUMN_LABELS[column];
+}
+
 export const GROUP_TABS: { id: FeedbackGroup; label: string }[] = [
-    { id: "PDT GROUP", label: "PDT Group" },
+    { id: "PDT GROUP", label: "Product Group" },
     { id: "USER GROUP", label: "User Group" },
     { id: "DEALER GROUP", label: "Dealer Group" },
 ];
+
+export const GROUP_FILTER_TABS: { id: FeedbackGroup | "ALL"; label: string }[] = [
+    { id: "ALL", label: "All groups" },
+    ...GROUP_TABS,
+];
+
+export function displayGroupLabel(id?: string | null): string {
+    const tab = GROUP_TABS.find((item) => item.id === id);
+    if (tab) return tab.label;
+    if (id === "PDT" || id === "PDT GROUP") return "Product Group";
+    return id || "";
+}

@@ -1,9 +1,36 @@
-export function getAppBaseUrl(): string {
-    const url = process.env.NEXT_PUBLIC_APP_URL;
-    if (!url) {
-        throw new Error('NEXT_PUBLIC_APP_URL is not defined');
+function stripTrailingSlash(url: string): string {
+    return url.trim().replace(/\/$/, '');
+}
+
+function hasScheme(url: string): boolean {
+    return /^https?:\/\//i.test(url);
+}
+
+/** UAT stores the internal load-balancer host with no scheme. */
+function withScheme(url: string, scheme: 'http' | 'https'): string {
+    const trimmed = stripTrailingSlash(url);
+    if (!trimmed) return trimmed;
+    if (hasScheme(trimmed)) return trimmed;
+    return `${scheme}://${trimmed}`;
+}
+
+function isIpHost(host: string): boolean {
+    return /^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host);
+}
+
+export function getAppBaseUrl(request?: { headers: Headers }): string {
+    const configured = stripTrailingSlash(process.env.NEXT_PUBLIC_APP_URL || '');
+    if (hasScheme(configured)) return configured;
+
+    if (request) {
+        const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+        const host = forwardedHost || request.headers.get('host')?.split(',')[0]?.trim() || '';
+        const proto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || 'https';
+        if (host && !isIpHost(host)) return `${proto}://${host}`;
     }
-    return url.replace(/\/$/, '');
+
+    if (configured) return withScheme(configured, 'https');
+    throw new Error('NEXT_PUBLIC_APP_URL is not defined');
 }
 
 export function getAuthSecret(): Uint8Array {
@@ -19,7 +46,9 @@ export function getBackendApiUrl(): string {
     if (!url) {
         throw new Error('BACKEND_API_URL is not defined');
     }
-    return url.replace(/\/$/, '');
+    // The UAT secret is an internal IP. Server-side fetch needs a scheme,
+    // and the load balancer on that IP is reached over HTTP from the VPC.
+    return withScheme(url, 'http');
 }
 
 export function getMicrosoftAuthConfig() {

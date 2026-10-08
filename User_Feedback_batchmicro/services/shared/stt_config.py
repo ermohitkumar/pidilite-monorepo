@@ -82,21 +82,44 @@ def resolved_audio_mime(ext: str | None, mime_type: str | None = None) -> str:
     """Prefer a real audio/video MIME; otherwise infer from the file extension.
 
     GCS uploads without Content-Type are stored as application/octet-stream.
+    Generic/binary MIME values are treated as unset so extension wins.
+    Returns "" when neither a real MIME nor a known audio extension is available.
     """
     mime = (mime_type or "").strip().lower()
     ext = (ext or "").lower().lstrip(".")
-    if mime and mime not in _GENERIC_MIMES and (
-        mime.startswith("audio/") or mime.startswith("video/")
-    ):
+    if mime in _GENERIC_MIMES:
+        mime = ""
+    if mime.startswith("audio/") or mime.startswith("video/"):
         return mime
     if ext in _MIME_BY_EXT:
         return _MIME_BY_EXT[ext]
-    return mime or "audio/mpeg"
+    return mime
 
 
 def is_audio_media(ext: str | None, mime_type: str | None = None) -> bool:
     mime = resolved_audio_mime(ext, mime_type)
-    return mime.startswith("audio/") or mime.startswith("video/")
+    return bool(mime) and (mime.startswith("audio/") or mime.startswith("video/"))
+
+
+def resolve_media_extension(
+    *,
+    stored_ext: str | None = None,
+    file_name: str | None = None,
+    gcs_uri: str | None = None,
+) -> str:
+    """Best-effort audio extension from DB fields, then file name, then GCS URI."""
+    ext = (stored_ext or "").lower().lstrip(".")
+    if ext in _MIME_BY_EXT:
+        return ext
+    if file_name and "." in file_name:
+        name_ext = file_name.rsplit(".", 1)[-1].lower()
+        if name_ext in _MIME_BY_EXT:
+            return name_ext
+    if gcs_uri:
+        uri_ext = file_extension(gcs_uri)
+        if uri_ext in _MIME_BY_EXT:
+            return uri_ext
+    return ext
 
 
 def alternative_language_codes(primary: str) -> list[str]:

@@ -27,6 +27,7 @@ from services.period_summarize.period_keys import (
     group_token,
     infer_period,
     list_grain_for_filters,
+    parse_insight_key,
     previous_period,
     resolve_grain,
     slice_grains_for_geo,
@@ -181,6 +182,95 @@ def _serialize_visible(row: Any) -> Optional[dict[str, Any]]:
     return period_store.serialize_row(row)
 
 
+def _tag_dedupe_key(row: Any) -> str:
+    try:
+        parsed = parse_insight_key(row.grain, row.grain_key)
+        tag_id = parsed.get("tag_id") or ""
+        group = parsed.get("group_type") or ""
+        if tag_id:
+            return f"{group}::{tag_id}"
+    except ValueError:
+        pass
+    return f"{row.grain_key}::{row.grain_label}"
+
+
+def _tag_lookup_keys(row: Any) -> list[str]:
+    keys = period_store.label_keys(row.grain_label) + period_store.label_keys(row.grain_key)
+    label = row.grain_label or ""
+    if " × " in label:
+        keys.extend(period_store.label_keys(label.split(" × ", 1)[-1]))
+    try:
+        keys.extend(period_store.label_keys(parse_insight_key(row.grain, row.grain_key).get("tag_id")))
+    except ValueError:
+        pass
+    return keys
+
+
+def _period_product_and_tag_rows(
+    db: Session,
+    *,
+    period_type: str,
+    period_key: str,
+    token: Optional[str],
+    geo_grain: Optional[str],
+    geo_key: Optional[str],
+    product_name: Optional[str],
+) -> tuple[list[Any], list[Any]]:
+    slices = slice_grains_for_geo(geo_grain)
+    product_grain = slices["product"]
+    if product_name:
+        tag_grain = slices["cube"] if slices["cube"] != "product" else "div_pt"
+        tag_identity = geo_key if geo_grain else None
+    else:
+        tag_grain = slices["tag"]
+        tag_identity = geo_key if geo_grain and tag_grain != "tag" else None
+    product_identity = geo_key if geo_grain and product_grain != "product" else None
+    product_rows = [
+        row
+        for row in period_store.filter_group(
+            period_store.list_current(
+                db, grain=product_grain, period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
+            identity=product_identity,
+        )
+        if period_store.matches_product(row, product_name)
+    ]
+    if not product_rows and product_grain != "product":
+        product_rows = [
+            row
+            for row in period_store.filter_group(
+                period_store.list_current(
+                    db, grain="product", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+            if period_store.matches_product(row, product_name)
+        ]
+    tag_rows = [
+        row
+        for row in period_store.filter_group(
+            period_store.list_current(
+                db, grain=tag_grain, period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
+            identity=tag_identity,
+        )
+        if period_store.matches_product(row, product_name)
+    ]
+    if product_name and not geo_grain:
+        seen: set[str] = set()
+        unique: list[Any] = []
+        for row in tag_rows:
+            key = _tag_dedupe_key(row)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(row)
+        tag_rows = unique
+    return product_rows, tag_rows
+
+
 def _attach_tag_ai_summaries(
     db: Session,
     tags: list[dict[str, Any]],
@@ -192,41 +282,53 @@ def _attach_tag_ai_summaries(
     zone: Optional[str] = None,
     cluster: Optional[str] = None,
     fme_code: Optional[str] = None,
+    product_name: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     token = group_token(feedback_group)
     geo_grain, geo_key = resolve_grain(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
     )
     slices = slice_grains_for_geo(geo_grain)
-    tag_grain = slices["tag"]
-    rows = period_store.list_current(
-        db, grain=tag_grain, period_type=period_type, period_key=period_key,
+    tag_grain = slices["cube"] if product_name and slices["cube"] != "product" else (
+        "div_pt" if product_name else slices["tag"]
     )
-    rows = period_store.filter_group(rows, token, identity=geo_key if geo_grain else None)
-    if not rows and tag_grain != "tag":
-        rows = period_store.list_current(
-            db, grain="tag", period_type=period_type, period_key=period_key,
+    _, tag_rows = _period_product_and_tag_rows(
+        db,
+        period_type=period_type,
+        period_key=period_key,
+        token=token,
+        geo_grain=geo_grain,
+        geo_key=geo_key,
+        product_name=product_name,
+    )
+    if not tag_rows and tag_grain not in {"tag", "product"} and not geo_grain and not product_name:
+        tag_rows = period_store.filter_group(
+            period_store.list_current(
+                db, grain="tag", period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
         )
-        rows = period_store.filter_group(rows, token)
-    if not rows:
+    if not tag_rows:
         latest = period_store.latest_period(db, grain=tag_grain, period_type=period_type)
-        if not latest and tag_grain != "tag":
+        if not latest and tag_grain != "tag" and not geo_grain and not product_name:
             latest = period_store.latest_period(db, grain="tag", period_type=period_type)
             tag_grain = "tag"
         if latest:
             period_type, period_key = latest
-            rows = period_store.filter_group(
-                period_store.list_current(
-                    db, grain=tag_grain, period_type=period_type, period_key=period_key,
-                ),
-                token,
-                identity=geo_key if geo_grain and tag_grain != "tag" else None,
+            _, tag_rows = _period_product_and_tag_rows(
+                db,
+                period_type=period_type,
+                period_key=period_key,
+                token=token,
+                geo_grain=geo_grain,
+                geo_key=geo_key,
+                product_name=product_name,
             )
     by_label: dict[str, Any] = {}
-    for row in rows:
+    for row in tag_rows:
         if not period_store.is_visible_summary(row):
             continue
-        for key in period_store.label_keys(row.grain_label) + period_store.label_keys(row.grain_key):
+        for key in _tag_lookup_keys(row):
             by_label.setdefault(key, row)
     attached = []
     for tag in tags:
@@ -468,42 +570,20 @@ def get_period_summaries(
         parent_identity=parent_identity,
     )
     items = [period_store.serialize_row(row) for row in rows if period_store.is_visible_summary(row)]
-    slices = slice_grains_for_geo(geo_grain)
-    product_grain = slices["product"]
-    tag_grain = slices["tag"]
-    product_rows = period_store.filter_group(
-        period_store.list_current(
-            db, grain=product_grain, period_type=period_type, period_key=period_key, status="ok",
-        ),
-        token,
-        identity=geo_key if geo_grain and product_grain != "product" else None,
+    product_rows, tag_rows = _period_product_and_tag_rows(
+        db,
+        period_type=period_type,
+        period_key=period_key,
+        token=token,
+        geo_grain=geo_grain,
+        geo_key=geo_key,
+        product_name=product_name,
     )
-    if not product_rows and product_grain != "product":
-        product_rows = period_store.filter_group(
-            period_store.list_current(
-                db, grain="product", period_type=period_type, period_key=period_key, status="ok",
-            ),
-            token,
-        )
     products = [
         period_store.serialize_row(row)
         for row in product_rows
         if period_store.is_visible_summary(row)
     ]
-    tag_rows = period_store.filter_group(
-        period_store.list_current(
-            db, grain=tag_grain, period_type=period_type, period_key=period_key, status="ok",
-        ),
-        token,
-        identity=geo_key if geo_grain and tag_grain != "tag" else None,
-    )
-    if not tag_rows and tag_grain != "tag":
-        tag_rows = period_store.filter_group(
-            period_store.list_current(
-                db, grain="tag", period_type=period_type, period_key=period_key, status="ok",
-            ),
-            token,
-        )
     tags = [
         period_store.serialize_row(row)
         for row in tag_rows
@@ -632,9 +712,7 @@ def get_report_summary(
             zone=zone,
             cluster=cluster,
             fme_code=fme_code,
-        )
-        options = report_repo.filter_options(
-            db, fact, division=division, zone=zone, cluster=cluster,
+            product_name=product_name,
         )
     except report_repo.MissingFactView as exc:
         logger.warning("report summary view missing: %s", exc)
@@ -646,7 +724,8 @@ def get_report_summary(
     return make_response(
         success=True,
         message="Report summary retrieved successfully",
-        data={**counts, "filter_options": options, "source": fact},
+        # Filter dropdowns come from GET /filter-options — avoid a second fact scan.
+        data={**counts, "filter_options": dict(_EMPTY_FILTERS), "source": fact},
     )
 
 
@@ -768,6 +847,40 @@ def get_report_conversation(
     if not item:
         raise APIException(status_code=404, message="Conversation not found", error="Not Found")
     return make_response(success=True, message="Conversation retrieved successfully", data=item)
+
+
+@router.get("/compliance")
+def get_compliance(
+    db: DbSession,
+    division: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    cluster: Optional[str] = Query(None),
+    fme_code: Optional[str] = Query(None),
+    user_type: Optional[str] = Query(None),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+):
+    """Open-conversation compliance by FME: sites visited vs recorded."""
+    try:
+        items = report_repo.compliance_rows(
+            db,
+            division=division,
+            zone=zone,
+            cluster=cluster,
+            fme_code=fme_code,
+            user_type=user_type,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception:
+        logger.exception("Failed to retrieve compliance report")
+        raise APIException(status_code=500, message="Failed to retrieve compliance report", error="Internal Error")
+    # Filter dropdowns come from GET /filter-options — skip a second full scan here.
+    return make_response(
+        success=True,
+        message="Compliance report retrieved successfully",
+        data={"items": items},
+    )
 
 
 @router.get("/feedback-fact")

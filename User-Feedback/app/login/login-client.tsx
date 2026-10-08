@@ -44,7 +44,7 @@ export default function LoginClient({ error }: Props) {
         setFormError(null);
         setIsSubmitting(true);
         try {
-            const res = await fetch('/api/login', {
+            const res = await fetch('/bff/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim(), password }),
@@ -56,7 +56,7 @@ export default function LoginClient({ error }: Props) {
                 return;
             }
 
-            window.location.href = "/reports";
+            window.location.href = "/";
         } catch {
             setFormError("Could not reach the app. Try again in a moment.");
         } finally {
@@ -185,7 +185,7 @@ export default function LoginClient({ error }: Props) {
                                 disabled={isSubmitting}
                                 onClick={() => {
                                     setIsSubmitting(true);
-                                    window.location.href = "/api/auth/microsoft/login";
+                                    window.location.href = "/bff/auth/microsoft/login";
                                 }}
                             >
                                 <MicrosoftMark className="h-5 w-5 mr-2" />

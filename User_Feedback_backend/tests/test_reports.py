@@ -247,7 +247,7 @@ def test_report_summary_attaches_nationwide_tag_narrative(client: TestClient, db
     geo_tags = {row["feedback_tag"]: row for row in geo.json()["data"]["tags"]}
     tag_name = "Existing Product - Performance improvements"
     assert unfiltered_tags[tag_name]["ai_summary"] == "All-India performance narrative for August."
-    assert geo_tags[tag_name]["ai_summary"] == unfiltered_tags[tag_name]["ai_summary"]
+    assert geo_tags[tag_name]["ai_summary"] is None
     assert unfiltered_tags[tag_name]["summary_status"] == "ok"
 
 
@@ -462,6 +462,61 @@ def test_period_summaries_filters_products_by_feedback_group(client: TestClient,
     assert "Marine::PDT" not in user_keys
 
 
+def test_period_summaries_apply_division_and_product_filters(client: TestClient, db_session):
+    db_session.add(_period_row(
+        id="88888888-bbbb-cccc-dddd-eeeeeeeeeeee",
+        grain="tag",
+        grain_key="22::PDT",
+        grain_label="Nationwide Tag",
+        summary_text="All India tag narrative.",
+        source_kind="insights",
+    ))
+    db_session.add(_period_row(
+        id="99999999-bbbb-cccc-dddd-eeeeeeeeeeee",
+        grain="div_t",
+        grain_key="FV-RETAIL::PDT::22",
+        grain_label="Division Tag",
+        summary_text="FV-RETAIL tag narrative.",
+        source_kind="insights",
+    ))
+    db_session.add(_period_row(
+        id="aaaa1111-bbbb-cccc-dddd-eeeeeeeeeeee",
+        grain="div_pt",
+        grain_key="FV-RETAIL::PDT::Marine::22",
+        grain_label="Marine × Division Tag",
+        summary_text="FV-RETAIL Marine tag narrative.",
+        source_kind="insights",
+    ))
+    db_session.commit()
+    division = client.get(
+        "/api/v1/reports/period-summaries",
+        params={
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-30",
+            "division": "FV-RETAIL",
+        },
+    )
+    assert division.status_code == 200
+    division_labels = {row["grain_label"] for row in division.json()["data"]["tags"]}
+    assert "Division Tag" in division_labels
+    assert "Nationwide Tag" not in division_labels
+
+    product = client.get(
+        "/api/v1/reports/period-summaries",
+        params={
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-30",
+            "division": "FV-RETAIL",
+            "product_name": "Marine",
+        },
+    )
+    assert product.status_code == 200
+    product_labels = {row["grain_label"] for row in product.json()["data"]["tags"]}
+    assert "Marine × Division Tag" in product_labels
+    assert "Nationwide Tag" not in product_labels
+    assert "Division Tag" not in product_labels
+
+
 def test_period_summary_hides_no_insight_text(client: TestClient, db_session):
     db_session.add(_period_row(
         grain="bde",
@@ -482,3 +537,40 @@ def test_period_summary_hides_no_insight_text(client: TestClient, db_session):
     )
     assert resp.status_code == 200
     assert resp.json()["data"]["current"] is None
+
+
+def test_compliance_counts_visited_and_recorded_sites(
+    client: TestClient, create_test_job, create_test_processed_file, db_session
+):
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+
+    recorded = create_test_job(status=JobStatus.COMPLETED, file_name="recorded.wav")
+    silent = create_test_job(status=JobStatus.PENDING, file_name="silent.wav")
+    for job in (recorded, silent):
+        details = job.file_details
+        details.division = "FV-RETAIL"
+        details.zone = "NCR"
+        details.cluster = "DEL"
+        details.rfmm_cluster = "RBDM-DELHI"
+        details.fme_code = "BDDEL03"
+        details.user_type = "BDE"
+        details.call_date = datetime(2026, 7, 10, tzinfo=timezone.utc)
+    db_session.commit()
+    create_test_processed_file(job_id=recorded.id)
+
+    resp = client.get(
+        "/api/v1/reports/compliance",
+        params={"start_date": "2026-07-01", "end_date": "2026-07-31"},
+    )
+    assert resp.status_code == 200
+    items = resp.json()["data"]["items"]
+    assert len(items) == 1
+    row = items[0]
+    assert row["division"] == "FV-RETAIL"
+    assert row["fme_code"] == "BDDEL03"
+    assert row["sites_visited"] == 2
+    assert row["sites_recorded"] == 1
+    assert row["conversation_rate"] == 50.0
+    assert row["time_period"] == "2026-07"

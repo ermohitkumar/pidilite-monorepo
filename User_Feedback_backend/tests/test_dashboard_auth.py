@@ -528,6 +528,45 @@ class TestListJobs:
         assert data["metadata"]["total_pages"] == 3
         assert data["metadata"]["has_next"] is True
 
+    def test_list_jobs_includes_audio_duration(
+        self, client, create_test_batch, create_test_job
+    ):
+        b = create_test_batch(batch_number=1)
+        timed = create_test_job(
+            batch_id=b.id,
+            gcs_input_uri="gs://b/timed.wav",
+            file_name="timed.wav",
+            audio_duration_seconds=95,
+        )
+        create_test_job(
+            batch_id=b.id,
+            gcs_input_uri="gs://b/untimed.wav",
+            file_name="untimed.wav",
+        )
+
+        resp = client.get("/api/v1/dashboard/jobs")
+        by_name = {item["file_name"]: item for item in resp.json()["data"]["items"]}
+        assert by_name["timed.wav"]["job_id"] == str(timed.id)
+        assert by_name["timed.wav"]["audio_duration_seconds"] == 95
+        assert by_name["untimed.wav"]["audio_duration_seconds"] is None
+
+    def test_list_jobs_sort_by_audio_duration(
+        self, client, create_test_batch, create_test_job
+    ):
+        b = create_test_batch(batch_number=1)
+        create_test_job(
+            batch_id=b.id, gcs_input_uri="gs://b/long.wav",
+            file_name="long.wav", audio_duration_seconds=180,
+        )
+        create_test_job(
+            batch_id=b.id, gcs_input_uri="gs://b/short.wav",
+            file_name="short.wav", audio_duration_seconds=30,
+        )
+
+        resp = client.get("/api/v1/dashboard/jobs?sort_by=audio_duration_seconds&sort_dir=asc")
+        names = [item["file_name"] for item in resp.json()["data"]["items"]]
+        assert names[:2] == ["short.wav", "long.wav"]
+
     def test_list_jobs_sort_by_file_name(
         self, client, create_test_batch, create_test_job
     ):

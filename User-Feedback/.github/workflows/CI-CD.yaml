@@ -63,4 +63,6 @@ jobs:
             --platform=managed \
             --port=3000 \
             --service-account=cloud-run-api@pidilite-user-feedback-ai.iam.gserviceaccount.com \
+            --vpc-egress=private-ranges-only \
+            --update-env-vars=BACKEND_API_URL=https://samvaduat.pidilite.com \
             --quiet

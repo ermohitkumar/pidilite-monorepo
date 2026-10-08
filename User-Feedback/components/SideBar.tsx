@@ -6,7 +6,9 @@ import { useState } from "react";
 import {
   LuChevronLeft,
   LuChevronRight,
+  LuClipboardCheck,
   LuFileText,
+  LuHouse,
   LuLogOut,
   LuPackage,
   LuSquareActivity,
@@ -31,15 +33,27 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
     title: "sidebar",
     items: [
       {
+        title: "Home",
+        href: "/",
+        icon: LuHouse,
+        resource: "reports",
+      },
+      {
         title: "Reports",
         href: "/reports",
+        icon: LuFileText,
+        resource: "reports",
+      },
+      {
+        title: "Insights",
+        href: "/reports/insights",
         icon: LuTable,
         resource: "reports",
       },
       {
-        title: "Summaries",
-        href: "/reports/summaries",
-        icon: LuFileText,
+        title: "Compliance",
+        href: "/reports/compliance",
+        icon: LuClipboardCheck,
         resource: "reports",
       },
       {
@@ -147,11 +161,11 @@ export default function SideBar() {
                 })
                 .map((item) => {
                   const isActive =
-                    item.href === "/reports"
-                      ? pathname === "/reports"
-                      : pathname === item.href ||
-                        pathname.startsWith(`${item.href}/`) ||
-                        (pathname === "/" && item.href === "/reports");
+                    item.href === "/"
+                      ? pathname === "/"
+                      : item.href === "/reports"
+                        ? pathname === "/reports" || pathname === "/reports/summaries"
+                        : pathname === item.href || pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
                   return (
                     <li key={item.title}>
@@ -200,7 +214,7 @@ export default function SideBar() {
           )}
         </div>
         <form
-          action="/api/logout"
+          action="/bff/logout"
           method="post"
           className={isExpanded ? "w-full" : "w-full flex justify-center"}
         >

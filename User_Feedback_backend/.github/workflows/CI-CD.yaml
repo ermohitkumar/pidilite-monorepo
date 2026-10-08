@@ -48,8 +48,7 @@ jobs:
             --project=pidilite-user-feedback-ai \
             --platform=managed \
             --port=8000 \
-            --vpc-connector=pidilite-run-connector \
-            --vpc-egress=private-ranges-only \
             --set-secrets="DB_HOST=DEV_DB_HOST:latest,DB_PORT=DEV_DB_PORT:latest,DB_NAME=DEV_DB_NAME:latest,DB_USER=DEV_DB_USER:latest,DB_PASSWORD=DEV_DB_PASSWORD:latest,SESSION_SECRET_KEY=DEV_SESSION_SECRET_KEY:latest,SESSION_MAX_AGE=DEV_SESSION_MAX_AGE:latest" \
+            --update-env-vars="GCP_PROJECT_ID=pidilite-user-feedback-ai,GCP_LOCATION=asia-south1" \
             --remove-env-vars=CORS_ALLOWED_ORIGINS \
             --quiet

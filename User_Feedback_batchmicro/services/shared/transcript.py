@@ -45,8 +45,28 @@ def _speaker_tag(word: dict) -> int | None:
 
 
 def _word_count(text: str) -> int:
-    cleaned = re.sub(r"Speaker\s+\d+:", " ", text or "")
+    cleaned = re.sub(r"Speaker\s+\d+:", " ", text or "", flags=re.IGNORECASE)
+    cleaned = re.sub(r"\b(?:FME|User)\s*:", " ", cleaned, flags=re.IGNORECASE)
     return len(cleaned.split())
+
+
+# Spoken-word minimum before translate / insights. Label-only STT like
+# "Speaker 1:" must not proceed (Gemini will hallucinate a full call).
+MIN_TRANSCRIPT_WORDS = 100
+TOO_FEW_WORDS_MESSAGE = (
+    "Transcript has too few words (need at least "
+    f"{MIN_TRANSCRIPT_WORDS}). File marked failed — recording may be empty, "
+    "silent, or unintelligible."
+)
+
+
+def word_count(text: str) -> int:
+    """Public spoken-word count (speaker labels stripped)."""
+    return _word_count(text)
+
+
+def transcript_meets_min_words(text: str, minimum: int = MIN_TRANSCRIPT_WORDS) -> bool:
+    return _word_count(text) >= minimum
 
 
 def _plain_transcript(results: list) -> str:

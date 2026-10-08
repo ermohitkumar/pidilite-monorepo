@@ -153,13 +153,13 @@ def parse_insight_key(grain: str, grain_key: str) -> dict[str, Optional[str]]:
         if grain == "product":
             return {"geo_key": None, "group_type": group, "product_name": identity, "tag_id": None}
         return {"geo_key": None, "group_type": group, "product_name": None, "tag_id": identity}
-    if grain == "bde_p":
+    if grain.endswith("_p"):
         product = KEY_SEP.join(parts[2:]) if token and len(parts) >= 3 else KEY_SEP.join(parts[1:])
         return {"geo_key": geo, "group_type": group, "product_name": product or None, "tag_id": None}
-    if grain == "bde_t":
+    if grain.endswith("_t"):
         tag_id = parts[-1] if len(parts) >= 3 else None
         return {"geo_key": geo, "group_type": group, "product_name": None, "tag_id": tag_id}
-    if grain == "bde_pt":
+    if grain.endswith("_pt"):
         tag_id = parts[-1] if len(parts) >= 4 else None
         product = KEY_SEP.join(parts[2:-1]) if token and len(parts) >= 4 else None
         return {"geo_key": geo, "group_type": group, "product_name": product, "tag_id": tag_id}

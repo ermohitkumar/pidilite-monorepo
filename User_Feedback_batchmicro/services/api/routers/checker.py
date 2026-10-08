@@ -524,13 +524,46 @@ def _retry_error_jobs(db: Session, limit: int) -> dict:
 
 # ── Update batch statuses ────────────────────────────────────────────────────
 
+def _fail_stuck_pending_assigned_jobs(db: Session, limit: int) -> int:
+    """PENDING jobs that already have batch_id never get claimed again — close them.
+
+    Batch orchestration sets BATCHED when claiming; a row stuck as PENDING with
+    batch_id blocks evaluate_batch_status forever. Mark FAILED so the batch can
+    reconcile to FAILED / PARTIAL_SUCCESS / COMPLETED.
+    """
+    stuck = (
+        db.query(Job)
+        .filter(Job.status == JobStatus.PENDING, Job.batch_id.isnot(None))
+        .order_by(Job.updated_at.asc())
+        .limit(limit)
+        .all()
+    )
+    closed = 0
+    for job in stuck:
+        batch_repository.update_job_status(
+            db,
+            job.id,
+            status=JobStatus.FAILED,
+            error_message="Abandoned: stuck PENDING while assigned to a batch",
+        )
+        closed += 1
+        logger.info(
+            "Closed stuck PENDING job %s (batch %s) so batch status can reconcile",
+            job.id,
+            job.batch_id,
+        )
+    return closed
+
+
 def _reconcile_batches(db: Session) -> int:
     """
-    For each PROCESSING batch, check the state of its jobs and
-    mark the batch as COMPLETED / PARTIAL_SUCCESS / FAILED accordingly.
+    For each open batch (PENDING / PROCESSING), mark COMPLETED /
+    PARTIAL_SUCCESS / FAILED once every child job is terminal.
     """
     running_batches = (
-        db.query(Batch).filter(Batch.status == BatchStatus.PROCESSING).all()
+        db.query(Batch)
+        .filter(Batch.status.in_([BatchStatus.PENDING, BatchStatus.PROCESSING]))
+        .all()
     )
     updated = 0
     for batch in running_batches:
@@ -576,8 +609,14 @@ def run_checker(
         # 7. Retry / fail ERROR jobs
         retry_result = _retry_error_jobs(db, limit)
 
-        # 8. Reconcile batch statuses
+        # 7b. Close PENDING jobs stuck with a batch_id (blocks batch reconcile)
+        stuck_pending_closed = _fail_stuck_pending_assigned_jobs(db, limit)
+
+        # 8. Reconcile batch statuses (also deletes empty batches)
         batches_reconciled = _reconcile_batches(db)
+
+        # 8b. Sweep any leftover empty batches (jobs requeued with batch_id cleared)
+        empty_batches_deleted = batch_repository.delete_empty_batches(db)
 
         # 9. Count jobs still in-flight
         still_pending = len(
@@ -607,17 +646,18 @@ def run_checker(
             + stuck_post_processing
             + retry_result["retried"]
             + retry_result["failed"]
+            + stuck_pending_closed
         )
 
         logger.info(
             "Checker run complete: checked=%d, stt_lro_completed=%d, translate_kicked=%d, "
             "stuck_batched=%d, stuck_translating=%d, stuck_translated=%d, "
-            "stuck_post_processing=%d, recovered=%d, failed=%d, still_pending=%d, "
-            "batches_reconciled=%d",
+            "stuck_post_processing=%d, recovered=%d, failed=%d, stuck_pending_closed=%d, "
+            "still_pending=%d, batches_reconciled=%d, empty_batches_deleted=%d",
             total_checked, lro_result["completed"], stt_kicked, stuck_batched,
             stuck_translating, stuck_translated, stuck_post_processing,
-            retry_result["retried"], retry_result["failed"], still_pending,
-            batches_reconciled,
+            retry_result["retried"], retry_result["failed"], stuck_pending_closed,
+            still_pending, batches_reconciled, empty_batches_deleted,
         )
 
         return make_response(
@@ -633,7 +673,7 @@ def run_checker(
                     + stuck_translated
                     + stuck_post_processing
                 ),
-                jobs_marked_failed=retry_result["failed"],
+                jobs_marked_failed=retry_result["failed"] + stuck_pending_closed,
                 jobs_still_pending=still_pending,
                 stt_lro_polled=lro_result["polled"],
                 stt_lro_completed=lro_result["completed"],
@@ -645,6 +685,7 @@ def run_checker(
                 stuck_translated_recovered=stuck_translated,
                 stuck_post_processing_recovered=stuck_post_processing,
                 batches_reconciled=batches_reconciled,
+                empty_batches_deleted=empty_batches_deleted,
             ).model_dump(),
         )
 

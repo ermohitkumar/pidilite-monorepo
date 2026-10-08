@@ -199,6 +199,7 @@ def create_test_job(db_session):
         file_name: str = "test.wav",
         batch_id: str | None = None,
         status: JobStatus = JobStatus.PENDING,
+        audio_duration_seconds: int | None = None,
     ) -> Job:
         job = Job(
             gcs_input_uri=gcs_input_uri,
@@ -211,6 +212,7 @@ def create_test_job(db_session):
         file_details = FileDetails(
             job_id=job.id,
             file_name=file_name,
+            audio_duration_seconds=audio_duration_seconds,
         )
         db_session.add(file_details)
         db_session.commit()

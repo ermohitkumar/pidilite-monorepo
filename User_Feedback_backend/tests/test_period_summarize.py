@@ -2,7 +2,18 @@ from datetime import date
 
 import pytest
 
-from services.period_summarize.compact import estimate_tokens, pack_chunks, source_hash
+from services.period_summarize.compact import (
+    combine_child_rollups,
+    estimate_tokens,
+    pack_chunks,
+    findings_from_rows,
+    format_findings,
+    infer_sentiment,
+    rollup_from_rows,
+    row_sentiment,
+    source_hash,
+    topic_sentences,
+)
 from services.period_summarize.period_keys import (
     GRAINS,
     bounds_for,
@@ -11,7 +22,14 @@ from services.period_summarize.period_keys import (
     previous_period,
     resolve_grain,
 )
-from services.period_summarize.llm import LLMError, _prompt_for, summarize_lines
+from services.period_summarize.llm import (
+    GeminiGate,
+    LLMError,
+    _is_transient,
+    _retry_wait,
+    _prompt_for,
+    summarize_lines,
+)
 
 
 def test_month_quarter_year_bounds():
@@ -95,6 +113,79 @@ def test_429_backoff_then_success():
     assert any(value >= 1 for value in sleeps)
 
 
+def test_transient_codes_include_grpc_and_http_gateway_errors():
+    assert _is_transient(429, "", "quota") is True
+    assert _is_transient(8, "", "RESOURCE_EXHAUSTED", "RESOURCE_EXHAUSTED") is True
+    assert _is_transient(502, "", "Bad Gateway") is True
+    assert _is_transient(504, "", "Gateway Timeout") is True
+    assert _is_transient(14, "", "UNAVAILABLE", "UNAVAILABLE") is True
+    assert _is_transient(400, "", "invalid argument") is False
+
+
+def test_retry_after_header_is_honored():
+    calls = {"count": 0}
+
+    def generate(prompt: str, tighter: bool = False):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise LLMError("transient", "429 Resource exhausted", retry_after=12)
+        return {
+            "summary": "recovered",
+            "themes": [],
+            "products": [],
+            "risks": [],
+            "_tokens": {"input": 4, "output": 4},
+        }
+
+    sleeps: list[float] = []
+    result = summarize_lines(
+        ["one compact line about Marine"],
+        generate=generate,
+        sleep=sleeps.append,
+    )
+    assert result["summary"] == "recovered"
+    assert any(value >= 12 for value in sleeps)
+    assert _retry_wait(0, 12) == 12
+
+
+def test_gemini_gate_caps_in_flight_and_interval():
+    clock = {"t": 100.0}
+
+    def now() -> float:
+        return clock["t"]
+
+    sleeps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        clock["t"] += seconds
+
+    gate = GeminiGate(max_in_flight=1, max_per_minute=30, min_interval=0.5, clock=now)
+    gate.acquire(sleep)
+    assert gate._in_flight == 1
+    gate.release()
+    gate.acquire(sleep)
+    assert sleeps and sleeps[0] >= 0.5
+    gate.release()
+
+
+def test_five_transient_failures_stop_at_cap():
+    calls = {"count": 0}
+
+    def generate(prompt: str, tighter: bool = False):
+        calls["count"] += 1
+        raise LLMError("transient", "503 UNAVAILABLE")
+
+    with pytest.raises(LLMError) as caught:
+        summarize_lines(
+            ["one compact line about Marine"],
+            generate=generate,
+            sleep=lambda _seconds: None,
+        )
+    assert caught.value.kind == "transient"
+    assert calls["count"] == 5
+
+
 def test_source_hash_stable():
     assert source_hash(["a", "b"]) == source_hash(["a", "b"])
     assert source_hash(["a", "b"]) != source_hash(["a", "c"])
@@ -158,6 +249,10 @@ def test_parse_insight_key_scoped_and_legacy():
     assert user_tag["group_type"] == "USER GROUP"
     assert user_tag["product_name"] is None
     assert user_tag["tag_id"] == "30"
+    rolled = parse_insight_key("div_pt", scoped_key("FV-RETAIL", "PDT", "Marine", "22"))
+    assert rolled["geo_key"] == "FV-RETAIL"
+    assert rolled["product_name"] == "Marine"
+    assert rolled["tag_id"] == "22"
 
 
 def test_is_visible_summary():
@@ -181,3 +276,225 @@ def test_tag_prompt_requires_justifying_the_tag():
     )
     assert "Packaging" in prompt
     assert "justify this tag" in prompt.lower()
+
+
+def test_infer_sentiment_from_insight_text():
+    assert infer_sentiment("The user found Fevicol Multilock to be a good and effective product.") == "Positive"
+    assert infer_sentiment("The user is happy with Fevicol Marine.") == "Positive"
+    assert infer_sentiment("The user has never had trouble with Fevicol HEATX.") == "Positive"
+    assert infer_sentiment("Fevicol RELAM's grip was less than desired.") == "Negative"
+    assert infer_sentiment("The user experienced bubbling and poor adhesion.") == "Negative"
+    assert infer_sentiment("One 10 kg Fevicol PROBOND token is not scanning in the FCC app.") == "Negative"
+    assert infer_sentiment("The user is asking about the old scheme that used to happen every year.") == "Neutral"
+    assert infer_sentiment("User asks if Fevicol Multilock can be used for sticking mirrors.") == "Neutral"
+    assert row_sentiment({"ai_summary": "User praises Fevicol X-Per."}) == "Positive"
+    unlabeled = rollup_from_rows([
+        {"job_id": "j1", "user_id": "u1", "ai_summary": "Tin leaked from the lid."},
+        {"job_id": "j2", "user_id": "u2", "ai_summary": "The user is asking about the scheme."},
+    ])
+    assert unlabeled["sentiment"] == "Negative"
+    assert unlabeled["sentiment_counts"]["Negative"] == 1
+
+
+def test_rollup_from_rows_counts_site_visits_users_and_topics():
+    rows = [
+        {
+            "job_id": "j1",
+            "user_id": "u1",
+            "call_date": "2026-09-01",
+            "product_name": "Marine",
+            "tags": "Packaging, Leakage",
+            "sentiment": "Negative",
+            "ai_summary": "Tin leaked from the lid.",
+        },
+        {
+            "job_id": "j2",
+            "user_id": "u2",
+            "call_date": "2026-09-02",
+            "product_name": "Marine",
+            "tags": "Packaging",
+            "sentiment": "Negative",
+            "ai_summary": "Tin leaked from the lid.",
+        },
+        {
+            "job_id": "j3",
+            "user_id": "u3",
+            "call_date": "2026-09-03",
+            "product_name": "SH",
+            "tags": "Quality",
+            "sentiment": "Positive",
+            "ai_summary": "Bond is strong.",
+        },
+    ]
+    rollup = rollup_from_rows(rows)
+    assert rollup["site_visit_count"] == 3
+    assert rollup["user_count"] == 3
+    assert rollup["user_issue_count"] == 2
+    assert rollup["sentiment"] == "Negative"
+    topics = {item["label"]: item["user_count"] for item in rollup["topics"]}
+    assert topics["Tin leaked from the lid"] == 2
+    assert topics["Bond is strong"] == 1
+    assert topic_sentences(rollup["topics"]) == (
+        "Tin leaked from the lid (2 users). Bond is strong (1 user)."
+    )
+    findings = findings_from_rows(rows)
+    assert findings[0]["title"] == "Marine"
+    assert findings[0]["user_count"] == 2
+    assert findings[0]["points"][0]["user_count"] == 2
+    assert findings[0]["points"][0]["theme"] == "leakage / packaging"
+    assert findings[0]["sentiment"] == "Negative"
+    assert findings[0]["points"][0]["sentiment"] == "Negative"
+    text = format_findings(findings)
+    assert "Marine" in text
+    assert "SH" in text
+    assert "leakage / packaging" in text.lower()
+    assert "(2 users)" in text
+    assert "Data:" not in text
+    assert "users reported similar observations" not in text
+    assert "…" not in text
+    marine_block, sh_block = text.split("\n\n")
+    assert marine_block.startswith("Marine")
+    assert "•" in marine_block
+    assert sh_block.startswith("SH")
+    assert "•" in sh_block
+    mixed = findings_from_rows([
+        {
+            "job_id": "a",
+            "user_id": "a",
+            "product_name": "Nail Free",
+            "ai_summary": "There was bubbling on the acrylic edge.",
+        },
+        {
+            "job_id": "b",
+            "user_id": "b",
+            "product_name": "Nail Free",
+            "ai_summary": "User saw bubbles after application.",
+        },
+        {
+            "job_id": "c",
+            "user_id": "c",
+            "product_name": "Nail Free",
+            "ai_summary": "Fevicol Nail Free sets in 4-8 minutes.",
+        },
+    ])
+    themes = {item["theme"]: item["user_count"] for item in mixed[0]["points"]}
+    assert themes["bubbling issues"] == 2
+    assert themes["setting time"] == 1
+    mixed_text = format_findings(mixed)
+    assert "Bubbling issues" in mixed_text
+    assert "(2 users)" in mixed_text
+    assert "Setting time" in mixed_text
+    assert "(1 user)" in mixed_text
+    assert "acrylic" in mixed_text.lower()
+    assert mixed_text.split("\n")[0] == "Nail Free"
+    tagged = findings_from_rows([
+        {
+            "job_id": "d",
+            "user_id": "d",
+            "product_name": "Fevicol Multilock",
+            "tags": "Existing Product - Performance improvements",
+            "ai_summary": "Fevicol Multilock has good grip when applied acrylic on acrylic.",
+        },
+        {
+            "job_id": "e",
+            "user_id": "e",
+            "product_name": "Fevicol Multilock",
+            "tags": "Existing Product - Performance improvements",
+            "ai_summary": "Fevicol Multilock has good grip.",
+        },
+        {
+            "job_id": "f",
+            "user_id": "f",
+            "product_name": "Fevicol Multilock",
+            "tags": "Existing Product - Performance improvements",
+            "ai_summary": "Fevicol Multilock is better for preventing bending.",
+        },
+    ])
+    tagged_text = format_findings(tagged)
+    assert "performance improvements" not in tagged_text.lower()
+    assert "Grip / adhesion" in tagged_text
+    assert "(2 users)" in tagged_text
+    assert "acrylic" in tagged_text.lower()
+    assert "bending" in tagged_text.lower()
+    praise = findings_from_rows([
+        {
+            "job_id": "p1",
+            "user_id": "p1",
+            "product_name": "Fevicol SH",
+            "ai_summary": "The quality of Fevicol SH is good.",
+        },
+        {
+            "job_id": "p2",
+            "user_id": "p2",
+            "product_name": "Fevicol SH",
+            "ai_summary": "Fevicol SH is a good product.",
+        },
+        {
+            "job_id": "p3",
+            "user_id": "p3",
+            "product_name": "Fevicol SH",
+            "ai_summary": "Fevicol SH for its strength.",
+        },
+        {
+            "job_id": "p4",
+            "user_id": "p4",
+            "product_name": "Fevicol SH",
+            "ai_summary": "The bonding strength of Fevicol SH is strong.",
+        },
+        {
+            "job_id": "p5",
+            "user_id": "p5",
+            "product_name": "Fevicol SH",
+            "ai_summary": "User praised Fevicol SH for being good and strong.",
+        },
+        {
+            "job_id": "p6",
+            "user_id": "p6",
+            "product_name": "Fevicol SH",
+            "ai_summary": "Fevicol SH for its good setting time.",
+        },
+    ])
+    praise_themes = {item["theme"]: item["user_count"] for item in praise[0]["points"]}
+    # Generic praise/quality/strength collapse; setting time stays its own line.
+    assert set(praise_themes) <= {"product quality", "grip / adhesion", "setting time"}
+    assert praise_themes.get("setting time") == 1
+    assert sum(praise_themes.values()) == 6
+    assert len(praise[0]["points"]) <= 3
+    praise_text = format_findings(praise)
+    assert praise_text.count("•") <= 3
+
+
+def test_combine_child_rollups_merges_topics_and_sentiment():
+    children = [
+        {
+            "call_count": 2,
+            "insight_count": 2,
+            "highlights": {
+                "site_visit_count": 2,
+                "user_count": 2,
+                "user_issue_count": 2,
+                "sentiment": "Negative",
+                "sentiment_counts": {"Negative": 2},
+                "topics": [{"label": "Marine", "user_count": 2}],
+            },
+        },
+        {
+            "call_count": 1,
+            "insight_count": 1,
+            "highlights": {
+                "site_visit_count": 1,
+                "user_count": 1,
+                "user_issue_count": 0,
+                "sentiment": "Positive",
+                "sentiment_counts": {"Positive": 1},
+                "topics": [{"label": "Marine", "user_count": 1}, {"label": "SH", "user_count": 1}],
+            },
+        },
+    ]
+    merged = combine_child_rollups(children)
+    assert merged["site_visit_count"] == 3
+    assert merged["user_issue_count"] == 2
+    assert merged["sentiment"] == "Negative"
+    topics = {item["label"]: item["user_count"] for item in merged["topics"]}
+    assert topics["Marine"] == 3
+    assert topics["SH"] == 1

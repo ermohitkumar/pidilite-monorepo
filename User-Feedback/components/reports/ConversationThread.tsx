@@ -9,14 +9,6 @@ import {
     type TextRange,
 } from "@/lib/reports/conversation";
 
-function initials(speaker: string): string {
-    if (/^FME$/i.test(speaker)) return "FM";
-    if (/^User$/i.test(speaker)) return "US";
-    const numbered = /^Speaker\s+(\d+)$/i.exec(speaker);
-    if (numbered) return `S${numbered[1]}`;
-    return speaker.slice(0, 2).toUpperCase();
-}
-
 function HighlightedBody({
     text,
     ranges,
@@ -55,12 +47,6 @@ function bubbleClass(highlighted: boolean, mine: boolean): string {
     return "rounded-bl-md border border-slate-200 bg-white text-slate-800";
 }
 
-function avatarClass(highlighted: boolean, mine: boolean): string {
-    if (highlighted) return "bg-amber-500 text-white";
-    if (mine) return "bg-brand text-white";
-    return "bg-slate-300 text-slate-700";
-}
-
 function labelClass(highlighted: boolean, mine: boolean): string {
     if (highlighted) return "text-amber-700";
     if (mine) return "text-right text-brand";
@@ -97,7 +83,7 @@ export function ConversationThread({
 
     if (turns.length === 0) {
         return (
-            <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-800">
+            <pre className="whitespace-pre-wrap break-words font-sans text-base leading-7 text-slate-800">
                 {text || "Full conversation is not available."}
             </pre>
         );
@@ -117,20 +103,14 @@ export function ConversationThread({
                         <div
                             key={`${turn.speaker}-${index}`}
                             ref={index === firstHit ? excerptRef : undefined}
-                            className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : "flex-row"}`}
+                            className={`flex ${mine ? "justify-end" : "justify-start"}`}
                         >
-                            <div
-                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${avatarClass(highlighted, mine)}`}
-                                aria-hidden
-                            >
-                                {initials(turn.speaker)}
-                            </div>
                             <div className={`flex max-w-[80%] flex-col ${mine ? "items-end" : "items-start"}`}>
                                 <div className={`mb-1 px-1 text-[11px] font-semibold ${labelClass(highlighted, mine)}`}>
                                     {turn.speaker}
                                     {label}
                                 </div>
-                                <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-6 shadow-sm ${bubbleClass(highlighted, mine)}`}>
+                                <div className={`rounded-2xl px-3.5 py-2.5 text-base leading-7 shadow-sm ${bubbleClass(highlighted, mine)}`}>
                                     <HighlightedBody text={turn.text} ranges={hit?.ranges || []} />
                                 </div>
                             </div>

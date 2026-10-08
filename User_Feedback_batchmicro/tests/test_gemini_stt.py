@@ -9,6 +9,7 @@ from services.shared.gemini_stt import (
     gemini_flash_operation_name,
     is_gemini_flash_operation,
     is_last_flash_attempt,
+    resolve_stt_attempt,
     transcribe_audio_gcs,
 )
 from services.api.routers.checker import _poll_stt_lros
@@ -20,8 +21,20 @@ def test_flash_operation_helpers():
     assert is_gemini_flash_operation("gemini-flash:abc") is True
     assert is_gemini_flash_operation("projects/x/locations/y/operations/z") is False
     assert is_last_flash_attempt(0) is False
-    assert is_last_flash_attempt(1) is False
+    assert is_last_flash_attempt(1) is True
     assert is_last_flash_attempt(2) is True
+
+
+def test_resolve_stt_attempt_flash_then_pro():
+    flash = resolve_stt_attempt(0)
+    assert flash["label"] == "flash"
+    assert "flash" in flash["model_name"]
+    assert flash["thinking_config"] == {"thinkingBudget": 0}
+    pro = resolve_stt_attempt(1)
+    assert pro["label"] == "pro"
+    assert "pro" in pro["model_name"]
+    assert pro["location"] == "us-central1"
+    assert pro["thinking_config"]["thinkingBudget"] >= 1
 
 
 def test_gemini_stt_callback_url_derived_from_transcription_url(monkeypatch):
@@ -37,9 +50,14 @@ def test_gemini_stt_callback_url_derived_from_transcription_url(monkeypatch):
 def test_transcribe_audio_gcs_sends_file_data_and_thinking_off():
     creds = MagicMock()
     creds.token = "tok"
+    long_text = (
+        "Speaker 1: Hello from the field visit today about Fevicol and leaks\n"
+        "Speaker 2: Hi we discussed packing and drums on site with the dealer\n"
+        "Speaker 3: Leak reported near the wall and they want a follow up call soon\n"
+    ) * 8
     fake_json = {
         "candidates": [{
-            "content": {"parts": [{"text": "Speaker 1: Hello\nSpeaker 2: Hi\nSpeaker 3: Leak"}]},
+            "content": {"parts": [{"text": long_text}]},
             "finishReason": "STOP",
         }],
     }
@@ -51,6 +69,8 @@ def test_transcribe_audio_gcs_sends_file_data_and_thinking_off():
         result = transcribe_audio_gcs("gs://bucket/a.mp3")
     assert result["provider"] == "gemini_flash"
     assert "Speaker 3:" in result["transcript"]
+    url = post.call_args.args[0]
+    assert "asia-south1" in url or settings.GCP_LOCATION in url
     payload = post.call_args.kwargs["json"]
     assert payload["contents"][0]["parts"][0]["fileData"]["fileUri"] == "gs://bucket/a.mp3"
     assert payload["contents"][0]["parts"][0]["fileData"]["mimeType"] == "audio/mpeg"
@@ -62,14 +82,51 @@ def test_transcribe_audio_gcs_sends_file_data_and_thinking_off():
     assert "Speaker 1 and Speaker 2" in prompt
 
 
+def test_transcribe_audio_gcs_pro_uses_us_central1_and_thinking():
+    creds = MagicMock()
+    creds.token = "tok"
+    long_text = (
+        "Speaker 1: Hello from the field visit today about Fevicol and leaks\n"
+        "Speaker 2: Hi we discussed packing and drums on site with the dealer again\n"
+    ) * 10
+    fake_json = {
+        "candidates": [{
+            "content": {"parts": [{"text": long_text}]},
+            "finishReason": "STOP",
+        }],
+    }
+    with patch.object(VertexRestAdapter, "_get_credentials", return_value=creds), patch(
+        "requests.post"
+    ) as post:
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = fake_json
+        result = transcribe_audio_gcs(
+            "gs://bucket/a.mp3",
+            model_name="gemini-2.5-pro",
+            location="us-central1",
+            thinking_config={"thinkingBudget": 1024},
+        )
+    assert result["model"] == "gemini-2.5-pro"
+    assert result["location"] == "us-central1"
+    url = post.call_args.args[0]
+    assert "us-central1" in url
+    assert "gemini-2.5-pro" in url
+    assert post.call_args.kwargs["json"]["generationConfig"]["thinkingConfig"] == {
+        "thinkingBudget": 1024,
+    }
+
+
 def test_transcribe_splits_collapsed_single_speaker():
     creds = MagicMock()
     creds.token = "tok"
-    blob = "Speaker 1: " + ("Namaste. Fevicol SH kaisa hai? Maine do drum lagaya. " * 10)
+    blob = "Speaker 1: " + ("Namaste. Fevicol SH kaisa hai? Maine do drum lagaya. " * 12)
     fake_json = {
         "candidates": [{"content": {"parts": [{"text": blob}]}, "finishReason": "STOP"}],
     }
-    split = "Speaker 1: Namaste. Fevicol SH kaisa hai?\nSpeaker 2: Maine do drum lagaya."
+    split = (
+        "Speaker 1: Namaste. Fevicol SH kaisa hai? Maine do drum lagaya. " * 8
+        + "\nSpeaker 2: Maine do drum lagaya. Fevicol SH kaisa hai? " * 8
+    )
     with patch.object(VertexRestAdapter, "_get_credentials", return_value=creds), patch(
         "requests.post"
     ) as post, patch(
@@ -222,7 +279,39 @@ def test_gemini_worker_returns_503_on_transient(client, create_test_job, db_sess
     assert job.status == JobStatus.STT_SUBMITTED
 
 
-def test_gemini_worker_falls_back_to_v2_on_third_attempt(
+def test_gemini_worker_retry_uses_pro_on_second_attempt(
+    client, create_test_job, db_session
+):
+    job = create_test_job(status=JobStatus.STT_SUBMITTED)
+    job.stt_operation_name = gemini_flash_operation_name(job.id)
+    db_session.commit()
+    result = {
+        "provider": "gemini_flash",
+        "model": "gemini-2.5-pro",
+        "location": "us-central1",
+        "transcript": "Speaker 1: Hi\nSpeaker 2: Hello again from Pro",
+        "detected_languages": [],
+    }
+    with patch(
+        "services.api.routers.gemini_stt.transcribe_audio_gcs",
+        return_value=result,
+    ) as mock_tx, patch(
+        "services.api.routers.gemini_stt.write_gemini_transcript_json"
+    ):
+        resp = client.post(
+            "/api/v1/files/gemini-stt",
+            json={"job_id": job.id, "gcs_input_uri": job.gcs_input_uri},
+            headers={"X-CloudTasks-TaskRetryCount": "1"},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["status"] == "STT_COMPLETED"
+    kwargs = mock_tx.call_args.kwargs
+    assert "pro" in kwargs["model_name"]
+    assert kwargs["location"] == "us-central1"
+    assert kwargs["thinking_config"]["thinkingBudget"] >= 1
+
+
+def test_gemini_worker_falls_back_to_v2_on_second_attempt(
     client, create_test_job, db_session
 ):
     job = create_test_job(status=JobStatus.STT_SUBMITTED)
@@ -231,7 +320,7 @@ def test_gemini_worker_falls_back_to_v2_on_third_attempt(
     v2_op = "projects/test/locations/asia-south1/operations/fallback"
     with patch(
         "services.api.routers.gemini_stt.transcribe_audio_gcs",
-        side_effect=STTGeminiTransientError("flash down"),
+        side_effect=STTGeminiTransientError("pro down"),
     ), patch("services.api.routers.gemini_stt._submit_to_stt", return_value=v2_op) as mock_v2:
         resp = client.post(
             "/api/v1/files/gemini-stt",
@@ -240,7 +329,7 @@ def test_gemini_worker_falls_back_to_v2_on_third_attempt(
                 "gcs_input_uri": job.gcs_input_uri,
                 "gcs_output_uri_prefix": f"gs://output-bucket/stt-output/{job.id}/",
             },
-            headers={"X-CloudTasks-TaskRetryCount": "2"},
+            headers={"X-CloudTasks-TaskRetryCount": "1"},
         )
     assert resp.status_code == 200
     body = resp.json()

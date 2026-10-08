@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from services.period_summarize import store
-from services.period_summarize.compact import child_source_lines, source_hash
+from services.period_summarize.compact import child_source_lines, combine_child_rollups, source_hash
 from services.period_summarize.period_keys import CHILD_GRAIN
 
 
@@ -64,14 +64,5 @@ def combine_payload(children: list[dict[str, Any]]) -> tuple[list[str], dict[str
     highlights = coverage(children)
     highlights["truncated"] = truncated
     highlights["source_hash"] = source_hash(lines)
-    highlights["call_count"] = sum(int(child.get("call_count") or 0) for child in children)
-    highlights["insight_count"] = sum(int(child.get("insight_count") or 0) for child in children)
-    themes: list[str] = []
-    products: list[str] = []
-    for child in children:
-        extra = child.get("highlights") or {}
-        themes.extend(extra.get("themes") or [])
-        products.extend(extra.get("products") or [])
-    highlights["themes"] = sorted({item for item in themes if item})[:12]
-    highlights["products"] = sorted({item for item in products if item})[:12]
+    highlights.update(combine_child_rollups(children))
     return lines, highlights

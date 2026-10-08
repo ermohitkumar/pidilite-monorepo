@@ -194,9 +194,9 @@ function TagModal({
                             {groupType && !["PDT GROUP", "USER GROUP", "DEALER GROUP"].includes(groupType) && (
                                 <option value={groupType}>{groupType}</option>
                             )}
-                            <option value="PDT GROUP">PDT GROUP</option>
-                            <option value="USER GROUP">USER GROUP</option>
-                            <option value="DEALER GROUP">DEALER GROUP</option>
+                            <option value="PDT GROUP">Product</option>
+                            <option value="USER GROUP">User</option>
+                            <option value="DEALER GROUP">Dealer</option>
                         </select>
                     </label>
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
@@ -350,7 +350,15 @@ export default function CatalogClient() {
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.tag_id ?? row.id ?? "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm font-medium text-text">{row.tag_name}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.sub_tag_name || "—"}</td>
-                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.group_type || "—"}</td>
+                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">
+                                            {row.group_type === "PDT GROUP"
+                                                ? "Product"
+                                                : row.group_type === "USER GROUP"
+                                                    ? "User"
+                                                    : row.group_type === "DEALER GROUP"
+                                                        ? "Dealer"
+                                                        : row.group_type || "—"}
+                                        </td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.category || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.description || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm">{row.is_active === false ? "Inactive" : "Active"}</td>

@@ -27,3 +27,6 @@ graphify-out/
 **/.DS_Store
 .vscode/
 **/.vscode/
+
+# Local docs
+User_Feedback_batchmicro/docs/

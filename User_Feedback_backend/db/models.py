@@ -134,6 +134,7 @@ class FileDetails(Base):
     data_source = Column(String(100), nullable=True,
                          default="Voice Conversations", index=True)
     call_date = Column(DateTime(timezone=True), nullable=True, index=True)
+    audio_duration_seconds = Column(Integer, nullable=True)
 
     job = relationship("Job", back_populates="file_details")
 

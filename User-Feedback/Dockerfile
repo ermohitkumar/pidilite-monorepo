@@ -31,7 +31,12 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+# System CA bundle + OpenSSL trust store so @google-cloud/storage can verify
+# HTTPS to storage.googleapis.com (needed when Cloud Run VPC egress is set).
+RUN apk add --no-cache ca-certificates \
+    && update-ca-certificates \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
 
 ARG AUTH_SECRET
 ARG NEXT_PUBLIC_APP_URL
@@ -48,6 +53,9 @@ ENV NEXT_PUBLIC_BACKEND_API_URL=$NEXT_PUBLIC_BACKEND_API_URL
 ENV AZURE_AD_CLIENT_ID=$AZURE_AD_CLIENT_ID
 ENV AZURE_AD_CLIENT_SECRET=$AZURE_AD_CLIENT_SECRET
 ENV AZURE_AD_TENANT_ID=$AZURE_AD_TENANT_ID
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
+    NODE_OPTIONS=--use-openssl-ca
 
 # Copy build artifacts with correct ownership for the nextjs user.
 # The missing --chown on public was likely causing the image optimizer null error.

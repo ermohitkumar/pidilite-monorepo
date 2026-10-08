@@ -1,5 +1,11 @@
 """Unit tests for STT transcript formatting / speaker diarization."""
-from services.shared.transcript import format_stt_results
+from services.shared.transcript import (
+    format_stt_results,
+    transcript_meets_min_words,
+    word_count,
+    MIN_TRANSCRIPT_WORDS,
+    TOO_FEW_WORDS_MESSAGE,
+)
 
 
 def test_format_without_speaker_tags_joins_transcripts():
@@ -142,4 +148,25 @@ def test_format_gemini_flash_json_keeps_speaker_n():
     assert "Speaker 2:" in text
     assert "Speaker 3: Packets are leaking." in text
     assert "results" not in raw or format_stt_results({"provider": "gemini_flash"}) == ""
+
+
+def test_label_only_transcript_fails_min_words():
+    assert word_count("Speaker 1:") == 0
+    assert word_count("Speaker 1: \nSpeaker 2:") == 0
+    assert not transcript_meets_min_words("Speaker 1:")
+    assert MIN_TRANSCRIPT_WORDS == 100
+    assert "100" in TOO_FEW_WORDS_MESSAGE
+
+
+def test_short_spoken_transcript_fails_min_words():
+    text = "Speaker 1: It's good, it's strong.\nSpeaker 2: Fevicol MARINE is also good."
+    assert word_count(text) < 100
+    assert not transcript_meets_min_words(text)
+
+
+def test_long_spoken_transcript_passes_min_words():
+    words = " ".join(f"word{i}" for i in range(100))
+    text = f"Speaker 1: {words}"
+    assert word_count(text) == 100
+    assert transcript_meets_min_words(text)
 

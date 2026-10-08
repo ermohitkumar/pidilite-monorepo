@@ -161,53 +161,135 @@ def _write_node(
     force: bool,
     summarize: SummarizeFn,
     budget: Optional[CellBudget] = None,
+    previous_summary: Optional[str] = None,
+    now: Optional[datetime] = None,
 ) -> dict[str, Any]:
     highlights = dict(highlights)
-    highlights.setdefault("source_hash", source_hash(lines))
+    highlights.setdefault(
+        "source_hash",
+        source_hash(lines if not previous_summary else [previous_summary, *lines]),
+    )
     call_count = int(highlights.get("call_count") or 0)
     insight_count = int(highlights.get("insight_count") or 0)
+    checked_at = now or datetime.now(timezone.utc)
 
-    if not lines:
+    if not lines and not previous_summary:
         return {"grain": grain, "grain_key": grain_key, "status": "empty", "skipped": True}
     if len(grain_key) > MAX_KEY_LEN:
         logger.error("period summary key too long grain=%s key=%s", grain, grain_key[:80])
         return {"grain": grain, "grain_key": grain_key[:MAX_KEY_LEN], "status": "error", "skipped": True}
 
     current = store.get_current(db, grain, grain_key, period_type, period_key)
+    if current and not force and not lines and previous_summary:
+        tracking = {
+            "covered_through": (current.highlights_json or {}).get("covered_through"),
+            "considered_insight_ids": (current.highlights_json or {}).get("considered_insight_ids") or [],
+            "excluded_insights": highlights.get("excluded_insights")
+            or (current.highlights_json or {}).get("excluded_insights")
+            or [],
+            "considered_child_ids": highlights.get("considered_child_ids")
+            or (current.highlights_json or {}).get("considered_child_ids")
+            or [],
+            "excluded_child_ids": highlights.get("excluded_child_ids")
+            or (current.highlights_json or {}).get("excluded_child_ids")
+            or [],
+            "summary_updated_at": (current.highlights_json or {}).get("summary_updated_at")
+            or (current.generated_at.isoformat() if current.generated_at else None),
+            "as_of": highlights.get("as_of"),
+        }
+        store.touch_tracking(db, current, tracking=tracking, now=checked_at)
+        db.commit()
+        return {"grain": grain, "grain_key": grain_key, "status": current.status, "skipped": True}
+
     if (
         current
         and not force
+        and not previous_summary
         and (current.highlights_json or {}).get("source_hash") == highlights.get("source_hash")
     ):
+        store.touch_tracking(
+            db,
+            current,
+            tracking={
+                "excluded_insights": highlights.get("excluded_insights") or [],
+                "considered_insight_ids": (current.highlights_json or {}).get("considered_insight_ids") or [],
+                "covered_through": (current.highlights_json or {}).get("covered_through"),
+                "summary_updated_at": (current.highlights_json or {}).get("summary_updated_at")
+                or (current.generated_at.isoformat() if current.generated_at else None),
+                "as_of": highlights.get("as_of"),
+            },
+            now=checked_at,
+        )
+        db.commit()
         return {"grain": grain, "grain_key": grain_key, "status": current.status, "skipped": True}
 
     if budget is not None and not budget.allow():
         logger.warning("period summary cell cap reached grain=%s key=%s", grain, grain_key)
         return {"grain": grain, "grain_key": grain_key, "status": "capped", "skipped": True}
 
-    try:
-        narrative = summarize(lines, grain=grain, grain_label=grain_label)
+    # Compact findings already carry the UI narrative. Skip Vertex when we are not
+    # incrementally merging into a previous LLM summary — avoids blanking the UI
+    # when GCP_PROJECT_ID / Vertex is unavailable.
+    needs_llm = bool(previous_summary and lines) or not highlights.get("findings")
+    if not needs_llm:
+        narrative = _empty_result("")
         status = "ok"
         error_message = None
-    except LLMError as exc:
-        logger.exception("period summary failed grain=%s key=%s: %s", grain, grain_key, exc)
-        narrative = _empty_result(f"Summary failed: {exc.message}")
-        status = "error"
-        error_message = exc.message
-    except Exception as exc:
-        logger.exception("period summary failed grain=%s key=%s", grain, grain_key)
-        narrative = _empty_result(str(exc))
-        status = "error"
-        error_message = str(exc)
+    else:
+        try:
+            try:
+                narrative = summarize(
+                    lines,
+                    grain=grain,
+                    grain_label=grain_label,
+                    previous_summary=previous_summary if previous_summary and lines else None,
+                )
+            except TypeError:
+                narrative = summarize(lines, grain=grain, grain_label=grain_label)
+            status = "ok"
+            error_message = None
+        except LLMError as exc:
+            logger.exception("period summary failed grain=%s key=%s: %s", grain, grain_key, exc)
+            if highlights.get("findings"):
+                narrative = _empty_result("")
+                status = "ok"
+                error_message = None
+                logger.warning(
+                    "LLM failed but compact findings kept grain=%s key=%s",
+                    grain,
+                    grain_key,
+                )
+            else:
+                narrative = _empty_result(f"Summary failed: {exc.message}")
+                status = "error"
+                error_message = exc.message
+        except Exception as exc:
+            logger.exception("period summary failed grain=%s key=%s", grain, grain_key)
+            if highlights.get("findings"):
+                narrative = _empty_result("")
+                status = "ok"
+                error_message = None
+            else:
+                narrative = _empty_result(str(exc))
+                status = "error"
+                error_message = str(exc)
 
     tokens = narrative.get("_tokens") or {}
-    highlights["themes"] = narrative.get("themes") or []
-    highlights["products"] = narrative.get("products") or highlights.get("products") or []
     highlights["risks"] = narrative.get("risks") or []
     highlights["truncated"] = bool(narrative.get("_truncated") or highlights.get("truncated"))
-    summary_text = str(narrative.get("summary") or "").strip()
+    highlights.setdefault("site_visit_count", call_count)
+    highlights.setdefault("user_issue_count", 0)
+    highlights.setdefault("topics", [])
+    if narrative.get("findings") and not highlights.get("findings"):
+        highlights["findings"] = narrative.get("findings")
+    summary_text = compact.format_findings(highlights.get("findings") or []) or compact.topic_sentences(
+        highlights.get("topics") or []
+    ) or str(narrative.get("summary") or "").strip()
     if status == "ok" and (not summary_text or summary_text.lower().startswith("no insights")):
         return {"grain": grain, "grain_key": grain_key, "status": "empty", "skipped": True}
+
+    highlights["summary_updated_at"] = checked_at.isoformat()
+    highlights["tracking_checked_at"] = checked_at.isoformat()
 
     try:
         row, skipped = store.persist(
@@ -223,7 +305,7 @@ def _write_node(
             summary_text=summary_text,
             highlights=highlights,
             source_kind=source_kind,
-            source_count=len(lines),
+            source_count=len(lines) if lines else int(highlights.get("source_count") or 0),
             call_count=call_count,
             insight_count=insight_count,
             status=status,
@@ -232,6 +314,7 @@ def _write_node(
             output_tokens=int(tokens.get("output") or 0),
             error_message=error_message,
             force=force,
+            now=checked_at,
         )
         db.commit()
         return {"grain": grain, "grain_key": grain_key, "status": row.status, "skipped": skipped}
@@ -258,13 +341,82 @@ def _summarize_from_insights(
     summarize: SummarizeFn,
     grain_label: Optional[str] = None,
     budget: Optional[CellBudget] = None,
+    now: Optional[datetime] = None,
 ) -> dict[str, Any]:
+    from services.period_summarize import incremental as inc
+
+    checked_at = now or datetime.now(timezone.utc)
+    as_of = inc.as_of_date(checked_at)
     try:
         rows = gather(db, start=start, end=end, grain=grain, grain_key=grain_key)
     except Exception as exc:
         logger.exception("period gather failed grain=%s key=%s", grain, grain_key)
         return {"grain": grain, "grain_key": grain_key, "status": "error", "skipped": False, "error": str(exc)}
-    lines, highlights = lines_from_insights(rows)
+
+    current = store.get_current(db, grain, grain_key, "month", period_key)
+    previous_ids = list((current.highlights_json or {}).get("considered_insight_ids") or []) if current else []
+    covered_through = (
+        inc.parse_covered_through((current.highlights_json or {}).get("covered_through")) if current else None
+    )
+    if force:
+        covered_through = None
+        previous_ids = []
+
+    new_rows, open_rows, empty_rows = inc.partition_insights(
+        rows,
+        covered_through=covered_through,
+        as_of=as_of,
+        force=force,
+    )
+    source_rows = new_rows
+    if current and not force and not source_rows:
+        previous_summary = current.summary_text
+        lines: list[str] = []
+        highlights = dict(current.highlights_json or {})
+    else:
+        previous_summary = current.summary_text if (current and not force and source_rows) else None
+        lines, highlights = lines_from_insights(source_rows) if source_rows else ([], {"call_count": 0, "insight_count": 0})
+
+    tracking = inc.tracking_for_insights(
+        previous_ids=[] if force or not current else previous_ids,
+        new_rows=source_rows,
+        open_rows=open_rows,
+        empty_rows=empty_rows,
+        all_rows=rows,
+        covered_through=None if force else covered_through,
+        as_of=as_of,
+        checked_at=checked_at,
+        summary_updated_at=(
+            None
+            if (force or source_rows or not current)
+            else (
+                (current.highlights_json or {}).get("summary_updated_at")
+                or (current.generated_at.isoformat() if current.generated_at else None)
+            )
+        ),
+    )
+    if force or not current:
+        tracking["considered_insight_ids"] = [
+            row_id for row_id in (inc.insight_id(row) for row in source_rows) if row_id
+        ]
+        latest = inc.covered_through_from_rows(source_rows)
+        tracking["covered_through"] = latest.isoformat() if latest else None
+    elif source_rows:
+        latest = covered_through
+        for row in source_rows:
+            call_day = inc.row_call_date(row)
+            if call_day and (latest is None or call_day > latest):
+                latest = call_day
+        tracking["covered_through"] = latest.isoformat() if latest else None
+        tracking["considered_insight_ids"] = list(
+            dict.fromkeys([*previous_ids, *(inc.insight_id(row) for row in source_rows if inc.insight_id(row))])
+        )
+
+    highlights.update(tracking)
+    if source_rows:
+        hash_lines = [*( [current.summary_text] if current and not force and current.summary_text else [] ), *lines]
+        highlights["source_hash"] = source_hash(hash_lines)
+
     return _write_node(
         db,
         grain=grain,
@@ -281,6 +433,8 @@ def _summarize_from_insights(
         force=force,
         summarize=summarize,
         budget=budget,
+        previous_summary=previous_summary,
+        now=checked_at,
     )
 
 
@@ -306,7 +460,11 @@ def _summarize_from_children(
     child_period_type: str | None = None,
     child_period_keys: list[str] | None = None,
     budget: Optional[CellBudget] = None,
+    now: Optional[datetime] = None,
 ) -> dict[str, Any]:
+    from services.period_summarize import incremental as inc
+
+    checked_at = now or datetime.now(timezone.utc)
     try:
         children = combine.children_for(
             db,
@@ -320,10 +478,72 @@ def _summarize_from_children(
     except Exception as exc:
         logger.exception("period children failed grain=%s key=%s", grain, grain_key)
         return {"grain": grain, "grain_key": grain_key, "status": "error", "skipped": False, "error": str(exc)}
-    lines, highlights = combine.combine_payload(children)
+
+    current = store.get_current(db, grain, grain_key, period_type, period_key)
+    previous_child_ids = list((current.highlights_json or {}).get("considered_child_ids") or []) if current else []
+    previous_set = set(previous_child_ids)
+
+    changed_children: list[dict[str, Any]] = []
+    for child in children:
+        child_id = str(child.get("id") or "")
+        if force or not current or not child_id or child_id not in previous_set:
+            changed_children.append(child)
+            continue
+        child_generated = str(child.get("generated_at") or "")
+        parent_updated = str((current.highlights_json or {}).get("summary_updated_at") or "")
+        if child_generated and parent_updated and child_generated > parent_updated:
+            changed_children.append(child)
+
+    if current and not force and not changed_children:
+        highlights = dict(current.highlights_json or {})
+        highlights["considered_child_ids"] = previous_child_ids
+        highlights["excluded_child_ids"] = []
+        highlights["summary_updated_at"] = (
+            (current.highlights_json or {}).get("summary_updated_at")
+            or (current.generated_at.isoformat() if current.generated_at else None)
+        )
+        highlights["as_of"] = inc.as_of_date(checked_at).isoformat()
+        return _write_node(
+            db,
+            grain=grain,
+            grain_key=grain_key,
+            grain_label=current.grain_label or display_key(grain_key) or grain_key,
+            parent_key=parent_key,
+            period_type=period_type,
+            period_key=period_key,
+            period_start=start,
+            period_end=end,
+            lines=[],
+            highlights=highlights,
+            source_kind="child_summaries",
+            force=force,
+            summarize=summarize,
+            budget=budget,
+            previous_summary=current.summary_text,
+            now=checked_at,
+        )
+
+    source_children = children if (force or not current) else changed_children
+    lines, highlights = combine.combine_payload(source_children)
     if child_period_keys:
         highlights.update(combine.coverage(children, expected_keys=child_period_keys))
+    considered_ids = list(
+        dict.fromkeys(
+            [
+                *([] if force or not current else previous_child_ids),
+                *[str(child.get("id")) for child in source_children if child.get("id")],
+            ]
+        )
+    )
+    highlights["considered_child_ids"] = considered_ids
+    highlights["excluded_child_ids"] = [
+        {"id": str(child.get("id")), "reason": "not_yet_run"}
+        for child in children
+        if child.get("id") and str(child.get("id")) not in set(considered_ids)
+    ]
+    highlights["as_of"] = inc.as_of_date(checked_at).isoformat()
     grain_label = _label_for_child_grain(grain, grain_key, children)
+    previous_summary = current.summary_text if (current and not force and changed_children) else None
     return _write_node(
         db,
         grain=grain,
@@ -340,7 +560,10 @@ def _summarize_from_children(
         force=force,
         summarize=summarize,
         budget=budget,
+        previous_summary=previous_summary,
+        now=checked_at,
     )
+
 
 
 def _rollup_family(
@@ -628,6 +851,14 @@ def run_month(
     start, end = bounds_for("month", period_key)
     budget = CellBudget(max_cells)
     results: list[dict[str, Any]] = []
+    logger.info(
+        "period summary run %s concurrent=%s per_minute=%s min_interval=%.2fs cells=%s",
+        period_key,
+        settings.PERIOD_SUMMARY_MAX_CONCURRENT,
+        settings.PERIOD_SUMMARY_MAX_PER_MINUTE,
+        settings.PERIOD_SUMMARY_MIN_INTERVAL_SECONDS,
+        max_cells,
+    )
     try:
         groups = _call_list(list_groups, db, start, end) or [None]
     except Exception:

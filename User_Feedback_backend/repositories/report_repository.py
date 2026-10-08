@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Optional
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -417,15 +417,18 @@ def filter_options(
     }
     geo_from_hierarchy = {"divisions", "zones", "clusters", "fme_codes"}
     # When hierarchy is present, keep scoped RFMM/FME even if the zone has none.
-    # Do not refill from the unscoped master view.
+    # Do not refill from the unscoped master view. Unscoped empty lists still fall
+    # through to file_details so dropdowns are not blanked by a sparse hierarchy.
+    scoped = bool(division or zone or cluster)
     out: dict[str, list] = {
         "rfmm_clusters": list(
             linked.get("rfmm_clusters", []) if linked else master.get("rfmm_clusters", [])
         ),
     }
     for key, column in geo.items():
-        if linked and key in geo_from_hierarchy:
-            out[key] = list(linked.get(key, []))
+        linked_values = linked.get(key, []) if linked else []
+        if linked and key in geo_from_hierarchy and (linked_values or scoped):
+            out[key] = list(linked_values)
             continue
         preferred = master.get(key, [])
         fallback_tables: list[tuple[str, str]] = []
@@ -674,7 +677,9 @@ def detail_page(
             "call_datetime": _serialize(
                 row["call_datetime"] or row["call_date"] or row["feedback_created_at"]
             ),
+            "sentiment_label": None,
         })
+    _overlay_feedback_sentiments(db, items)
     return items, total
 
 
@@ -732,3 +737,177 @@ def fetch_feedback_fact(
     """
     rows = execute(db, select_sql, params).fetchall()
     return rows, total
+
+
+def _table_columns(db: Session, table: str) -> set[str]:
+    try:
+        return {column["name"] for column in inspect(db.get_bind()).get_columns(table)}
+    except Exception:
+        return set()
+
+
+def _overlay_feedback_sentiments(db: Session, items: list[dict[str, Any]]) -> None:
+    """Fill sentiment_label from feedbacks when the report fact view lacks it."""
+    if not items:
+        return
+    if "sentiment_label" not in _table_columns(db, "feedbacks"):
+        return
+    ids = [str(item["feedback_id"]) for item in items if item.get("feedback_id")]
+    if not ids:
+        return
+    lookup_ids: list[str] = []
+    for feedback_id in ids:
+        lookup_ids.append(feedback_id)
+        stripped = feedback_id.replace("-", "")
+        if stripped != feedback_id:
+            lookup_ids.append(stripped)
+    placeholders = ", ".join(f":sid{index}" for index in range(len(lookup_ids)))
+    params = {f"sid{index}": lookup_ids[index] for index in range(len(lookup_ids))}
+    try:
+        rows = db.execute(
+            text(
+                "SELECT CAST(id AS TEXT) AS id, sentiment_label "
+                f"FROM feedbacks WHERE CAST(id AS TEXT) IN ({placeholders})"
+            ),
+            params,
+        ).mappings().fetchall()
+    except Exception:
+        return
+    by_id: dict[str, Any] = {}
+    for row in rows:
+        if not row["sentiment_label"]:
+            continue
+        label = _serialize(row["sentiment_label"])
+        key = str(row["id"])
+        by_id[key] = label
+        by_id[key.replace("-", "")] = label
+    for item in items:
+        feedback_id = str(item.get("feedback_id") or "")
+        item["sentiment_label"] = by_id.get(feedback_id) or by_id.get(feedback_id.replace("-", ""))
+
+
+def _period_label(start: Optional[date], end: Optional[date]) -> str:
+    if start and end and start.year == end.year and start.month == end.month and start.day == 1:
+        if end.month != start.month or end.day >= 28:
+            return start.strftime("%Y-%m")
+    if start and end:
+        return f"{start.isoformat()} – {end.isoformat()}"
+    if start:
+        return start.isoformat()
+    return ""
+
+
+def compliance_rows(
+    db: Session,
+    *,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+    fme_code: Optional[str] = None,
+    user_type: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> list[dict[str, Any]]:
+    """FME-level open-conversation compliance from file_details / transcripts."""
+    fd_cols = _table_columns(db, "file_details")
+    pf_cols = _table_columns(db, "processed_file")
+    dialect = getattr(getattr(db.get_bind(), "dialect", None), "name", "") or "postgresql"
+    site_expr = (
+        "NULLIF(TRIM(COALESCE(fd.site_number, '')), '')"
+        if "site_number" in fd_cols
+        else "CAST(fd.job_id AS TEXT)"
+    )
+    duration_expr = "fd.audio_duration_seconds" if "audio_duration_seconds" in fd_cols else "NULL"
+    rfmm_expr = (
+        "NULLIF(TRIM(COALESCE(fd.rfmm_cluster, fd.cluster, '')), '')"
+        if "rfmm_cluster" in fd_cols
+        else "NULLIF(TRIM(COALESCE(fd.cluster, '')), '')"
+    )
+    transcript_parts = []
+    for name in ("raw_transcript_text", "translated_text", "normalized_text"):
+        if name in pf_cols:
+            transcript_parts.append(f"NULLIF(TRIM(COALESCE(pf.{name}, '')), '')")
+    # Only join job_ids that have text — avoid pulling large transcript columns into GROUP BY.
+    if transcript_parts:
+        recorded_join = f"""
+        LEFT JOIN (
+            SELECT pf.job_id
+            FROM processed_file pf
+            WHERE {' OR '.join(f'{part} IS NOT NULL' for part in transcript_parts)}
+        ) recorded ON recorded.job_id = fd.job_id
+        """
+        recorded_site = f"CASE WHEN recorded.job_id IS NOT NULL THEN {site_expr} END"
+        recorded_duration = f"CASE WHEN recorded.job_id IS NOT NULL THEN {duration_expr} END"
+    else:
+        recorded_join = ""
+        recorded_site = "NULL"
+        recorded_duration = "NULL"
+    date_expr = (
+        "DATE(COALESCE(fd.call_date, j.created_at))"
+        if dialect == "sqlite"
+        else "COALESCE(CAST(fd.call_date AS DATE), CAST(j.created_at AS DATE))"
+    )
+    clauses: list[str] = []
+    params: dict[str, Any] = {}
+    if division:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.division, '')), '') = :division")
+        params["division"] = division
+    if zone:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.zone, '')), '') = :zone")
+        params["zone"] = zone
+    if cluster:
+        clauses.append("(fd.cluster = :cluster OR fd.rfmm_cluster = :cluster)" if "rfmm_cluster" in fd_cols else "fd.cluster = :cluster")
+        params["cluster"] = cluster
+    if fme_code:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') = :fme_code")
+        params["fme_code"] = fme_code
+    if user_type:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.user_type, '')), '') = :user_type")
+        params["user_type"] = user_type
+    if start_date:
+        clauses.append(f"{date_expr} >= :start_date")
+        params["start_date"] = start_date.isoformat()
+    if end_date:
+        clauses.append(f"{date_expr} <= :end_date")
+        params["end_date"] = end_date.isoformat()
+    where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    period = _period_label(start_date, end_date)
+    sql = f"""
+        SELECT
+            NULLIF(TRIM(COALESCE(fd.division, '')), '') AS division,
+            NULLIF(TRIM(COALESCE(fd.zone, '')), '') AS zone,
+            NULLIF(TRIM(COALESCE(fd.user_type, '')), '') AS user_type,
+            {rfmm_expr} AS rfmm_cluster,
+            NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') AS fme_code,
+            COUNT(DISTINCT {site_expr}) AS sites_visited,
+            COUNT(DISTINCT {recorded_site}) AS sites_recorded,
+            AVG({recorded_duration}) AS avg_seconds
+        FROM file_details fd
+        JOIN jobs j ON j.id = fd.job_id
+        {recorded_join}
+        {where_sql}
+        GROUP BY 1, 2, 3, 4, 5
+        ORDER BY 1, 2, 5
+    """
+    rows = db.execute(text(sql), params).mappings().all()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        visited = int(row["sites_visited"] or 0)
+        recorded = int(row["sites_recorded"] or 0)
+        rate = round((recorded / visited) * 100, 1) if visited else 0.0
+        avg_seconds = row["avg_seconds"]
+        items.append({
+            "division": row["division"] or "",
+            "time_period": period,
+            "zone": row["zone"] or "",
+            "user_type": row["user_type"] or "",
+            "rfmm_cluster": row["rfmm_cluster"] or "",
+            "fme_code": row["fme_code"] or "",
+            "fme_period": period,
+            "fme_name": row["fme_code"] or "",
+            "sites_visited": visited,
+            "sites_recorded": recorded,
+            "conversation_rate": rate,
+            "avg_conversation_seconds": None if avg_seconds is None else round(float(avg_seconds), 1),
+        })
+    return items

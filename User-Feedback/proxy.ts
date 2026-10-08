@@ -9,9 +9,9 @@ export async function proxy(request: NextRequest) {
 
     const isPublicPath =
         pathname === '/login' ||
-        pathname.startsWith('/api/login') ||
-        pathname.startsWith('/api/auth/microsoft') ||
-        pathname.startsWith('/api/auth/callback') ||
+        pathname.startsWith('/bff/login') ||
+        pathname.startsWith('/bff/auth/microsoft') ||
+        pathname.startsWith('/bff/auth/callback') ||
         pathname.startsWith('/forgot-password') ||
         pathname.startsWith('/reset-password') ||
         pathname.startsWith('/_next') || // static files
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
             await jwtVerify(token, secret);
 
             if (pathname === '/login') {
-                return NextResponse.redirect(new URL('/reports', request.url));
+                return NextResponse.redirect(new URL('/', request.url));
             }
         } catch (e) {
             // Token is invalid

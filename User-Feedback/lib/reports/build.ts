@@ -235,6 +235,11 @@ export function buildTagMatrixFromSummary(
             tax.feedback_tag,
             options.periodTags,
         );
+        const sentiment = summaryTagSentiment(
+            tax.feedback_category,
+            tax.feedback_tag,
+            options.periodTags,
+        );
         if (needle) {
             const labelHit =
                 norm(tax.feedback_tag).includes(needle) ||
@@ -253,6 +258,7 @@ export function buildTagMatrixFromSummary(
             feedback_sub_tag: sub || undefined,
             feedback_count: count,
             feedback_summary_ai: narrative,
+            sentiment,
             drill: {
                 group,
                 level: sub ? "sub_tag" : "tag",
@@ -309,6 +315,26 @@ function summaryTagNarrative(
     return displayBody(fromPeriod.summary_text) || undefined;
 }
 
+function periodSentiment(period?: PeriodSummaryRecord): string | undefined {
+    const raw = period?.highlights?.sentiment;
+    return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+}
+
+function summaryTagSentiment(
+    category: string,
+    tag: string,
+    periodTags: PeriodSummaryRecord[] = [],
+): string | undefined {
+    const cat = norm(category);
+    const fromPeriod =
+        periodTags.find(
+            (row) =>
+                labelsOverlap(row.grain_label || row.grain_key, tag) &&
+                (!cat || (row.grain_key || "").toLowerCase().includes(cat) || labelsOverlap(row.grain_label, tag)),
+        ) || periodTags.find((row) => labelsOverlap(row.grain_label || row.grain_key, tag));
+    return periodSentiment(fromPeriod);
+}
+
 export function buildProductRowsFromCounts(
     drill: DrillScope,
     items: ReportProductCount[],
@@ -336,6 +362,7 @@ export function buildProductRowsFromCounts(
             feedback_tag: drill.feedback_tag,
             feedback_count: item.feedback_count || null,
             feedback_summary_ai: narrative || undefined,
+            sentiment: periodSentiment(period),
             drill: {
                 group: drill.group,
                 level: drill.feedback_sub_tag ? "sub_tag" : drill.feedback_tag ? "tag" : "product",
@@ -372,6 +399,7 @@ export function buildDetailRowsFromItems(items: FeedbackFactRow[], drill: DrillS
             call_datetime: callDatetime,
             job_id: row.job_id || undefined,
             feedback_id: row.feedback_id || undefined,
+            sentiment: display(row.sentiment_label) || undefined,
             drill: {
                 group: drill.group,
                 level: "item",
@@ -505,6 +533,7 @@ export function buildDetailRows(
             full_conversation_raw: displayBody(row.full_conversation_raw),
             competitors_mentioned: display(row.competitors_mentioned),
             feedback_id: row.feedback_id || undefined,
+            sentiment: display(row.sentiment_label) || undefined,
             drill: {
                 group,
                 level: "item",
@@ -521,7 +550,7 @@ export function buildDetailRows(
 }
 
 export function columnsForOverview(): MatrixColumn[] {
-    return ["feedback_category", "feedback_tag", "feedback_count", "feedback_summary_ai"];
+    return ["feedback_category", "feedback_tag", "feedback_count", "sentiment", "feedback_summary_ai"];
 }
 
 export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
@@ -529,7 +558,7 @@ export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
     if (drill.level === "group" || drill.level === "category" || !drill.feedback_tag) {
         cols.push("feedback_category", "feedback_tag");
     }
-    cols.push("feedback_count", "feedback_summary_ai");
+    cols.push("feedback_count", "sentiment", "feedback_summary_ai");
     return cols;
 }
 
@@ -541,7 +570,15 @@ export function columnsForDetail(
     if (includeProduct && !drill.product_name) cols.push("product_name");
     if (!drill.feedback_category) cols.push("feedback_category");
     if (!drill.feedback_tag) cols.push("feedback_tag");
-    cols.push("call_datetime", "audio", "file_name", "feedback_summary_ai", "feedback_excerpt", "full_conversation");
+    cols.push(
+        "sentiment",
+        "call_datetime",
+        "audio",
+        "file_name",
+        "feedback_summary_ai",
+        "feedback_excerpt",
+        "full_conversation",
+    );
     return cols;
 }
 
@@ -750,6 +787,7 @@ export function buildDrillDetailRows(fact: FeedbackFactRow[], drill: DrillScope)
             call_datetime: display(row.call_date) || display(row.feedback_created_at),
             job_id: row.job_id || undefined,
             feedback_id: row.feedback_id || undefined,
+            sentiment: display(row.sentiment_label) || undefined,
             drill: {
                 group: drill.group,
                 level: "item",

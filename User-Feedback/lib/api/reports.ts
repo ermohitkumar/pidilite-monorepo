@@ -8,6 +8,7 @@ import type {
     ReportSummaryResponse,
     PeriodSummariesResponse,
     PeriodSummaryResponse,
+    ComplianceResponse,
 } from "@/lib/reports/types";
 
 function buildQuery(params: Record<string, unknown>): string {
@@ -94,5 +95,14 @@ export async function fetchPeriodSummaries(
     const qs = buildQuery(params);
     const res = await apiFetch(`/api/v1/reports/period-summaries${qs ? `?${qs}` : ""}`);
     if (!res.ok) throw new Error("Failed to fetch period summaries");
+    return res.json();
+}
+
+export async function fetchCompliance(
+    params: Pick<ReportFilters, "division" | "zone" | "cluster" | "fme_code" | "user_type" | "start_date" | "end_date"> = {},
+): Promise<ComplianceResponse> {
+    const qs = buildQuery(params);
+    const res = await apiFetch(`/api/v1/reports/compliance${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw new Error("Failed to fetch compliance report");
     return res.json();
 }

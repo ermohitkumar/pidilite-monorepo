@@ -16,6 +16,6 @@ export async function getMicrosoftClient() {
     return serverMetadata;
 }
 
-export function getRedirectUri() {
-    return `${getAppBaseUrl()}/api/auth/callback/microsoft`;
+export function getRedirectUri(request?: { headers: Headers }) {
+    return `${getAppBaseUrl(request)}/bff/auth/callback/microsoft`;
 }

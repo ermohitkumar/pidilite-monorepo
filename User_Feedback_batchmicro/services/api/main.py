@@ -9,7 +9,17 @@ from fastapi.responses import JSONResponse
 from core.config import settings
 from db.session import Base, engine
 from db import models  # noqa: F401
-from services.api.routers import ingest, batch, stt, gemini_stt, stt_complete, translate, normalize, checker
+from services.api.routers import (
+    ingest,
+    batch,
+    backlog,
+    stt,
+    gemini_stt,
+    stt_complete,
+    translate,
+    normalize,
+    checker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +103,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 PREFIX = "/api/v1"
 app.include_router(ingest.router,    prefix=PREFIX)
 app.include_router(batch.router,     prefix=PREFIX)
+app.include_router(backlog.router,   prefix=PREFIX)
 app.include_router(stt.router,         prefix=PREFIX)
 app.include_router(gemini_stt.router,  prefix=PREFIX)
 app.include_router(stt_complete.router, prefix=PREFIX)
@@ -103,3 +114,28 @@ app.include_router(checker.router,   prefix=PREFIX)
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "ok", "service": "pipeline"}
+
+
+@app.get("/health/gcs", tags=["Health"])
+def health_gcs():
+    """Probe HTTPS to the output bucket — fails fast if SSL/CA is broken."""
+    try:
+        from google.cloud import storage as gcs_storage
+
+        client = gcs_storage.Client()
+        bucket_name = settings.GCS_OUTPUT_BUCKET
+        exists = client.bucket(bucket_name).exists()
+        return {
+            "status": "ok" if exists else "missing_bucket",
+            "service": "pipeline",
+            "bucket": bucket_name,
+            "exists": exists,
+        }
+    except Exception as exc:
+        logger.exception("GCS health probe failed")
+        return {
+            "status": "error",
+            "service": "pipeline",
+            "error": type(exc).__name__,
+            "message": str(exc)[:500],
+        }

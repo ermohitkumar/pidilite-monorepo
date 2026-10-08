@@ -28,6 +28,7 @@ def _gather(_db, start, end, grain, grain_key):
     assert grain in {"bde", "product", "tag", "bde_pt", "bde_p", "bde_t"}
     summary = "FAILME hold issue" if grain_key == "BAD" else f"{grain_key} likes Marine"
     return [{
+        "insight_id": f"{grain}:{grain_key}",
         "call_date": start,
         "group_type": "USER GROUP" if "USER" in grain_key else "PDT GROUP",
         "product_name": None if grain == "bde_t" and "USER" in grain_key else "Marine",
@@ -197,7 +198,7 @@ def test_tag_quarter_built_from_child_months_not_insights(db_session):
     assert quarter.grain_label == "Performance"
 
 
-def test_runner_skips_empty_llm_output(db_session):
+def test_runner_uses_findings_when_llm_empty(db_session):
     def summarize(lines, **_kwargs):
         return _ok("No insights for this BDE.")
 
@@ -210,9 +211,12 @@ def test_runner_skips_empty_llm_output(db_session):
         list_products=lambda *_args: [],
         list_tags=lambda *_args: [],
     )
-    assert any(item["status"] == "empty" and item.get("skipped") for item in results)
-    assert get_current(db_session, "bde", "GOOD", "month", "2026-09") is None
-    assert get_current(db_session, "rfmm", "RFMM-A", "month", "2026-09") is None
+    assert any(item["grain"] == "bde" and item["grain_key"] == "GOOD" and item["status"] == "ok" for item in results)
+    row = get_current(db_session, "bde", "GOOD", "month", "2026-09")
+    assert row is not None
+    assert "data:" not in (row.summary_text or "").lower()
+    assert "Marine" in (row.summary_text or "")
+    assert "•" in (row.summary_text or "")
 
 
 def test_runner_writes_pdt_cube_and_user_tag_without_product(db_session):
@@ -322,3 +326,90 @@ def test_runner_cell_cap_skips_remaining(db_session):
         max_cells=1,
     )
     assert any(item.get("status") == "capped" for item in results)
+
+
+def test_runner_incremental_update_tracks_insights(db_session):
+    """Day two folds only new closed-day insights into the previous summary."""
+    from datetime import datetime, timezone
+
+    state = {"day": date(2026, 9, 22)}
+    calls: list[dict] = []
+
+    def gather(_db, start, end, grain, grain_key):
+        if grain_key != "GOOD":
+            return []
+        rows = [{
+            "insight_id": "a1",
+            "call_date": date(2026, 9, 22),
+            "group_type": "PDT GROUP",
+            "product_name": "Marine",
+            "ai_summary": "day22 marine quality",
+            "tags": "Quality",
+        }]
+        if state["day"] >= date(2026, 9, 23):
+            rows.append({
+                "insight_id": "a2",
+                "call_date": date(2026, 9, 23),
+                "group_type": "PDT GROUP",
+                "product_name": "Marine",
+                "ai_summary": "day23 marine price",
+                "tags": "Price",
+            })
+        if state["day"] >= date(2026, 9, 29):
+            rows.append({
+                "insight_id": "a3",
+                "call_date": date(2026, 9, 29),
+                "group_type": "PDT GROUP",
+                "product_name": "Marine",
+                "ai_summary": "open day still arriving",
+                "tags": "Quality",
+            })
+        return rows
+
+    def summarize(lines, **kwargs):
+        calls.append({"lines": list(lines), "previous": kwargs.get("previous_summary")})
+        return _ok("narrative-" + str(len(calls)))
+
+    kwargs = dict(
+        summarize=summarize,
+        gather=gather,
+        list_nodes=lambda *_args: [_nodes(None, None, None)[0]],
+        list_products=lambda *_args: [],
+        list_tags=lambda *_args: [],
+    )
+
+    # Freeze "today" as 24 Sep so 22–23 are closed and 29 is not yet present.
+    # Patch as_of via gather days only: run with real clock, but keep call dates in the past.
+    # First run on 24th-equivalent: only 22 is present initially.
+    state["day"] = date(2026, 9, 22)
+    run_month(db_session, "2026-09", **kwargs)
+    row = get_current(db_session, "bde", "GOOD", "month", "2026-09")
+    assert row is not None
+    highlights = row.highlights_json or {}
+    assert "a1" in (highlights.get("considered_insight_ids") or [])
+    assert highlights.get("covered_through") == "2026-09-22"
+    assert highlights.get("summary_updated_at")
+    assert highlights.get("tracking_checked_at")
+    first_updated = highlights.get("summary_updated_at")
+    assert len(calls) >= 1
+    assert calls[0]["previous"] in (None, "")
+
+    # Second run same day: no new closed insights → tracking only, no new LLM write for leaf.
+    before_calls = len(calls)
+    run_month(db_session, "2026-09", **kwargs)
+    row = get_current(db_session, "bde", "GOOD", "month", "2026-09")
+    assert row.version == 1
+    highlights = row.highlights_json or {}
+    assert highlights.get("summary_updated_at") == first_updated
+    assert highlights.get("tracking_checked_at") >= first_updated
+
+    # New closed day arrives.
+    state["day"] = date(2026, 9, 23)
+    run_month(db_session, "2026-09", **kwargs)
+    row = get_current(db_session, "bde", "GOOD", "month", "2026-09")
+    highlights = row.highlights_json or {}
+    assert row.version == 2
+    assert set(highlights.get("considered_insight_ids") or []) >= {"a1", "a2"}
+    assert highlights.get("covered_through") == "2026-09-23"
+    # Last LLM call should have received the previous summary plus only the new line.
+    assert any(call.get("previous") for call in calls[before_calls:])

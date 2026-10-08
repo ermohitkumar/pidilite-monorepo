@@ -1,15 +1,37 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FiFilter } from "react-icons/fi";
 import { LuLoader } from "react-icons/lu";
 
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
-import { PeriodSummaryCard, PERIOD_GRAIN_LABEL } from "@/components/reports/PeriodSummaryCard";
+import { PeriodSummaryCard } from "@/components/reports/PeriodSummaryCard";
 import { usePeriodSummaries, usePeriodSummary, useReportFilterOptions } from "@/lib/hooks/reports";
-import { datesForPeriod, defaultPeriod, hasVisibleSummary, restrictToAvailable, type PeriodKind, type PeriodState } from "@/lib/reports/period";
-import { GROUP_TABS, type FeedbackGroup, type FilterOptions, type PeriodSummaryRecord, type ReportFilters } from "@/lib/reports/types";
+import {
+    datesForPeriod,
+    defaultPeriod,
+    filtersFromSearchParams,
+    groupFromGrainKey,
+    hasVisibleSummary,
+    insightsHref,
+    periodFromDateRange,
+    restrictToAvailable,
+    type GroupFilter,
+    type PeriodKind,
+    type PeriodState,
+} from "@/lib/reports/period";
+import {
+    GROUP_FILTER_TABS,
+    GROUP_TABS,
+    displayGroupLabel,
+    type FeedbackGroup,
+    type FilterOptions,
+    type PeriodSummaryRecord,
+    type ReportFilters,
+} from "@/lib/reports/types";
 
 const PERIOD_TABS: { id: PeriodKind; label: string }[] = [
     { id: "month", label: "Monthly" },
@@ -98,11 +120,84 @@ function sanitizeFilters(draft: ReportFilters, dates: Pick<ReportFilters, "start
     return next;
 }
 
+function tagsForGroup(tags: PeriodSummaryRecord[], group: FeedbackGroup, viewingAll: boolean): PeriodSummaryRecord[] {
+    return tags.filter((item) => {
+        const found = groupFromGrainKey(item.grain_key);
+        if (found) return found === group;
+        return !viewingAll;
+    });
+}
+
+function GroupTagSection({
+    group,
+    label,
+    tags,
+    loading,
+    insightsLink,
+}: {
+    group: FeedbackGroup;
+    label: string;
+    tags: PeriodSummaryRecord[];
+    loading: boolean;
+    insightsLink: string;
+}) {
+    const visible = tags.filter(hasVisibleSummary);
+    return (
+        <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-slate-800">{label}</h2>
+                <Link
+                    href={insightsLink}
+                    className="text-xs font-medium text-brand hover:underline"
+                >
+                    View insights
+                </Link>
+            </div>
+            {loading ? (
+                <p className="text-sm text-slate-500">Loading tags…</p>
+            ) : visible.length === 0 ? (
+                <p className="text-sm text-slate-500">No stored tag summaries for this group yet.</p>
+            ) : (
+                <div className="space-y-3">
+                    {visible.map((item) => (
+                        <PeriodSummaryCard
+                            key={`${group}-${item.grain}-${item.grain_key}-${item.period_key}`}
+                            title={item.grain_label || item.grain_key}
+                            record={item}
+                            emptyLabel="No summary."
+                            hideMeta
+                        />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function groupFromUrl(value?: string): GroupFilter {
+    if (value === "USER GROUP" || value === "DEALER GROUP" || value === "PDT GROUP") return value;
+    return "ALL";
+}
+
 export default function SummariesClient() {
-    const [group, setGroup] = useState<FeedbackGroup>("PDT GROUP");
-    const [draft, setDraft] = useState<ReportFilters>({});
-    const [filters, setFilters] = useState<ReportFilters>(datesForPeriod(defaultPeriod("month")));
-    const [period, setPeriod] = useState<PeriodState>(defaultPeriod("month"));
+    const searchParams = useSearchParams();
+    const fromUrl = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
+    const initialPeriod = useMemo(
+        () => periodFromDateRange(fromUrl.start_date, fromUrl.end_date),
+        [fromUrl.end_date, fromUrl.start_date],
+    );
+    const initialFilters = useMemo(() => {
+        const dates = fromUrl.start_date && fromUrl.end_date
+            ? { start_date: fromUrl.start_date, end_date: fromUrl.end_date }
+            : datesForPeriod(initialPeriod);
+        const next: ReportFilters = { ...fromUrl, ...dates };
+        delete next.feedback_group;
+        return next;
+    }, [fromUrl, initialPeriod]);
+    const [group, setGroup] = useState<GroupFilter>(groupFromUrl(fromUrl.feedback_group));
+    const [draft, setDraft] = useState<ReportFilters>(initialFilters);
+    const [filters, setFilters] = useState<ReportFilters>(initialFilters);
+    const [period, setPeriod] = useState<PeriodState>(initialPeriod);
     const [showFilters, setShowFilters] = useState(true);
 
     const filterQuery = useReportFilterOptions({
@@ -110,7 +205,12 @@ export default function SummariesClient() {
         zone: draft.zone,
         cluster: draft.cluster,
     });
-    const appliedFilters = { ...filters, feedback_group: group };
+    const appliedFilters = useMemo(() => {
+        const next: ReportFilters = { ...filters };
+        if (group !== "ALL") next.feedback_group = group;
+        else delete next.feedback_group;
+        return next;
+    }, [filters, group]);
     const summaryQuery = usePeriodSummary(appliedFilters);
     const listQuery = usePeriodSummaries(appliedFilters);
 
@@ -126,15 +226,7 @@ export default function SummariesClient() {
     const zoneOptions = restrictToAvailable(filterOptions.zones, available?.zones);
     const rfmmOptions = restrictToAvailable(rfmmLive, available?.rfmm_clusters);
     const fmeOptions = restrictToAvailable(filterOptions.fme_codes || [], available?.fme_codes);
-    // Keep every catalog product even when no product-grain summary exists yet.
     const productOptions = filterOptions.products || [];
-
-    const appliedLabel = useMemo(() => {
-        const grain = summaryQuery.data?.data?.grain;
-        const key = summaryQuery.data?.data?.grain_key;
-        if (grain && key) return `${PERIOD_GRAIN_LABEL[grain] || grain}: ${key}`;
-        return "All divisions";
-    }, [summaryQuery.data?.data?.grain, summaryQuery.data?.data?.grain_key]);
 
     const applyFilters = () => setFilters(sanitizeFilters(draft, datesForPeriod(period)));
     const clearFilters = () => {
@@ -142,50 +234,55 @@ export default function SummariesClient() {
         setDraft({});
         setPeriod(next);
         setFilters(datesForPeriod(next));
+        setGroup("ALL");
     };
     const selectPeriod = (kind: PeriodKind) => {
         const next = defaultPeriod(kind);
-        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...dates }));
-        setFilters((prev) => sanitizeFilters(prev, dates));
+        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
     };
     const updatePeriod = (patch: Partial<PeriodState>) => {
         const next = { ...period, ...patch };
-        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...dates }));
-        setFilters((prev) => sanitizeFilters(prev, dates));
+        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
     };
 
     const current = summaryQuery.data?.data?.current;
-    const previous = summaryQuery.data?.data?.previous;
-    const product = summaryQuery.data?.data?.product;
-    const previousProduct = summaryQuery.data?.data?.previous_product;
-    const tag = summaryQuery.data?.data?.tag;
-    const previousTag = summaryQuery.data?.data?.previous_tag;
-    const items = (listQuery.data?.data?.items || []).filter(hasVisibleSummary);
-    const products = (listQuery.data?.data?.products || []).filter(hasVisibleSummary);
+    const productSummary = summaryQuery.data?.data?.product;
     const tags = (listQuery.data?.data?.tags || []).filter(hasVisibleSummary);
-    const listGrain = listQuery.data?.data?.grain || "division";
+    const viewingAll = group === "ALL";
+    const groupsToShow = viewingAll ? GROUP_TABS : GROUP_TABS.filter((tab) => tab.id === group);
+    const insightsLink = insightsHref(appliedFilters);
+    const locationLabel = [
+        appliedFilters.division,
+        appliedFilters.zone,
+        appliedFilters.cluster,
+        appliedFilters.fme_code,
+        appliedFilters.product_name,
+    ].filter(Boolean).join(" · ") || "All India";
 
     return (
         <div className="p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-semibold text-slate-900">Period summaries</h1>
+                    <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
                     <p className="text-sm text-slate-500">
-                        Stored BDE → RFMM → zone → division narratives, plus product and tag summaries for the selected group.
+                        Tag summaries by feedback group. Open insights to see counts and drill into site visits.
                     </p>
                 </div>
-                <Button variant="secondary" onClick={() => setShowFilters((value) => !value)}>
-                    <FiFilter className="mr-2 h-4 w-4" />
-                    {showFilters ? "Hide filters" : "Show filters"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="secondary" onClick={() => setShowFilters((value) => !value)}>
+                        <FiFilter className="mr-2 h-4 w-4" />
+                        {showFilters ? "Hide filters" : "Show filters"}
+                    </Button>
+                    <Link href={insightsLink}>
+                        <Button type="button">View insights</Button>
+                    </Link>
+                </div>
             </div>
 
             <div className="mb-4 flex flex-wrap gap-2">
-                {GROUP_TABS.map((tab) => (
+                {GROUP_FILTER_TABS.map((tab) => (
                     <button
                         key={tab.id}
                         type="button"
@@ -278,117 +375,50 @@ export default function SummariesClient() {
                         </label>
                     ) : null}
                     <div className="flex items-end gap-2">
-                        <Button variant="secondary" onClick={clearFilters}>
+                        <Button type="button" variant="secondary" onClick={clearFilters}>
                             Clear
                         </Button>
-                        <Button onClick={applyFilters}>Apply filters</Button>
+                        <Button type="button" onClick={applyFilters}>Apply filters</Button>
                     </div>
                 </div>
             ) : null}
 
-            <p className="mb-3 text-xs text-slate-500">Showing {appliedLabel}</p>
+            <p className="mb-3 text-xs text-slate-500">
+                {locationLabel}
+                {viewingAll ? " · all feedback groups" : ` · ${displayGroupLabel(group)}`}
+            </p>
 
-            {summaryQuery.isLoading ? (
+            {listQuery.isLoading && !listQuery.data ? (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-text-disabled">
                     <LuLoader className="mb-4 h-8 w-8 animate-spin text-brand" />
-                    <p className="text-sm">Loading period summaries…</p>
+                    <p className="text-sm">Loading summaries…</p>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {hasVisibleSummary(current) ? (
+                    {!viewingAll && hasVisibleSummary(current) ? (
                         <PeriodSummaryCard
-                            title="Current period"
+                            title="Location summary"
                             record={current}
                             emptyLabel="No stored summary for this filter yet."
                         />
                     ) : null}
-                    {hasVisibleSummary(previous) ? (
-                        <PeriodSummaryCard title="Previous period" record={previous} emptyLabel="No previous period summary." />
+                    {appliedFilters.product_name && hasVisibleSummary(productSummary) ? (
+                        <PeriodSummaryCard
+                            title={`${appliedFilters.product_name} summary`}
+                            record={productSummary}
+                            emptyLabel="No stored product summary for this filter yet."
+                        />
                     ) : null}
-                    {hasVisibleSummary(product) ? (
-                        <PeriodSummaryCard title="Product" record={product} emptyLabel="No product summary." />
-                    ) : null}
-                    {hasVisibleSummary(previousProduct) ? (
-                        <PeriodSummaryCard title="Previous product period" record={previousProduct} emptyLabel="No previous product summary." />
-                    ) : null}
-                    {hasVisibleSummary(tag) ? <PeriodSummaryCard title="Tag" record={tag} emptyLabel="No tag summary." /> : null}
-                    {hasVisibleSummary(previousTag) ? (
-                        <PeriodSummaryCard title="Previous tag period" record={previousTag} emptyLabel="No previous tag summary." />
-                    ) : null}
-
-                    <section>
-                        <h2 className="mb-2 text-sm font-semibold text-slate-800">
-                            {PERIOD_GRAIN_LABEL[listGrain] || listGrain} summaries
-                        </h2>
-                        {listQuery.isLoading ? (
-                            <p className="text-sm text-slate-500">Loading list…</p>
-                        ) : items.length === 0 ? (
-                            <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                                No stored summaries for this period. They appear after the nightly reports job runs.
-                            </p>
-                        ) : (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {items.map((item: PeriodSummaryRecord) => (
-                                    <PeriodSummaryCard
-                                        key={`${item.grain}-${item.grain_key}-${item.period_key}`}
-                                        title={item.grain_label || item.grain_key}
-                                        record={item}
-                                        emptyLabel="No summary."
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    <section>
-                        <h2 className="mb-2 text-sm font-semibold text-slate-800">Product summaries</h2>
-                        <p className="mb-2 text-xs text-slate-500">
-                            Product narratives for this period{appliedFilters.division || appliedFilters.zone || appliedFilters.cluster || appliedFilters.fme_code ? " at the selected location" : " nationwide"}.
-                        </p>
-                        {listQuery.isLoading ? (
-                            <p className="text-sm text-slate-500">Loading products…</p>
-                        ) : products.length === 0 ? (
-                            <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                                No stored product summaries for this period yet.
-                            </p>
-                        ) : (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {products.map((item: PeriodSummaryRecord) => (
-                                    <PeriodSummaryCard
-                                        key={`${item.grain}-${item.grain_key}-${item.period_key}`}
-                                        title={item.grain_label || item.grain_key}
-                                        record={item}
-                                        emptyLabel="No summary."
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    <section>
-                        <h2 className="mb-2 text-sm font-semibold text-slate-800">Tag summaries</h2>
-                        <p className="mb-2 text-xs text-slate-500">
-                            Tag narratives for this period{appliedFilters.division || appliedFilters.zone || appliedFilters.cluster || appliedFilters.fme_code ? " at the selected location" : " nationwide"}.
-                        </p>
-                        {listQuery.isLoading ? (
-                            <p className="text-sm text-slate-500">Loading tags…</p>
-                        ) : tags.length === 0 ? (
-                            <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                                No stored tag summaries for this period yet.
-                            </p>
-                        ) : (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {tags.map((item: PeriodSummaryRecord) => (
-                                    <PeriodSummaryCard
-                                        key={`${item.grain}-${item.grain_key}-${item.period_key}`}
-                                        title={item.grain_label || item.grain_key}
-                                        record={item}
-                                        emptyLabel="No summary."
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
+                    {groupsToShow.map((tab) => (
+                        <GroupTagSection
+                            key={tab.id}
+                            group={tab.id}
+                            label={`${tab.label} tags`}
+                            tags={tagsForGroup(tags, tab.id, viewingAll)}
+                            loading={listQuery.isFetching && !listQuery.data}
+                            insightsLink={insightsHref({ ...appliedFilters, feedback_group: tab.id })}
+                        />
+                    ))}
                 </div>
             )}
         </div>

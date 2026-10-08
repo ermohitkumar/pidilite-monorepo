@@ -174,3 +174,4 @@ class CheckerRunResponseData(BaseModel):
     stuck_translated_recovered: int = 0
     stuck_post_processing_recovered: int = 0
     batches_reconciled: int = 0
+    empty_batches_deleted: int = 0

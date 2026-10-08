@@ -37,6 +37,7 @@ _JOB_SORT = {
     "job_id": Job.id,
     "batch_id": Job.batch_id,
     "file_name": FileDetails.file_name,
+    "audio_duration_seconds": FileDetails.audio_duration_seconds,
     "created_at": Job.created_at,
     "status": Job.status,
 }
@@ -80,7 +81,8 @@ def _order(column, sort_dir: Optional[str]):
 
 def _apply_job_sort(query, sort_by: Optional[str], sort_dir: Optional[str], *, joined_files: bool):
     column = _JOB_SORT.get(sort_by or "created_at", Job.created_at)
-    if column is FileDetails.file_name and not joined_files:
+    needs_files = column is FileDetails.file_name or column is FileDetails.audio_duration_seconds
+    if needs_files and not joined_files:
         query = query.outerjoin(FileDetails)
     return query.order_by(_order(column, sort_dir), desc(Job.id))
 
@@ -115,6 +117,13 @@ def _batch_job_counts(db: Session, batch_ids: list[str]) -> dict:
     }
 
 
+def _audio_duration_seconds(job: Job) -> Optional[int]:
+    details = job.file_details
+    if not details or not details.audio_duration_seconds:
+        return None
+    return int(details.audio_duration_seconds)
+
+
 def _job_item(job: Job, *, include_batch: bool = False) -> dict:
     item = {
         "job_id": str(job.id),
@@ -123,6 +132,7 @@ def _job_item(job: Job, *, include_batch: bool = False) -> dict:
         "created_at": job.created_at,
         "has_insights": job.summary is not None,
         "error_message": job.error_message,
+        "audio_duration_seconds": _audio_duration_seconds(job),
     }
     if include_batch:
         item["batch_id"] = str(job.batch_id) if job.batch_id else None
@@ -167,6 +177,7 @@ def _insight_feedbacks(db: Session, job: Job) -> list[dict]:
             if tag_link_cols and tag_cols
             else "NULL AS tag_name"
         )
+        sentiment_expr = "f.sentiment_label" if "sentiment_label" in columns else "NULL"
         rows = db.execute(
             text(
                 f"""
@@ -176,6 +187,7 @@ def _insight_feedbacks(db: Session, job: Job) -> list[dict]:
                     f.category_type AS category_name,
                     f.verbatim_quote,
                     f.ai_summary AS remarks,
+                    {sentiment_expr} AS sentiment_label,
                     {tag_select}
                 FROM feedbacks f
                 WHERE f.job_id::text = :job_id
@@ -192,7 +204,7 @@ def _insight_feedbacks(db: Session, job: Job) -> list[dict]:
                 "group_type": _as_text(row["group_type"]),
                 "verbatim_quote": _as_text(row["verbatim_quote"]),
                 "remarks": _as_text(row["remarks"]),
-                "sentiment_label": None,
+                "sentiment_label": _as_text(row["sentiment_label"]),
                 "sentiment_score": None,
             }
             for row in rows
@@ -241,7 +253,7 @@ def _feedbacks_from_raw_json(db: Session, job_id) -> list[dict]:
             "verbatim_quote": _as_text(item.get("verbatim_quote")),
             "remarks": _as_text(
                 item.get("summary") or item.get("remarks") or item.get("ai_summary")),
-            "sentiment_label": _as_text(item.get("sentiment_label")),
+            "sentiment_label": _as_text(item.get("sentiment") or item.get("sentiment_label")),
             "sentiment_score": item.get("sentiment_score"),
         })
     return items
@@ -477,7 +489,10 @@ def get_job_insights(job_id: str, db: DbSession):
         job = (
             db.query(Job)
             .options(
-                joinedload(Job.file_details).load_only(FileDetails.file_name),
+                joinedload(Job.file_details).load_only(
+                    FileDetails.file_name,
+                    FileDetails.audio_duration_seconds,
+                ),
                 noload(Job.processed_file),
                 noload(Job.summary),
             )
@@ -519,6 +534,11 @@ def get_job_insights(job_id: str, db: DbSession):
                 "status": status,
                 "error_message": _as_text(job.error_message),
                 "empty_reason": _as_text(processed.empty_reason if processed else None),
+                "audio_duration_seconds": (
+                    int(file_details.audio_duration_seconds)
+                    if file_details and file_details.audio_duration_seconds
+                    else None
+                ),
                 "raw_transcript_text": _as_text(
                     processed.raw_transcript_text if processed else None),
                 "translated_text": _as_text(

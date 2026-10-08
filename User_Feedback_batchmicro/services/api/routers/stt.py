@@ -40,7 +40,11 @@ from services.shared.stt_client import (
     reset_speech_client,
     submit_batch_recognize,
 )
-from services.shared.stt_config import is_audio_media
+from services.shared.stt_config import (
+    is_audio_media,
+    resolve_media_extension,
+    resolved_audio_mime,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -188,8 +192,17 @@ def submit_stt(
                 error=error_msg
             )
         
-        if not is_audio_media(file_details.file_extension, file_details.mime_type):
-            error_msg = f"Invalid mime type: {file_details.mime_type or ''}"
+        media_ext = resolve_media_extension(
+            stored_ext=file_details.file_extension,
+            file_name=file_details.file_name,
+            gcs_uri=payload.gcs_input_uri or job.gcs_input_uri,
+        )
+        resolved_mime = resolved_audio_mime(media_ext, file_details.mime_type)
+        if not is_audio_media(media_ext, file_details.mime_type):
+            error_msg = (
+                f"Invalid mime type: {file_details.mime_type or ''} "
+                f"(resolved={resolved_mime or 'unknown'}, ext={media_ext or 'unknown'})"
+            )
             db.add(FailedJob(job_id=job.id, file_name=file_details.file_name, error_message=error_msg, pipeline_stage="STT"))
             batch_repository.update_job_status(db, payload.job_id, status=JobStatus.FAILED, error_message=error_msg)
             db.commit()
@@ -199,6 +212,21 @@ def submit_stt(
                 data=STTSubmitResponseData(job_id=payload.job_id, status=JobStatus.FAILED.value).model_dump(),
                 error=error_msg
             )
+        # Persist corrected mime/extension when GCS stored a generic Content-Type.
+        if file_details.mime_type != resolved_mime:
+            file_details.mime_type = resolved_mime
+        if media_ext and file_details.file_extension != media_ext:
+            file_details.file_extension = media_ext
+        if not file_details.audio_duration_seconds:
+            from services.shared.audio_duration import probe_gcs_audio_duration_seconds
+
+            probed = probe_gcs_audio_duration_seconds(
+                payload.gcs_input_uri or job.gcs_input_uri,
+                ext_hint=media_ext or file_details.file_extension,
+            )
+            if probed:
+                file_details.audio_duration_seconds = probed
+
 
     if settings.stt_provider == "gemini_flash":
         try:

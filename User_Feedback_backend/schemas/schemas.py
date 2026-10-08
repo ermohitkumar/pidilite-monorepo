@@ -153,6 +153,7 @@ class JobItem(BaseModel):
     created_at: Optional[datetime]
     has_insights: bool
     error_message: Optional[str] = None
+    audio_duration_seconds: Optional[int] = None
 
     @field_validator("created_at", mode="before")
     @classmethod
@@ -247,6 +248,7 @@ class FileInsightsData(BaseModel):
     raw_transcript_text: Optional[str] = None
     translated_text: Optional[str] = None
     normalized_text: Optional[str] = None
+    audio_duration_seconds: Optional[int] = None
     summary: Optional[FileInsightSummary] = None
     feedbacks: List[FileInsightFeedback] = []
     generated_at: Optional[datetime] = None

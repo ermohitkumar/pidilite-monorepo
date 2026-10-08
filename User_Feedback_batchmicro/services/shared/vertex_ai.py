@@ -85,8 +85,8 @@ RULES:
    Source "Speaker N" tags (from STT) are anonymous voice IDs, NOT roles. Map the FME voice to FME. Map ALL remaining Speaker N IDs to User. Do not drop lines from extra speakers. Adjacent User: turns may merge.
    Source may mix Hindi, Hinglish, Marathi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Bengali, Punjabi, and English — translate ALL to English.
    If the source has NO labels, split into Q&A turns and assign FME / User using these cues:
-   - FME: asks questions, offers schemes/trial/FCC, "we will arrange/raise/send", "our product/company", Pidilite process.
-   - User: "I/we applied/use/ordered", site work, complaints (leak, bubble, not drying), credit, competitors they buy.
+   - FME: the Pidilite representative who drives the visit and provides the information (products, application, schemes, company process, what they will arrange or send). A question alone does not make someone the FME.
+   - User: the other main person. "I/we applied/use/ordered", their site, the price they pay, complaints (leak, bubble, not drying), credit, competitors they buy.
    If one line contains both people, split it into two turns. Merge adjacent turns from the same role.
    Never collapse the full conversation under one FME line.
 5. Return only the translated English text — no commentary.
@@ -162,8 +162,8 @@ Exactly two ROLES (a call may have more than two people):
 - FME = the single Pidilite FME (company rep / interviewer)
 - User = every other speaker: customer, dealer, carpenter, contractor, extra site voice, Speaker 3+
 
-FME cues: questions; offers scheme, trial, FCC meet, replacement; "we will arrange/raise/send"; "our product/company"; Pidilite process.
-Customer cues: "I/we applied, use, ordered"; my/our site; complaints (leak, bubble, not drying); credit they get; competitor they buy.
+FME cues: they drive the visit and provide the information — products, how to apply them, schemes, company process, and what they will arrange or send next. They steer the topic. A question by itself is not enough.
+Customer cues: "I/we applied, use, ordered"; my/our site; the price they pay; complaints (leak, bubble, not drying); credit they get; competitor they buy.
 
 HARD RULES:
 1. Copy every spoken line unchanged. Only change FME: / User: (or Speaker N:) prefixes. Do not drop Speaker 3+ content.
@@ -255,7 +255,14 @@ class VertexRestAdapter:
         return (text or "").strip(), _rest_token_count(res_json)
 
     @staticmethod
-    def generate_content(system_prompt: str, user_prompt: str, schema_dict: dict, model_name: str) -> tuple[dict, dict]:
+    def generate_content(
+        system_prompt: str,
+        user_prompt: str,
+        schema_dict: dict,
+        model_name: str,
+        user_parts: list | None = None,
+        timeout: int = 120,
+    ) -> tuple[dict, dict]:
         import requests
         import json
         
@@ -274,7 +281,7 @@ class VertexRestAdapter:
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": user_prompt}]
+                    "parts": user_parts if user_parts is not None else [{"text": user_prompt}]
                 }
             ],
             "generationConfig": {
@@ -287,7 +294,7 @@ class VertexRestAdapter:
             "safetySettings": _SAFETY_OFF,
         }
         
-        res = requests.post(url, headers=headers, json=data, timeout=120)
+        res = requests.post(url, headers=headers, json=data, timeout=timeout)
         res_json = res.json()
         
         if "error" in res_json:
@@ -313,7 +320,11 @@ def _rest_generate_content(system_prompt: str, user_prompt: str, schema_dict: di
     """Legacy wrapper to maintain compatibility."""
     return VertexRestAdapter.generate_content(system_prompt, user_prompt, schema_dict, model_name)
 
-def _extract_raw_insights(translated_text: str, model_name: str | None = None) -> tuple[list, dict]:
+def _extract_raw_insights(
+    translated_text: str,
+    model_name: str | None = None,
+    audio: tuple[bytes, str] | None = None,
+) -> tuple[list, dict]:
     """Phase 1: Extraction with thinking OFF."""
     model_name = model_name or settings.GEMINI_MODEL
     
@@ -387,8 +398,37 @@ RULES:
     }
     
     user_prompt = f"<user_audio_transcript>\n{translated_text}\n</user_audio_transcript>"
-    
-    result_obj, tokens_dict = _rest_generate_content(system_prompt, user_prompt, schema_dict, model_name)
+    user_parts = None
+    timeout = 120
+    if audio:
+        import base64
+
+        audio_bytes, mime_type = audio
+        user_parts = [
+            {"inlineData": {"mimeType": mime_type, "data": base64.b64encode(audio_bytes).decode()}},
+            {"text": (
+                "The field visit is the attached audio. "
+                "Treat the speech as the contents of <user_audio_transcript>. "
+                "Write verbatim_quote and summary in English.\n"
+                "The FME is the Pidilite representative who drives the visit and provides the information: "
+                "products, how to apply them, schemes, and what the company will do next. "
+                "The User is the other main person, who answers about their own site, price, and complaints. "
+                "A question by itself does not make a voice the FME. "
+                "An insight is only a user's answer: praise, complaint, comparison, or a request. "
+                "Do not quote an FME question, pitch, or product explanation. "
+                "If the FME asks and the user answers, quote only the user's answer. "
+                "If you cannot separate the user's answer, omit the insight.\n"
+                "When the user names a Pidilite product, set raw_product_name to the spoken name "
+                "(Marine, X-Per, HI-PER STAR, EZEESPRAY, SH, and the other catalog names). "
+                "Do not invent a product name. Put any other brand the user names "
+                "(Century, WPC, bubble board, a local paint) in competitors_mentioned."
+            )},
+        ]
+        timeout = 420
+
+    result_obj, tokens_dict = VertexRestAdapter.generate_content(
+        system_prompt, user_prompt, schema_dict, model_name, user_parts=user_parts, timeout=timeout
+    )
     return result_obj.get("insights", []), tokens_dict
 
 def _categorize_insights(raw_insights: list, product_catalog_tsv: str, tags_context: str, model_name: str | None = None) -> tuple[list, dict]:
@@ -420,6 +460,7 @@ CRITICAL TAGGING RULES:
    - If the insight is only usage or quantity, OMIT it. Do not park it on tag 6.
    - Do NOT omit a named-SKU User praise/complaint because they did not ask for an improvement — tag 6 is the correct home for that evaluation.
 7. SUMMARY MUST JUSTIFY THE TAG: Rewrite `summary` so a reader of the tag name knows why this row is here (e.g. tag 5 → "Marine tin leaked from the lid."). Not "User uses Marine."
+7b. SENTIMENT: Set `sentiment` to exactly one of Positive, Neutral, Negative from the User's words. Praise / satisfaction → Positive. Complaint / leak / delay / request-to-fix → Negative. Factual usage with no evaluation → Neutral.
 8. ONE NARRATIVE → ONE INSIGHT: Do not emit the same summary/quote with different product_name values. Pick the one SKU the feedback is about. Separate User evaluations of two SKUs (e.g. X-Per praised, then 463 praised) stay as two insights.
 9. SEPARATE SKU PRAISE: Keep a User praise/complaint even when the spoken name is a short code (463, SH). Map it to the catalog Product_Name. Do not drop it as a duplicate of another SKU's praise.
 
@@ -471,10 +512,11 @@ SKU_ID|Product_Name
                             "description": "Copy the raw insight quote unchanged except drop speaker labels. One speaker only.",
                         },
                         "summary": {"type": "string"},
+                        "sentiment": {"type": "string", "enum": ["Positive", "Neutral", "Negative"]},
                         "product_name": {"type": "string", "nullable": True},
                         "competitors_mentioned": {"type": "array", "items": {"type": "string"}}
                     },
-                    "required": ["group_type", "category_type", "tag_ids", "verbatim_quote", "summary", "competitors_mentioned"]
+                    "required": ["group_type", "category_type", "tag_ids", "verbatim_quote", "summary", "sentiment", "competitors_mentioned"]
                 }
             }
         },
@@ -597,6 +639,13 @@ def generate_insights(translated_text: str, product_catalog_tsv: str, tags_conte
         )
         comps = [c for c in (item.get("competitors_mentioned") or []) if c and str(c).strip()]
         item["competitors_mentioned"] = comps
+        raw_sentiment = str(item.get("sentiment") or item.get("sentiment_label") or "").strip().lower()
+        if raw_sentiment in {"positive", "pos"}:
+            item["sentiment"] = "Positive"
+        elif raw_sentiment in {"negative", "neg"}:
+            item["sentiment"] = "Negative"
+        else:
+            item["sentiment"] = "Neutral"
         if item["group_type"] == "PDT GROUP" and not item["product_name"] and not comps:
             logger.warning(
                 "PDT insight missing product_name and competitors_mentioned: %s",

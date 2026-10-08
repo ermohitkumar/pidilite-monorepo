@@ -196,14 +196,25 @@ _FAILED_LIKE = {JobStatus.FAILED, JobStatus.ERROR}
 
 
 def evaluate_batch_status(db: Session, batch_id: str) -> bool:
-    """Close a batch when every child job is COMPLETED, FAILED, or ERROR."""
+    """Close a batch when every child job is COMPLETED, FAILED, or ERROR.
+
+    Batches with zero jobs are deleted — they must never remain in the UI.
+    """
     batch = get_batch(db, batch_id)
     if not batch:
         logger.warning("evaluate_batch_status called for non-existent batch %s", batch_id)
         return False
     jobs = get_jobs_by_batch_id(db, batch_id)
     if not jobs:
-        return False
+        try:
+            db.delete(batch)
+            db.commit()
+            logger.info("Deleted empty batch %s (no jobs attached)", batch_id)
+            return True
+        except Exception as exc:
+            db.rollback()
+            logger.error("Failed to delete empty batch %s: %s", batch_id, exc, exc_info=True)
+            return False
     statuses = [job.status for job in jobs]
     if any(status in _ACTIVE_JOB_STATUSES for status in statuses):
         return False
@@ -219,6 +230,36 @@ def evaluate_batch_status(db: Session, batch_id: str) -> bool:
         return False
     update_batch_status(db, batch_id, final_status)
     return True
+
+
+def delete_empty_batches(db: Session, limit: int = 500) -> int:
+    """Remove batches that have no jobs (e.g. after requeue cleared batch_id)."""
+    occupied = {
+        row[0]
+        for row in db.query(Job.batch_id).filter(Job.batch_id.isnot(None)).distinct().all()
+    }
+    q = db.query(Batch)
+    if occupied:
+        q = q.filter(~Batch.id.in_(occupied))
+    empty = q.limit(limit).all()
+    if not empty:
+        return 0
+    deleted = 0
+    for batch in empty:
+        try:
+            db.delete(batch)
+            deleted += 1
+        except Exception as exc:
+            logger.warning("Could not delete empty batch %s: %s", batch.id, exc)
+    if deleted:
+        try:
+            db.commit()
+            logger.info("Deleted %d empty batch(es)", deleted)
+        except Exception as exc:
+            db.rollback()
+            logger.error("Failed committing empty-batch deletes: %s", exc, exc_info=True)
+            return 0
+    return deleted
 
 
 def update_batch_status(db: Session, batch_id: str, status: BatchStatus) -> Optional[Batch]:

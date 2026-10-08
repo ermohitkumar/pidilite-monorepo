@@ -1,12 +1,12 @@
 """Resolve report filters from DW masters using audio filename keys.
 
 Join path:
-    sitenumber  → FactSitedetails.siteNumber
-    visit sfid  → FactEvent.Id
-    BDE code    → DimHierarchy.SH2Code (also FactSitedetails.CMDICode)
-    membership  → Dimmember.MembershipNo / FactEvent.MembershipNo
-    SiteId      → FactEvent.EndUserSite
-    AdditionEventFieldID → Factadditionalevent.Id
+    sitenumber  → factsitedetail.sitenumber
+    visit sfid  → factevent.id
+    BDE code    → dimhierarchy.sh2code (also factsitedetail.cmdicode)
+    membership  → dimmember.membershipno / factevent.membershipno
+    SiteId      → factevent.endusersite
+    AdditionEventFieldID → factadditionalevent.id
 """
 from __future__ import annotations
 
@@ -66,22 +66,22 @@ def lookup_hierarchy(db: Session, bde_code: str | None) -> dict[str, Any]:
         db,
         """
         SELECT
-            NULLIF(TRIM(h."SH2Code"), '') AS fme_code,
-            NULLIF(TRIM(h."SH2Name"), '') AS fme_name,
-            COALESCE(NULLIF(TRIM(h."SH7Name"), ''), NULLIF(TRIM(h."SH7Code"), '')) AS division,
-            NULLIF(TRIM(h."SH7Code"), '') AS division_code,
-            COALESCE(NULLIF(TRIM(h."SH5Name"), ''), NULLIF(TRIM(h."SH5Code"), '')) AS zone,
+            NULLIF(TRIM(h.sh2code), '') AS fme_code,
+            NULLIF(TRIM(h.sh2name), '') AS fme_name,
+            COALESCE(NULLIF(TRIM(h.sh7name), ''), NULLIF(TRIM(h.sh7code), '')) AS division,
+            NULLIF(TRIM(h.sh7code), '') AS division_code,
+            COALESCE(NULLIF(TRIM(h.sh5name), ''), NULLIF(TRIM(h.sh5code), '')) AS zone,
             COALESCE(
-                NULLIF(TRIM(h."SH3Name"), ''),
-                NULLIF(TRIM(h."ClusterDescription"), ''),
-                NULLIF(TRIM(h."SH3Code"), '')
+                NULLIF(TRIM(h.sh3name), ''),
+                NULLIF(TRIM(h.clusterdescription), ''),
+                NULLIF(TRIM(h.sh3code), '')
             ) AS rfmm_cluster,
-            COALESCE(NULLIF(TRIM(h."ClusterCode"), ''), NULLIF(TRIM(h."ClusterDescription"), '')) AS cluster,
-            NULLIF(TRIM(h."WSSTerritoryCode"), '') AS tty_code,
-            NULLIF(TRIM(h."WSSTerritoryName"), '') AS town_city,
-            NULLIF(TRIM(h."divisioncode"), '') AS site_division
-        FROM "DimHierarchy" h
-        WHERE h."SH2Code" = :bde
+            COALESCE(NULLIF(TRIM(h.clustercode), ''), NULLIF(TRIM(h.clusterdescription), '')) AS cluster,
+            NULLIF(TRIM(h.wssterritorycode), '') AS tty_code,
+            NULLIF(TRIM(h.wssterritoryname), '') AS town_city,
+            NULLIF(TRIM(h.divisioncode), '') AS site_division
+        FROM dimhierarchy h
+        WHERE h.sh2code = :bde
         LIMIT 1
         """,
         {"bde": bde_code},
@@ -108,16 +108,16 @@ def lookup_site(db: Session, site_number: str | None) -> dict[str, Any]:
         db,
         """
         SELECT
-            NULLIF(TRIM("siteNumber"), '') AS site_number,
-            NULLIF(TRIM("SiteId"), '') AS site_id,
-            NULLIF(TRIM("CMDICode"), '') AS cmdi_code,
-            NULLIF(TRIM("CMDITSITag"), '') AS user_type,
-            NULLIF(TRIM("MemberId"), '') AS membership_no,
-            NULLIF(TRIM("SiteDivision"), '') AS site_division,
-            NULLIF(TRIM("Cluster"), '') AS cluster,
-            NULLIF(TRIM("SiteLocation"), '') AS site_location
-        FROM "FactSitedetails"
-        WHERE "siteNumber" = :site_number
+            NULLIF(TRIM(sitenumber), '') AS site_number,
+            NULLIF(TRIM(siteid), '') AS site_id,
+            NULLIF(TRIM(cmdicode), '') AS cmdi_code,
+            NULLIF(TRIM(cmditsitag), '') AS user_type,
+            NULLIF(TRIM(memberid), '') AS membership_no,
+            NULLIF(TRIM(sitedivision), '') AS site_division,
+            NULLIF(TRIM(cluster), '') AS cluster,
+            NULLIF(TRIM(sitelocation), '') AS site_location
+        FROM factsitedetail
+        WHERE sitenumber = :site_number
         LIMIT 1
         """,
         {"site_number": site_number},
@@ -143,14 +143,14 @@ def lookup_event(db: Session, visit_sfid: str | None) -> dict[str, Any]:
         db,
         """
         SELECT
-            NULLIF(TRIM("Id"), '') AS visit_sfid,
-            NULLIF(TRIM("EndUserSite"), '') AS site_id,
-            COALESCE(NULLIF(TRIM("MembershipNo"), ''), NULLIF(TRIM("MembershipNumber"), '')) AS membership_no,
-            NULLIF(TRIM("CMDICode"), '') AS cmdi_code,
-            NULLIF(TRIM("CMDITsitag"), '') AS user_type,
-            NULLIF(TRIM("AdditionEventFieldID"), '') AS additional_event_id
-        FROM "FactEvent"
-        WHERE "Id" = :visit_sfid
+            NULLIF(TRIM(id), '') AS visit_sfid,
+            NULLIF(TRIM(endusersite), '') AS site_id,
+            COALESCE(NULLIF(TRIM(membershipno), ''), NULLIF(TRIM(membershipnumber), '')) AS membership_no,
+            NULLIF(TRIM(cmdicode), '') AS cmdi_code,
+            NULLIF(TRIM(cmditsitag), '') AS user_type,
+            NULLIF(TRIM(additioneventfieldid), '') AS additional_event_id
+        FROM factevent
+        WHERE id = :visit_sfid
         LIMIT 1
         """,
         {"visit_sfid": visit_sfid},
@@ -167,12 +167,12 @@ def lookup_member(db: Session, membership_no: str | None) -> dict[str, Any]:
         db,
         """
         SELECT
-            NULLIF(TRIM("MembershipNo"), '') AS membership_no,
-            NULLIF(TRIM("EndUserType"), '') AS end_user_type,
-            NULLIF(TRIM("MDICode"), '') AS mdi_code,
-            NULLIF(TRIM("DivisionName"), '') AS division_name
-        FROM "Dimmember"
-        WHERE "MembershipNo" = :membership_no
+            NULLIF(TRIM(membershipno), '') AS membership_no,
+            NULLIF(TRIM(endusertype), '') AS end_user_type,
+            NULLIF(TRIM(mdicode), '') AS mdi_code,
+            NULLIF(TRIM(divisionname), '') AS division_name
+        FROM dimmember
+        WHERE membershipno = :membership_no
         LIMIT 1
         """,
         {"membership_no": membership_no},

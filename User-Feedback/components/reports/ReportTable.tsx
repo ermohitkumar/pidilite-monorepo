@@ -5,8 +5,9 @@ import { LuArrowDown, LuArrowUp, LuSettings2 } from "react-icons/lu";
 
 import { AudioPlayer } from "@/components/reports/AudioPlayer";
 import { FileSourceLink } from "@/components/reports/FileSourceLink";
+import { SentimentBadge } from "@/components/reports/SentimentBadge";
 import { Pagination } from "@/components/ui/Pagination";
-import { COLUMN_LABELS, type MatrixColumn, type MatrixRow } from "@/lib/reports/types";
+import { columnLabel, type MatrixColumn, type MatrixRow } from "@/lib/reports/types";
 
 const DETAIL_COLUMNS = new Set<MatrixColumn>([
     "feedback_summary_ai",
@@ -75,6 +76,7 @@ function cellValue(row: MatrixRow, column: MatrixColumn): string {
         return formatReportDateTime(row.call_datetime);
     }
     if (column === "audio") return "";
+    if (column === "sentiment") return row.sentiment || "";
     const value = row[column];
     if (value === null || value === undefined) return "";
     return String(value);
@@ -95,7 +97,14 @@ function constantValues(rows: MatrixRow[], columns: MatrixColumn[]): Partial<Rec
     if (data.length === 0) return {};
     const found: Partial<Record<MatrixColumn, string>> = {};
     for (const column of columns) {
-        if (DETAIL_COLUMNS.has(column) || META_COLUMNS.has(column) || column === "feedback_count") continue;
+        if (
+            DETAIL_COLUMNS.has(column) ||
+            META_COLUMNS.has(column) ||
+            column === "feedback_count" ||
+            column === "sentiment"
+        ) {
+            continue;
+        }
         const values = new Set(data.map((row) => cellValue(row, column)).filter(Boolean));
         if (values.size === 1) found[column] = [...values][0];
     }
@@ -125,6 +134,7 @@ function compareRows(a: MatrixRow, b: MatrixRow, column: MatrixColumn, dir: Sort
 function cellClassName(column: MatrixColumn): string {
     const parts = ["border-b border-slate-200 px-3 py-2 align-top"];
     if (column === "feedback_count") parts.push("text-center w-28");
+    if (column === "sentiment") parts.push("whitespace-nowrap w-28");
     if (column === "call_datetime") parts.push("whitespace-nowrap w-40");
     if (column === "audio") parts.push("whitespace-nowrap w-24");
     if (column === "file_name") parts.push("min-w-[160px] max-w-[260px]");
@@ -168,6 +178,9 @@ function CellContent({
     if (column === "call_datetime") {
         return <span className="tabular-nums text-slate-700">{value || "—"}</span>;
     }
+    if (column === "sentiment") {
+        return <SentimentBadge value={row.sentiment || value} />;
+    }
     if (column === "feedback_summary_ai") {
         if (!value) return "—";
         return (
@@ -198,7 +211,7 @@ function CellContent({
         return (
             <button
                 type="button"
-                className="text-left text-xs font-semibold text-brand hover:underline"
+                className="text-left text-sm font-semibold text-brand hover:underline"
                 onClick={() => onTextClick?.(column, row)}
             >
                 View full conversation
@@ -230,7 +243,7 @@ function ClampedSummary({
 
     return (
         <div>
-            <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-800">
+            <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-800">
                 {value}
             </p>
             {onViewMore && truncated ? (
@@ -275,11 +288,13 @@ function ColumnFilter({
     options,
     value,
     onChange,
+    label,
 }: Readonly<{
     column: MatrixColumn;
     options: string[];
     value: string;
     onChange: (next: string) => void;
+    label: string;
 }>) {
     if (column === "audio") {
         return <span className="block h-7" />;
@@ -291,7 +306,7 @@ function ColumnFilter({
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
                 className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[11px] font-normal"
-                aria-label={`Filter ${COLUMN_LABELS[column]}`}
+                aria-label={`Filter ${label}`}
             >
                 <option value="">All</option>
                 {options.map((option) => (
@@ -308,7 +323,7 @@ function ColumnFilter({
             onChange={(event) => onChange(event.target.value)}
             placeholder="Filter"
             className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[11px] font-normal"
-            aria-label={`Filter ${COLUMN_LABELS[column]}`}
+            aria-label={`Filter ${label}`}
         />
     );
 }
@@ -317,10 +332,12 @@ function TableSettings({
     columns,
     hidden,
     onToggle,
+    labelFor,
 }: Readonly<{
     columns: MatrixColumn[];
     hidden: Set<MatrixColumn>;
     onToggle: (column: MatrixColumn) => void;
+    labelFor: (column: MatrixColumn) => string;
 }>) {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -362,7 +379,7 @@ function TableSettings({
                                 checked={!hidden.has(column)}
                                 onChange={() => onToggle(column)}
                             />
-                            {COLUMN_LABELS[column]}
+                            {labelFor(column)}
                         </label>
                     ))}
                 </div>
@@ -394,6 +411,7 @@ export function ReportTable({
     defaultHiddenColumns = [],
     settingsStorageKey,
     serverMode,
+    insightLevel = false,
 }: Readonly<{
     columns: MatrixColumn[];
     rows: MatrixRow[];
@@ -406,7 +424,10 @@ export function ReportTable({
     defaultHiddenColumns?: MatrixColumn[];
     settingsStorageKey?: string;
     serverMode?: ReportTableServer;
+    /** Insight/detail rows keep "Sentiment"; rollups use "Net Sentiment". */
+    insightLevel?: boolean;
 }>) {
+    const labelFor = (column: MatrixColumn) => columnLabel(column, { insightLevel });
     const [sort, setSort] = useState<{ column: MatrixColumn; dir: SortDir } | null>(null);
     const [filters, setFilters] = useState<Partial<Record<MatrixColumn, string>>>({});
     const [page, setPage] = useState(1);
@@ -451,7 +472,7 @@ export function ReportTable({
     );
     const contextChips = useMemo(() => {
         const fromRows: ContextChip[] = Object.entries(shared).map(([column, value]) => ({
-            label: COLUMN_LABELS[column as MatrixColumn],
+            label: labelFor(column as MatrixColumn),
             value: value || "",
         }));
         const seen = new Set(fromRows.map((chip) => `${chip.label}:${chip.value}`));
@@ -462,7 +483,7 @@ export function ReportTable({
             return true;
         });
         return [...pinned, ...fromRows];
-    }, [context, shared]);
+    }, [context, shared, insightLevel]);
 
     const optionsByColumn = useMemo(() => {
         const map: Partial<Record<MatrixColumn, string[]>> = {};
@@ -546,12 +567,13 @@ export function ReportTable({
                             columns={optionalColumns}
                             hidden={hiddenColumns}
                             onToggle={toggleOptionalColumn}
+                            labelFor={labelFor}
                         />
                     ) : null}
                 </div>
             ) : null}
             <div className="overflow-auto">
-                <table className="min-w-full border-collapse text-[13px] text-slate-900">
+                <table className="min-w-full border-collapse text-[15px] text-slate-900">
                     <thead>
                         <tr>
                             {visibleColumns.map((column) => {
@@ -562,15 +584,15 @@ export function ReportTable({
                                         className="border-b border-black/10 bg-[#FFC000] px-3 py-2 text-left font-bold whitespace-nowrap"
                                     >
                                         {column === "audio" ? (
-                                            <span>{COLUMN_LABELS[column]}</span>
+                                            <span>{labelFor(column)}</span>
                                         ) : (
                                         <button
                                             type="button"
                                             onClick={() => toggleSort(column)}
                                             className="inline-flex items-center gap-1"
-                                            title={`Sort ${COLUMN_LABELS[column]}`}
+                                            title={`Sort ${labelFor(column)}`}
                                         >
-                                            {COLUMN_LABELS[column]}
+                                            {labelFor(column)}
                                             {active && activeSort?.dir === "asc" ? (
                                                 <LuArrowUp className="h-3.5 w-3.5" />
                                             ) : active && activeSort?.dir === "desc" ? (
@@ -592,6 +614,7 @@ export function ReportTable({
                                         column={column}
                                         options={optionsByColumn[column] || []}
                                         value={filters[column] || ""}
+                                        label={labelFor(column)}
                                         onChange={(next) =>
                                             setFilters((prev) => ({ ...prev, [column]: next }))
                                         }
@@ -661,8 +684,13 @@ export function ReportTable({
     );
 }
 
-export function exportMatrixCsv(filename: string, columns: MatrixColumn[], rows: MatrixRow[]) {
-    const header = columns.map((c) => COLUMN_LABELS[c]).join(",");
+export function exportMatrixCsv(
+    filename: string,
+    columns: MatrixColumn[],
+    rows: MatrixRow[],
+    opts?: { insightLevel?: boolean },
+) {
+    const header = columns.map((c) => columnLabel(c, opts)).join(",");
     const body = rows
         .map((row) =>
             columns

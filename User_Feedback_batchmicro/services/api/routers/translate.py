@@ -19,7 +19,13 @@ from repositories import batch_repository
 from schemas.schemas import TranslateRequest, TranslateResponseData
 from services.shared.cloud_tasks import enqueue_http_task
 from services.shared.pipeline_debug import record_pipeline_note
-from services.shared.transcript import extract_transcript_from_stt_json
+from services.shared.transcript import (
+    extract_transcript_from_stt_json,
+    MIN_TRANSCRIPT_WORDS,
+    TOO_FEW_WORDS_MESSAGE,
+    word_count,
+    transcript_meets_min_words,
+)
 from services.shared import vertex_ai
 from services.shared.product_catalog import build_product_tsv
 
@@ -138,6 +144,7 @@ def translate_transcript(
             else extract_transcript_from_stt_json(payload.gcs_transcript_uri)
         )
         raw_len = len(raw_text or "")
+        spoken_words = word_count(raw_text or "")
 
         if not raw_text or not raw_text.strip():
             msg = (
@@ -157,6 +164,46 @@ def translate_transcript(
                 data=TranslateResponseData(
                     job_id=payload.job_id,
                     status=JobStatus.ERROR.value,
+                    action="failed",
+                    previous_status=previous_status,
+                    skip_reason=msg,
+                    raw_transcript_chars=raw_len,
+                ).model_dump(),
+                error=msg,
+            )
+
+        if not transcript_meets_min_words(raw_text):
+            msg = f"{TOO_FEW_WORDS_MESSAGE} Got {spoken_words} word(s)."
+            logger.error("translate: job %s — %s", payload.job_id, msg)
+            job_row = batch_repository.get_job(db, payload.job_id)
+            file_name = (
+                job_row.file_details.file_name
+                if job_row and job_row.file_details
+                else None
+            )
+            db.add(FailedJob(
+                job_id=payload.job_id,
+                file_name=file_name,
+                error_message=f"[pipeline:translate] {msg}",
+                pipeline_stage="TRANSLATE",
+            ))
+            if processed:
+                processed.raw_transcript_text = raw_text
+                processed.empty_reason = msg
+                processed.translated_text = None
+                processed.insights_raw_json = None
+            batch_repository.update_job_status(
+                db, payload.job_id,
+                status=JobStatus.FAILED,
+                error_message=f"[pipeline:translate] {msg}",
+            )
+            db.commit()
+            return make_response(
+                success=False,
+                message=msg,
+                data=TranslateResponseData(
+                    job_id=payload.job_id,
+                    status=JobStatus.FAILED.value,
                     action="failed",
                     previous_status=previous_status,
                     skip_reason=msg,

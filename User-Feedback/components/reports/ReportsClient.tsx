@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FiDownload, FiFilter } from "react-icons/fi";
 import { LuLoader } from "react-icons/lu";
@@ -19,13 +21,17 @@ import { isFullConversationTitle, parseConversationTurns } from "@/lib/reports/c
 import {
     datesForPeriod,
     defaultPeriod,
+    filtersFromSearchParams,
+    periodFromDateRange,
     restrictToAvailable,
+    summariesHref,
     type PeriodKind,
     type PeriodState,
 } from "@/lib/reports/period";
 import {
     COLUMN_LABELS,
     GROUP_TABS,
+    displayGroupLabel,
     type DrillScope,
     type FeedbackGroup,
     type FilterOptions,
@@ -127,11 +133,31 @@ function sanitizeFilters(draft: ReportFilters, search: string, dates: Pick<Repor
 }
 
 export default function ReportsClient() {
-    const [group, setGroup] = useState<FeedbackGroup>("PDT GROUP");
-    const [period, setPeriod] = useState<PeriodState>(() => defaultPeriod("month"));
-    const [filters, setFilters] = useState<ReportFilters>({});
-    const [draft, setDraft] = useState<ReportFilters>({});
-    const [search, setSearch] = useState("");
+    const searchParams = useSearchParams();
+    const fromUrl = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
+    const initialPeriod = useMemo(
+        () => periodFromDateRange(fromUrl.start_date, fromUrl.end_date),
+        [fromUrl.end_date, fromUrl.start_date],
+    );
+    const initialFilters = useMemo(() => {
+        const dates = fromUrl.start_date && fromUrl.end_date ? {
+            start_date: fromUrl.start_date,
+            end_date: fromUrl.end_date,
+        } : datesForPeriod(initialPeriod);
+        const next: ReportFilters = { ...fromUrl, ...dates };
+        delete next.feedback_group;
+        return next;
+    }, [fromUrl, initialPeriod]);
+    const urlGroup = fromUrl.feedback_group;
+    const [group, setGroup] = useState<FeedbackGroup>(
+        urlGroup === "USER GROUP" || urlGroup === "DEALER GROUP" || urlGroup === "PDT GROUP"
+            ? urlGroup
+            : "PDT GROUP",
+    );
+    const [period, setPeriod] = useState<PeriodState>(initialPeriod);
+    const [filters, setFilters] = useState<ReportFilters>(initialFilters);
+    const [draft, setDraft] = useState<ReportFilters>(initialFilters);
+    const [search, setSearch] = useState(fromUrl.search || "");
     const [drill, setDrill] = useState<DrillScope | null>(null);
     const [textModal, setTextModal] = useState<{
         title: string;
@@ -146,6 +172,10 @@ export default function ReportsClient() {
         () => ({ ...filters, feedback_group: group }),
         [filters, group],
     );
+    const summariesBackHref = useMemo(() => {
+        const { feedback_group: _feedbackGroup, ...next } = appliedFilters;
+        return summariesHref(next);
+    }, [appliedFilters]);
 
     const { data, isLoading, isFetching } = useReportSummary(appliedFilters);
     const periodListQuery = usePeriodSummaries({
@@ -155,7 +185,8 @@ export default function ReportsClient() {
         fme_code: appliedFilters.fme_code,
         product_name: appliedFilters.product_name,
         feedback_group: group,
-        ...datesForPeriod(period),
+        start_date: appliedFilters.start_date,
+        end_date: appliedFilters.end_date,
     });
     const conversationQuery = useReportConversation(textModal?.feedbackId, textModal?.jobId);
     const filterQuery = useReportFilterOptions({
@@ -208,9 +239,6 @@ export default function ReportsClient() {
     );
 
     const columns = columnsForOverview();
-    const geoFiltered = Boolean(
-        appliedFilters.division || appliedFilters.zone || appliedFilters.cluster || appliedFilters.fme_code,
-    );
     const selectedTagNarrative = useMemo(() => {
         if (!drill?.feedback_tag) return undefined;
         const tagName = drill.feedback_tag;
@@ -224,32 +252,37 @@ export default function ReportsClient() {
         if (periodMatch?.status === "error") return "Updating…";
         return (periodMatch?.summary_text || "").trim() || undefined;
     }, [drill?.feedback_tag, data?.data?.tags, periodListQuery.data?.data?.tags]);
+    const selectedTagHighlights = useMemo(() => {
+        if (!drill?.feedback_tag) return undefined;
+        const tagName = drill.feedback_tag;
+        const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
+            tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+        );
+        return periodMatch?.highlights;
+    }, [drill?.feedback_tag, periodListQuery.data?.data?.tags]);
 
     const applyFilters = () => {
         setFilters(sanitizeFilters(draft, search, datesForPeriod(period)));
         setDrill(null);
     };
     const clearFilters = () => {
+        const next = defaultPeriod("month");
+        const dates = datesForPeriod(next);
         setDraft({});
-        setFilters({});
+        setFilters(dates);
         setSearch("");
-        setPeriod(defaultPeriod("month"));
+        setPeriod(next);
         setDrill(null);
     };
     const selectPeriod = (kind: PeriodKind) => {
         const next = defaultPeriod(kind);
-        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...dates }));
-        setFilters((prev) => sanitizeFilters(prev, search, dates));
-        setDrill(null);
+        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
     };
     const updatePeriod = (patch: Partial<PeriodState>) => {
         const next = { ...period, ...patch };
-        const dates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...dates }));
-        setFilters((prev) => sanitizeFilters(prev, search, dates));
+        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
     };
 
     const switchGroup = (next: FeedbackGroup) => {
@@ -295,10 +328,13 @@ export default function ReportsClient() {
         <div className="p-6 max-w-[1600px] mx-auto min-h-screen text-slate-800">
             <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Feedback Reports</h1>
+                    <Link href={summariesBackHref} className="text-xs font-medium text-brand hover:underline">
+                        ← Back to summaries
+                    </Link>
+                    <h1 className="mt-1 text-2xl font-bold text-slate-900">Insights</h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        Start with the tag matrix. Click any count to see that tag by product, then read the full
-                        summary, excerpt, and conversation.
+                        Counts follow your current filters. Click a count to drill into site visits
+                        {group === "PDT GROUP" ? " (and products for Product Group)" : ""}.
                     </p>
                 </div>
                 <Button
@@ -433,10 +469,10 @@ export default function ReportsClient() {
                             <SearchInput value={search} onChange={setSearch} placeholder="Tag, product, file..." />
                         </div>
                         <div className="flex items-end gap-2">
-                            <Button variant="secondary" onClick={clearFilters}>
+                            <Button type="button" variant="secondary" onClick={clearFilters}>
                                 Clear
                             </Button>
-                            <Button onClick={applyFilters}>Apply filters</Button>
+                            <Button type="button" onClick={applyFilters}>Apply filters</Button>
                         </div>
                     </div>
                     ) : null}
@@ -453,7 +489,7 @@ export default function ReportsClient() {
                 <div className="mb-3 text-xs text-slate-500">Refreshing summary…</div>
             )}
 
-            {isLoading && !drill ? (
+            {isLoading && !data && !drill ? (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-24 text-text-disabled">
                     <LuLoader className="h-8 w-8 animate-spin mb-4 text-brand" />
                     <p className="text-sm">Loading tag summary...</p>
@@ -466,21 +502,16 @@ export default function ReportsClient() {
                     onDrill={setDrill}
                     onTextClick={openCell}
                     tagNarrative={selectedTagNarrative}
-                    nationwideCaption={geoFiltered}
+                    tagHighlights={selectedTagHighlights}
                     periodProducts={periodListQuery.data?.data?.products || []}
                 />
             ) : (
                 <>
-                    {geoFiltered ? (
-                        <p className="mb-3 text-xs text-slate-500">
-                            Narrative is all India for this period; counts follow your filters.
-                        </p>
-                    ) : null}
                     <ReportTable
                         key={group}
                         columns={columns}
                         rows={rows}
-                        context={[{ label: "FEEDBACK GROUP", value: group }]}
+                        context={[{ label: "FEEDBACK GROUP", value: displayGroupLabel(group) }]}
                         itemLabel="tags"
                         onCountClick={(row) => {
                             if (row.drill) setDrill(row.drill);
@@ -517,7 +548,7 @@ export default function ReportsClient() {
                 ) : isAiSummary ? (
                     <FormattedSummary text={textModal?.body} emptyLabel="No summary for this row." />
                 ) : (
-                    <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-800">
+                    <pre className="whitespace-pre-wrap break-words font-sans text-base leading-7 text-slate-800">
                         {textModal?.body}
                     </pre>
                 )}

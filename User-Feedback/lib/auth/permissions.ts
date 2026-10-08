@@ -56,7 +56,7 @@ export function getFirstAccessibleRoute(
   user: Partial<AppUser> | null | undefined,
 ): string | null {
   if (!user) return null;
-  if (user.role === "super_admin") return "/reports";
+  if (user.role === "super_admin") return "/";
 
   for (const [route, permission] of Object.entries(ROUTE_PERMISSIONS)) {
     if (hasAccess(user, permission as any)) {

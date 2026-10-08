@@ -64,6 +64,9 @@ def _flush_pending_jobs(db: Session) -> tuple[list[Batch], int]:
         chunk = batch_repository.claim_pending_jobs(db, batch_size)
         if not chunk:
             break
+        # Never persist a zero-file batch (claim may race to empty under concurrency).
+        if len(chunk) < 1:
+            break
 
         logger.info("Claimed %d pending jobs, batch_size=%d", len(chunk), batch_size)
 
@@ -81,6 +84,14 @@ def _flush_pending_jobs(db: Session) -> tuple[list[Batch], int]:
 
         db.commit()
         db.refresh(batch)
+
+        # Defensive: if somehow no jobs attached, drop the batch immediately.
+        attached = batch_repository.get_jobs_by_batch_id(db, batch.id)
+        if not attached:
+            logger.warning("Batch %s created with 0 jobs — deleting", batch.id)
+            db.delete(batch)
+            db.commit()
+            continue
 
         for job in chunk:
             try:

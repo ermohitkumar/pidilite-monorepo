@@ -44,10 +44,28 @@ def test_v1_models_map_to_telephony():
 
 
 def test_webm_octet_stream_resolves_to_audio_webm():
-    from services.shared.stt_config import is_audio_media, resolved_audio_mime
+    from services.shared.stt_config import (
+        is_audio_media,
+        resolve_media_extension,
+        resolved_audio_mime,
+    )
 
     assert resolved_audio_mime("webm", "application/octet-stream") == "audio/webm"
     assert resolved_audio_mime("webm", None) == "audio/webm"
+    assert resolved_audio_mime("webm", "binary/octet-stream") == "audio/webm"
     assert is_audio_media("webm", "application/octet-stream") is True
     assert resolved_audio_mime("webm", "video/webm") == "video/webm"
     assert is_audio_media("json", "application/octet-stream") is False
+    # Generic MIME alone must not pass as audio when the extension is unknown.
+    assert resolved_audio_mime("", "application/octet-stream") == ""
+    assert is_audio_media("", "application/octet-stream") is False
+    assert resolve_media_extension(
+        stored_ext="",
+        file_name="visit.webm",
+        gcs_uri="gs://bucket/path/visit.webm",
+    ) == "webm"
+    assert resolve_media_extension(
+        stored_ext=None,
+        file_name=None,
+        gcs_uri="gs://bucket/sitelead/22:09:26/a.webm",
+    ) == "webm"

@@ -1,4 +1,13 @@
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:8000';
+function resolveBaseUrl(): string {
+    const configured = (process.env.NEXT_PUBLIC_BACKEND_API_URL || '').trim().replace(/\/$/, '');
+    if (!configured) return 'http://localhost:8000';
+    // A bare host (the UAT load-balancer IP) is not a valid absolute URL.
+    // The page origin already routes /api/v1 to the dashboard.
+    if (!/^https?:\/\//i.test(configured)) return '';
+    return configured;
+}
+
+const BASE_URL = resolveBaseUrl();
 
 export { BASE_URL };
 

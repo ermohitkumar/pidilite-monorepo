@@ -1,9 +1,5 @@
-import SummariesClient from "@/components/reports/SummariesClient";
+import { redirect } from "next/navigation";
 
 export default function PeriodSummariesPage() {
-    return (
-        <div className="h-full w-full">
-            <SummariesClient />
-        </div>
-    );
+    redirect("/reports");
 }

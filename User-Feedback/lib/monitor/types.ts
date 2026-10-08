@@ -64,6 +64,7 @@ export interface Job {
     created_at: string;
     has_insights: boolean;
     error_message?: string | null;
+    audio_duration_seconds?: number | null;
 }
 
 // 3.5 Specific Single Batch Detail Response
@@ -110,6 +111,7 @@ export interface InsightsData {
     raw_transcript_text?: string | null;
     translated_text?: string | null;
     normalized_text?: string | null;
+    audio_duration_seconds?: number | null;
     summary?: SummaryData | null;
     feedbacks: FeedbackItem[];
     generated_at?: string;

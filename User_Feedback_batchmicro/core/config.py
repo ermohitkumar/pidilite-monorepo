@@ -45,7 +45,11 @@ class Settings(BaseSettings):
 
     # ── Gemini ─────────────────────────────────────────────────────────────────
     GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_STT_MODEL: str = ""  # default: same as GEMINI_MODEL
+    GEMINI_STT_MODEL: str = ""  # default: same as GEMINI_MODEL (attempt 1, asia-south1)
+    # Attempt 2 after Flash failure — Pro is not in asia-south1.
+    GEMINI_STT_PRO_MODEL: str = "gemini-2.5-pro"
+    GEMINI_STT_PRO_LOCATION: str = "us-central1"
+    GEMINI_STT_PRO_THINKING_BUDGET: int = 1024  # Pro rejects thinkingBudget=0
     GEMINI_STT_TIMEOUT_SECONDS: int = 540
     # gemini_flash (current) or speech_v2
     STT_PROVIDER: str = "gemini_flash"
@@ -91,6 +95,14 @@ class Settings(BaseSettings):
     @property
     def gemini_stt_model(self) -> str:
         return (self.GEMINI_STT_MODEL or self.GEMINI_MODEL or "gemini-2.5-flash").strip()
+
+    @property
+    def gemini_stt_pro_model(self) -> str:
+        return (self.GEMINI_STT_PRO_MODEL or "gemini-2.5-pro").strip()
+
+    @property
+    def gemini_stt_pro_location(self) -> str:
+        return (self.GEMINI_STT_PRO_LOCATION or "us-central1").strip()
 
     @property
     def gemini_stt_callback_url(self) -> str:

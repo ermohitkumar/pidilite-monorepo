@@ -1,10 +1,9 @@
 """
-/files/gemini-stt — Gemini Flash STT worker.
+/files/gemini-stt — Gemini STT worker (Flash → Pro → Speech v2).
 
-Called by Cloud Tasks on pidilite-gemini-stt-queue. Transcribes gs:// audio
-via Vertex generateContent, writes the canonical STT JSON, and returns 200.
-Transient failures return 503 so Tasks retries (max 3). On the last attempt,
-falls back to Speech v2 BatchRecognize and returns 200.
+Called by Cloud Tasks on pidilite-gemini-stt-queue. Attempt 0: Flash
+(asia-south1). Attempt 1: Pro (us-central1). Failures return 503 so Tasks
+retries. On the last Gemini attempt failure, submit Speech v2 and return 200.
 """
 import logging
 
@@ -25,6 +24,7 @@ from services.shared.gemini_stt import (
     gemini_stt_output_uri,
     is_gemini_flash_operation,
     is_last_flash_attempt,
+    resolve_stt_attempt,
     transcribe_audio_gcs,
     write_gemini_transcript_json,
 )
@@ -72,7 +72,7 @@ def _ok(job_id: str, job_status: str, message: str, **extra) -> dict:
     )
 
 
-_FALLBACK_MESSAGE = "Gemini Flash STT failed after 3 attempts; Speech v2 LRO submitted"
+_FALLBACK_MESSAGE = "Gemini STT failed after Flash+Pro; Speech v2 LRO submitted"
 
 
 def _retry_later(job_id: str, message: str) -> JSONResponse:
@@ -102,10 +102,10 @@ def _fallback_to_speech_v2(db: Session, job, payload: GeminiSTTRequest) -> str:
         db, job.id,
         status=JobStatus.STT_SUBMITTED,
         stt_operation_name=operation_name,
-        error_message="Gemini Flash STT exhausted retries; fell back to Speech v2",
+        error_message="Gemini Flash+Pro exhausted; fell back to Speech v2",
     )
     logger.warning(
-        "Gemini Flash STT fallback to Speech v2 for job %s op=%s",
+        "Gemini STT fallback to Speech v2 for job %s op=%s",
         job.id, operation_name,
     )
     return operation_name
@@ -162,13 +162,26 @@ def gemini_stt(
         )
 
     gcs_uri = gemini_stt_output_uri(job.id)
+    attempt = resolve_stt_attempt(retry_count)
 
     try:
         result = transcribe_audio_gcs(
             payload.gcs_input_uri,
             source_hint=job.file_details.file_extension if job.file_details else None,
+            model_name=attempt["model_name"],
+            location=attempt["location"],
+            thinking_config=attempt["thinking_config"],
         )
         write_gemini_transcript_json(gcs_uri, result)
+        if job.file_details and not job.file_details.audio_duration_seconds:
+            from services.shared.audio_duration import probe_gcs_audio_duration_seconds
+
+            probed = probe_gcs_audio_duration_seconds(
+                payload.gcs_input_uri,
+                ext_hint=job.file_details.file_extension,
+            )
+            if probed:
+                job.file_details.audio_duration_seconds = probed
         batch_repository.update_job_status(
             db, job.id,
             status=JobStatus.STT_COMPLETED,
@@ -176,29 +189,32 @@ def gemini_stt(
         )
         return _ok(
             job.id, JobStatus.STT_COMPLETED.value,
-            "Gemini Flash STT completed",
+            f"Gemini {attempt['label']} STT completed",
             gcs_stt_output_uri=gcs_uri,
         )
     except STTGeminiTransientError as exc:
         logger.warning(
-            "Gemini Flash STT transient error job=%s attempt=%s last=%s: %s",
-            job.id, retry_count, last_attempt, exc,
+            "Gemini STT transient error job=%s attempt=%s label=%s last=%s: %s",
+            job.id, retry_count, attempt["label"], last_attempt, exc,
         )
         if last_attempt:
             return _fallback_or_fail(db, job, payload)
         return _retry_later(job.id, f"[{type(exc).__name__}] {exc.message}")
     except STTError as exc:
         logger.error(
-            "Gemini Flash STT error job=%s: [%s] %s retryable=%s",
-            job.id, type(exc).__name__, exc.message, exc.retryable,
+            "Gemini STT error job=%s attempt=%s label=%s: [%s] %s retryable=%s",
+            job.id, retry_count, attempt["label"],
+            type(exc).__name__, exc.message, exc.retryable,
         )
-        if exc.retryable and not last_attempt:
+        # Always try Pro after Flash, then Speech v2 after Pro.
+        if not last_attempt:
             return _retry_later(job.id, f"[{type(exc).__name__}] {exc.message}")
-        if exc.retryable and last_attempt:
-            return _fallback_or_fail(db, job, payload)
-        return _fail_stt(db, job, exc)
+        return _fallback_or_fail(db, job, payload)
     except Exception as exc:
-        logger.exception("Unexpected Gemini Flash STT error for job %s", job.id)
+        logger.exception(
+            "Unexpected Gemini STT error job=%s attempt=%s label=%s",
+            job.id, retry_count, attempt["label"],
+        )
         if not last_attempt:
             return _retry_later(job.id, f"[Unexpected] {type(exc).__name__}: {exc}")
         try:
@@ -218,7 +234,7 @@ def gemini_stt(
                 increment_retry=True,
             )
             db.commit()
-            return _ok(job.id, JobStatus.ERROR.value, "Gemini Flash STT unexpected error")
+            return _ok(job.id, JobStatus.ERROR.value, "Gemini STT unexpected error")
 
 
 def _fail_stt(db: Session, job, exc: STTError):

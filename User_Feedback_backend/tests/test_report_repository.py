@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import text
 from fastapi.testclient import TestClient
 
-from db.models import Product
+from db.models import Feedback, Product
 from repositories.report_repository import (
     DETAIL_SEARCH,
     DIM_SEARCH,
@@ -170,6 +170,22 @@ def test_detail_page_paginates_unique_feedback(fact_view):
     assert len(items) == 1
     assert items[0]["feedback_id"] == "fb-bbbb-2222"
     assert "full_conversation" not in items[0]
+    assert "sentiment_label" in items[0]
+
+
+def test_detail_page_includes_sentiment_from_feedbacks(fact_view, create_test_job):
+    job = create_test_job()
+    fact_view.add(Feedback(id="fb-bbbb-2222", job_id=job.id, sentiment_label="Negative"))
+    fact_view.commit()
+    fact = fact_table(fact_view)
+    where_sql, params = build_filters(feedback_group="PDT GROUP")
+    items, _total = detail_page(
+        fact_view, fact, where_sql, params,
+        page=1, page_size=10, sort_by="call_datetime", sort_dir="desc",
+    )
+    by_id = {row["feedback_id"]: row.get("sentiment_label") for row in items}
+    assert by_id["fb-bbbb-2222"] == "Negative"
+    assert by_id["fb-aaaa-1111"] is None
 
 
 def test_conversation_loads_transcript(fact_view):

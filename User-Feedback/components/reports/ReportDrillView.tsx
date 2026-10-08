@@ -33,6 +33,7 @@ export function ReportDrillView({
     onDrill,
     onTextClick,
     tagNarrative,
+    tagHighlights,
     nationwideCaption,
     periodProducts = [],
 }: Readonly<{
@@ -42,6 +43,7 @@ export function ReportDrillView({
     onDrill: (next: DrillScope) => void;
     onTextClick: (column: MatrixColumn, row: MatrixRow) => void;
     tagNarrative?: string;
+    tagHighlights?: PeriodSummaryRecord["highlights"];
     nationwideCaption?: boolean;
     periodProducts?: PeriodSummaryRecord[];
 }>) {
@@ -51,7 +53,9 @@ export function ReportDrillView({
     const [sortDir, setSortDir] = useState<"asc" | "desc" | null>("desc");
 
     const drillFilters = useMemo(() => filtersForDrill(filters, drill), [filters, drill]);
-    const wantProducts = !drill.product_name;
+    // Product breakdown is only meaningful for PDT GROUP. User/Dealer tags are not product-scoped.
+    const isProductGroup = drill.group === "PDT GROUP";
+    const wantProducts = isProductGroup && !drill.product_name;
     const productsQuery = useReportProducts(drillFilters, wantProducts);
     const productItems = productsQuery.data?.data?.items || [];
     const showProductBreakdown = wantProducts && productItems.length > 0;
@@ -86,7 +90,9 @@ export function ReportDrillView({
     const itemCount = showProductBreakdown
         ? productsQuery.data?.data?.total ?? productItems.reduce((sum, row) => sum + (row.feedback_count || 0), 0)
         : detailMeta?.total_items ?? 0;
-    const includeProduct = Boolean(drill.product_name) || detailRows.some((row) => row.product_name);
+    const includeProduct =
+        isProductGroup &&
+        (Boolean(drill.product_name) || detailRows.some((row) => row.product_name));
     const showHeaderNarratives = !drill.product_name;
     const crumbs = drillPath(drill);
     const context = [
@@ -146,7 +152,11 @@ export function ReportDrillView({
                         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                             Tag summary
                         </p>
-                        <FormattedSummary text={tagNarrative} />
+                        <FormattedSummary
+                            text={tagNarrative}
+                            highlights={tagHighlights}
+                            heading={drill.feedback_tag}
+                        />
                     </div>
                 ) : null}
                 {showHeaderNarratives && nationwideCaption ? (
@@ -212,6 +222,7 @@ export function ReportDrillView({
                         itemLabel="feedback items"
                         pageSizeOptions={DETAIL_PAGE_SIZES}
                         optionalColumns={["call_datetime", "file_name", "audio"]}
+                        insightLevel
                         defaultHiddenColumns={["file_name", "audio"]}
                         settingsStorageKey="reports-detail-hidden-columns-v2"
                         onTextClick={onTextClick}

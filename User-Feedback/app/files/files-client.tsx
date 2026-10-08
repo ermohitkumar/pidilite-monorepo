@@ -1,6 +1,7 @@
 "use client";
 
 import { JobStatusBadge } from '@/components/monitor/JobStatusBadge';
+import { AudioPlayer } from '@/components/reports/AudioPlayer';
 import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { TableEmpty, TableLoading } from '@/components/ui/TableStatus';
 import { useJobs } from '@/lib/hooks/queries';
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
+import { formatPipelineError } from '@/lib/monitor/format-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { LuArrowUpDown, LuChevronDown, LuChevronUp, LuFilter } from 'react-icons/lu';
@@ -28,8 +30,16 @@ const FILTER_OPTIONS: Array<{ label: string; value: JobStatus | 'ALL' }> = [
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
+function formatAudioDuration(seconds: number | null | undefined): string {
+    if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return '—';
+    const whole = Math.floor(seconds);
+    const minutes = Math.floor(whole / 60);
+    const rest = whole % 60;
+    return `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
 export default function FilesClient() {
-    type SortKey = 'job_id' | 'batch_id' | 'file_name' | 'created_at';
+    type SortKey = 'job_id' | 'batch_id' | 'file_name' | 'audio_duration_seconds' | 'created_at';
     type SortDir = 'asc' | 'desc' | null;
 
     const [search, setSearch] = useState('');
@@ -146,11 +156,12 @@ export default function FilesClient() {
 
                 {/* Table */}
                 <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
-                    <table className="w-full min-w-[1200px] table-fixed">
+                    <table className="w-full min-w-[1320px] table-fixed">
                         <colgroup>
-                            <col className="w-[16%]" />
-                            <col className="w-[14%]" />
-                            <col className="w-[14%]" />
+                            <col className="w-[15%]" />
+                            <col className="w-[13%]" />
+                            <col className="w-[13%]" />
+                            <col className="w-[6.5rem]" />
                             <col className="w-[9rem]" />
                             <col />
                             <col className="w-[11rem]" />
@@ -162,6 +173,7 @@ export default function FilesClient() {
                                     { label: 'FILE ID', key: 'job_id' as SortKey },
                                     { label: 'BATCH ID', key: 'batch_id' as SortKey },
                                     { label: 'SITE VISIT ID', key: 'file_name' as SortKey },
+                                    { label: 'DURATION', key: 'audio_duration_seconds' as SortKey },
                                     { label: 'STATUS' },
                                     { label: 'ERROR' },
                                     { label: 'CREATED', key: 'created_at' as SortKey },
@@ -188,9 +200,9 @@ export default function FilesClient() {
                         </thead>
                         <tbody>
                             {isLoading ? (
-                                <TableLoading colSpan={7} />
+                                <TableLoading colSpan={8} />
                             ) : jobs.length === 0 ? (
-                                <TableEmpty colSpan={7} message="No files match your search." />
+                                <TableEmpty colSpan={8} message="No files match your search." />
                             ) : (
                                 jobs.map((job: Job, idx: number) => (
                                     <tr
@@ -212,25 +224,31 @@ export default function FilesClient() {
                                         <td className="px-5 py-4 align-top text-body-sm font-medium text-text break-words">
                                             {job.file_name}
                                         </td>
+                                        <td className="px-5 py-4 align-top text-body-sm font-mono text-text-subtle whitespace-nowrap">
+                                            {formatAudioDuration(job.audio_duration_seconds)}
+                                        </td>
                                         <td className="px-5 py-4 align-top whitespace-nowrap">
                                             <JobStatusBadge status={job.status} />
                                         </td>
                                         <td className="px-5 py-4 align-top text-xs leading-5 text-status-red-fg break-words">
                                             {(job.status === 'FAILED' || job.status === 'ERROR') && job.error_message
-                                                ? job.error_message
+                                                ? formatPipelineError(job.error_message)
                                                 : <span className="text-text-disabled">—</span>}
                                         </td>
                                         <td className="px-5 py-4 align-top text-body-sm text-text-subtle whitespace-nowrap">
                                             {formatDate(job.created_at)}
                                         </td>
                                         <td className="px-5 py-4 align-top">
-                                            {job.status === "FAILED" || job.status === "ERROR" ? (
-                                                <span className="text-body-sm text-text-disabled">—</span>
-                                            ) : (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <AudioPlayer
+                                                    jobId={job.job_id}
+                                                    fileName={job.file_name || undefined}
+                                                    durationSeconds={job.audio_duration_seconds}
+                                                />
                                                 <Link href={`/files/${job.job_id}`}>
                                                     <Button variant="action">View</Button>
                                                 </Link>
-                                            )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

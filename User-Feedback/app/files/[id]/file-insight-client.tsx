@@ -9,7 +9,18 @@ import { JobStatusBadge } from '@/components/monitor/JobStatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useFileInsights } from '@/lib/hooks/queries';
+import { SentimentBadge } from '@/components/reports/SentimentBadge';
+import { formatPipelineError } from '@/lib/monitor/format-error';
 import type { FeedbackItem, InsightsData, JobStatus } from '@/lib/monitor/types';
+import { majoritySentiment, topicReportedSentence } from '@/lib/reports/sentiment';
+
+function formatAudioDuration(seconds: number | null | undefined): string | null {
+    if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return null;
+    const whole = Math.floor(seconds);
+    const minutes = Math.floor(whole / 60);
+    const rest = whole % 60;
+    return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
 
 function isInsightsData(value: unknown): value is InsightsData {
     return Boolean(value && typeof value === 'object' && 'job_id' in (value as InsightsData));
@@ -39,6 +50,7 @@ function TranscriptPane({
 export default function FileInsightClient({ fileId }: Readonly<{ fileId: string }>) {
     const { data: response, isLoading, isError, error } = useFileInsights(fileId);
     const [transcriptOpen, setTranscriptOpen] = useState(false);
+    const [playableDuration, setPlayableDuration] = useState<number | null>(null);
     const activeData = isInsightsData(response?.data) ? response.data : null;
 
     if (isLoading && !activeData) {
@@ -60,24 +72,31 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
     const {
         job_id,
         summary,
-        feedbacks = [],
+        feedbacks = [] as FeedbackItem[],
         file_name,
         status,
         error_message,
         empty_reason,
         raw_transcript_text,
         translated_text,
+        audio_duration_seconds,
     } = activeData;
     const audioJobId = job_id || fileId;
     const failed = status === 'FAILED' || status === 'ERROR';
     const hasTranscript = Boolean(raw_transcript_text || translated_text);
+    // Show DB duration immediately; replace with browser-measured length when available.
+    const durationLabel = formatAudioDuration(playableDuration ?? audio_duration_seconds);
 
-    const themes: string[] = [];
+    const findings = new Set<string>();
     for (const item of feedbacks) {
-        const name = item.tag_name || item.category_name || item.group_type;
-        if (!name || themes.includes(name)) continue;
-        themes.push(name);
+        const finding = (item.remarks || item.tag_name || item.category_name || item.product_name || "").trim();
+        if (!finding) continue;
+        findings.add(finding.replace(/\.+$/, ""));
     }
+    const topics = Array.from(findings)
+        .sort((a, b) => a.localeCompare(b))
+        .map((label) => ({ label, user_count: 1 }));
+    const fileSentiment = majoritySentiment(feedbacks.map((item: FeedbackItem) => item.sentiment_label));
 
     return (
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-bg px-8 pt-8 pb-6 text-text font-sans">
@@ -90,7 +109,15 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                         <span className="text-sm text-text-subtle">
                             {feedbacks.length} insight{feedbacks.length === 1 ? '' : 's'}
                         </span>
-                        <AudioPlayer jobId={audioJobId} fileName={file_name || undefined} />
+                        {durationLabel ? (
+                            <span className="text-sm text-text-subtle">Duration {durationLabel}</span>
+                        ) : null}
+                        <AudioPlayer
+                            jobId={audioJobId}
+                            fileName={file_name || undefined}
+                            durationSeconds={audio_duration_seconds}
+                            onDurationResolved={setPlayableDuration}
+                        />
                     </div>
                 </div>
                 <Button
@@ -108,7 +135,7 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
             {failed && error_message ? (
                 <div className="mb-4 shrink-0 rounded-lg border border-status-red-fg/30 bg-status-red px-4 py-3 text-sm text-status-red-fg">
                     <span className="font-semibold">Pipeline error: </span>
-                    {error_message}
+                    {formatPipelineError(error_message)}
                 </div>
             ) : null}
 
@@ -123,7 +150,7 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                     <table className="w-full border-collapse text-left">
                         <thead className="sticky top-0 z-10 shadow-sm">
                             <tr className="border-b border-border bg-surface-raised">
-                                <th colSpan={5} className="px-4 py-3">
+                                <th colSpan={6} className="px-4 py-3">
                                     <div className="flex items-center gap-3">
                                         <span className="text-[13px] font-semibold uppercase tracking-wide text-text">Insights</span>
                                         {summary?.summary_product ? (
@@ -135,17 +162,18 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                                 </th>
                             </tr>
                             <tr className="border-b border-border bg-surface">
-                                <th className="w-[14%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product group</th>
-                                <th className="w-[16%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product name</th>
-                                <th className="w-[16%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Tag</th>
-                                <th className="w-[27%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Raw Verbatim</th>
-                                <th className="w-[27%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">AI Summary</th>
+                                <th className="w-[12%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product group</th>
+                                <th className="w-[14%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product name</th>
+                                <th className="w-[14%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Tag</th>
+                                <th className="w-[10%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Sentiment</th>
+                                <th className="w-[25%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Raw Verbatim</th>
+                                <th className="w-[25%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">AI Summary</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {feedbacks.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-5 py-8 text-sm text-text-subtle">
+                                    <td colSpan={6} className="px-5 py-8 text-sm text-text-subtle">
                                         {empty_reason || 'No insights were generated for this file.'}
                                     </td>
                                 </tr>
@@ -159,6 +187,9 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                                         </td>
                                         <td className="bg-surface px-5 py-4 align-top text-sm text-text">
                                             {item.tag_name || item.category_name || '—'}
+                                        </td>
+                                        <td className="bg-surface px-5 py-4 align-top">
+                                            <SentimentBadge value={item.sentiment_label} />
                                         </td>
                                         <td className="bg-surface px-5 py-4 align-top text-sm text-text-subtle">
                                             {item.verbatim_quote}
@@ -176,21 +207,23 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                     <Card className="relative rounded-xl border border-border bg-surface p-6 shadow-sm">
                         <div className="mb-4 flex items-start justify-between">
                             <div>
-                                <h3 className="text-[15px] font-semibold text-text">Feedback Themes</h3>
-                                <p className="mt-0.5 text-xs text-text-disabled">Tags from this file</p>
+                                <h3 className="text-[15px] font-semibold text-text">Summary</h3>
+                                <p className="mt-0.5 text-xs text-text-disabled">Sentiment and topics from this site visit</p>
                             </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2.5">
-                            {themes.length === 0 ? (
-                                <span className="text-sm text-text-subtle">No tags for this file.</span>
-                            ) : themes.map((theme) => (
-                                <span
-                                    key={theme}
-                                    className="inline-flex items-center rounded-full border border-border bg-surface-raised px-3.5 py-1.5 text-xs font-medium text-text"
-                                >
-                                    {theme}
-                                </span>
-                            ))}
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-text">
+                                <SentimentBadge value={fileSentiment} size="md" />
+                            </div>
+                            {topics.length === 0 ? (
+                                <span className="text-sm text-text-subtle">No topics for this file.</span>
+                            ) : (
+                                <ul className="space-y-2 text-sm leading-6 text-text">
+                                    {topics.map((topic) => (
+                                        <li key={topic.label}>{topicReportedSentence(topic.user_count, topic.label)}</li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     </Card>
                 </div>

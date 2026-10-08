@@ -19,13 +19,14 @@ def test_tag_matrix_copies_ai_summary_onto_data_rows():
     assert "feedback_summary_ai: narrative" in text
     assert "tax.feedback_category" in text
     assert "tax.feedback_tag" in text
-    assert "Narrative is all India for this period" in (
+    reports = (
         Path(__file__).resolve().parents[2]
         / "User-Feedback"
         / "components"
         / "reports"
         / "ReportsClient.tsx"
     ).read_text(encoding="utf-8")
+    assert "Apply filters" in reports
 
 
 def test_product_drill_includes_period_summaries_and_formatted_modal():

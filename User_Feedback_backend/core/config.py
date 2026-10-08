@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     GCP_PROJECT_ID: str = ""
     GCP_LOCATION: str = "asia-south1"
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    PERIOD_SUMMARY_MAX_CONCURRENT: int = 2
+    PERIOD_SUMMARY_MAX_PER_MINUTE: int = 60
+    PERIOD_SUMMARY_MIN_INTERVAL_SECONDS: float = 0.5
 
     # ── SSO / Azure AD ─────────────────────────────────────────────────────────
     AZURE_CLIENT_ID: str = ""  # Add your Microsoft App/Client ID in .env
