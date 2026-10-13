@@ -3,12 +3,12 @@
 import { JobStatusBadge } from '@/components/monitor/JobStatusBadge';
 import { AudioPlayer } from '@/components/reports/AudioPlayer';
 import { Pagination } from '@/components/ui/Pagination';
+import { DateRangeFilter } from '@/components/ui/DateRangeFilter';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/Select';
 import { TableEmpty, TableLoading } from '@/components/ui/TableStatus';
 import { useJobs } from '@/lib/hooks/queries';
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
 import { formatPipelineError } from '@/lib/monitor/format-error';
 import Link from 'next/link';
@@ -43,7 +43,15 @@ export default function FilesClient() {
     type SortDir = 'asc' | 'desc' | null;
 
     const [search, setSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [activeFilter, setActiveFilter] = useState<JobStatus | 'ALL'>('ALL');
+    const [applied, setApplied] = useState({
+        search: '',
+        startDate: '',
+        endDate: '',
+        status: 'ALL' as JobStatus | 'ALL',
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -68,13 +76,18 @@ export default function FilesClient() {
         return <LuChevronDown className="h-3 w-3 text-brand" />;
     };
 
-    const debouncedSearch = useDebouncedValue(search);
+    const applyFilters = () => {
+        setApplied({ search, startDate, endDate, status: activeFilter });
+        setCurrentPage(1);
+    };
 
     const { data: response, isLoading, isError } = useJobs({
         page: currentPage,
         size: pageSize,
-        search: debouncedSearch,
-        status: activeFilter,
+        search: applied.search || undefined,
+        status: applied.status,
+        start_date: applied.startDate || undefined,
+        end_date: applied.endDate || undefined,
         sort_by: sortKey || undefined,
         sort_dir: sortDir || undefined,
     });
@@ -134,24 +147,27 @@ export default function FilesClient() {
             <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-surface overflow-hidden">
 
                 {/* Toolbar */}
-                <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-3">
                     <SearchInput
                         value={search}
                         placeholder="Search by file or batch ID..."
-                        onChange={(v) => { setSearch(v); setCurrentPage(1); }}
+                        onChange={setSearch}
+                    />
+                    <DateRangeFilter
+                        startDate={startDate}
+                        endDate={endDate}
+                        onStartDateChange={setStartDate}
+                        onEndDateChange={setEndDate}
                     />
 
-                    {/* Filter dropdown */}
                     <div className="w-48">
                         <Select
                             value={activeFilter}
-                            onChange={(v) => {
-                                setActiveFilter(v as JobStatus | 'ALL');
-                                setCurrentPage(1);
-                            }}
+                            onChange={(v) => setActiveFilter(v as JobStatus | 'ALL')}
                             options={FILTER_OPTIONS}
                         />
                     </div>
+                    <Button type="button" onClick={applyFilters}>Apply filters</Button>
                 </div>
 
                 {/* Table */}

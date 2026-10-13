@@ -243,7 +243,7 @@ function ClampedSummary({
 
     return (
         <div>
-            <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-slate-800">
+            <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-[17px] leading-7 text-slate-800">
                 {value}
             </p>
             {onViewMore && truncated ? (
@@ -305,7 +305,7 @@ function ColumnFilter({
             <select
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[11px] font-normal"
+                className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[13px] font-normal"
                 aria-label={`Filter ${label}`}
             >
                 <option value="">All</option>
@@ -322,7 +322,7 @@ function ColumnFilter({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder="Filter"
-            className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[11px] font-normal"
+            className="h-7 w-full rounded border border-black/10 bg-white px-1.5 text-[13px] font-normal"
             aria-label={`Filter ${label}`}
         />
     );
@@ -365,7 +365,7 @@ function TableSettings({
             </button>
             {open ? (
                 <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-                    <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <p className="px-2 pb-1.5 text-[12px] font-bold uppercase tracking-wider text-slate-400">
                         Columns
                     </p>
                     {columns.map((column) => (
@@ -435,6 +435,8 @@ export function ReportTable({
     const [hiddenColumns, setHiddenColumns] = useState<Set<MatrixColumn>>(
         () => new Set(defaultHiddenColumns),
     );
+    const headerRowRef = useRef<HTMLTableRowElement>(null);
+    const filterRowRef = useRef<HTMLTableRowElement>(null);
 
     useEffect(() => {
         if (!settingsStorageKey) return;
@@ -470,6 +472,26 @@ export function ReportTable({
         () => columns.filter((column) => !shared[column] && !hiddenColumns.has(column)),
         [columns, shared, hiddenColumns],
     );
+    useLayoutEffect(() => {
+        const rows = [headerRowRef.current, filterRowRef.current].filter(
+            (row): row is HTMLTableRowElement => row !== null,
+        );
+        const paint = () => {
+            for (const row of rows) {
+                const width = row.getBoundingClientRect().width;
+                for (const cell of row.children) {
+                    const el = cell as HTMLElement;
+                    el.style.backgroundSize = `${width}px 100%`;
+                    el.style.backgroundPosition = `${-el.offsetLeft}px 0px`;
+                    el.style.backgroundRepeat = "no-repeat";
+                }
+            }
+        };
+        paint();
+        const observer = new ResizeObserver(paint);
+        for (const row of rows) observer.observe(row);
+        return () => observer.disconnect();
+    }, [visibleColumns, serverMode]);
     const contextChips = useMemo(() => {
         const fromRows: ContextChip[] = Object.entries(shared).map(([column, value]) => ({
             label: labelFor(column as MatrixColumn),
@@ -555,7 +577,7 @@ export function ReportTable({
                                 key={`${chip.label}-${chip.value}`}
                                 className="rounded-md border border-slate-200 bg-white px-2.5 py-1"
                             >
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
                                     {chip.label}
                                 </div>
                                 <div className="text-sm font-semibold text-slate-900">{chip.value}</div>
@@ -573,15 +595,15 @@ export function ReportTable({
                 </div>
             ) : null}
             <div className="overflow-auto">
-                <table className="min-w-full border-collapse text-[15px] text-slate-900">
+                <table className="min-w-full border-collapse text-[17px] text-slate-900">
                     <thead>
-                        <tr>
+                        <tr ref={headerRowRef} className="text-white">
                             {visibleColumns.map((column) => {
                                 const active = activeSort?.column === column;
                                 return (
                                     <th
                                         key={column}
-                                        className="border-b border-black/10 bg-[#FFC000] px-3 py-2 text-left font-bold whitespace-nowrap"
+                                        className="border-b border-white/10 bg-brand-gradient px-3 py-2 text-left font-bold whitespace-nowrap"
                                     >
                                         {column === "audio" ? (
                                             <span>{labelFor(column)}</span>
@@ -598,7 +620,7 @@ export function ReportTable({
                                             ) : active && activeSort?.dir === "desc" ? (
                                                 <LuArrowDown className="h-3.5 w-3.5" />
                                             ) : (
-                                                <span className="text-[10px] font-semibold text-black/40">↕</span>
+                                                <span className="text-[12px] font-semibold text-white/70">↕</span>
                                             )}
                                         </button>
                                         )}
@@ -607,9 +629,9 @@ export function ReportTable({
                             })}
                         </tr>
                         {serverMode ? null : (
-                        <tr>
+                        <tr ref={filterRowRef}>
                             {visibleColumns.map((column) => (
-                                <th key={`filter-${column}`} className="border-b border-slate-200 bg-[#FFE08A] px-2 py-1.5">
+                                <th key={`filter-${column}`} className="border-b border-slate-200 bg-brand-gradient-soft px-2 py-1.5">
                                     <ColumnFilter
                                         column={column}
                                         options={optionsByColumn[column] || []}

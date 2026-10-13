@@ -3,13 +3,13 @@
 import { JobStatusBadge } from '@/components/monitor/JobStatusBadge';
 import { AudioPlayer } from '@/components/reports/AudioPlayer';
 import { Pagination } from '@/components/ui/Pagination';
+import { DateRangeFilter } from '@/components/ui/DateRangeFilter';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { StatCard } from '@/components/ui/StatCard';
 import { Button } from '@/components/ui/button';
 import { TableEmpty, TableLoading } from '@/components/ui/TableStatus';
 import { PageLoader } from '@/components/ui/PageLoader';
 import { useBatchDetails } from '@/lib/hooks/queries';
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
 import { formatPipelineError } from '@/lib/monitor/format-error';
 import Link from 'next/link';
@@ -50,8 +50,16 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
     type SortDir = 'asc' | 'desc' | null;
 
     const [search, setSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [filterOpen, setFilterOpen] = useState(false);
     const [activeFilter, setActiveFilter] = useState<JobStatus | 'ALL'>('ALL');
+    const [applied, setApplied] = useState({
+        search: '',
+        startDate: '',
+        endDate: '',
+        status: 'ALL' as JobStatus | 'ALL',
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -71,13 +79,20 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
         return <LuChevronDown className="h-3 w-3 text-brand" />;
     };
 
-    const debouncedSearch = useDebouncedValue(search);
+    const applyFilters = () => {
+        setApplied({ search, startDate, endDate, status: activeFilter });
+        setCurrentPage(1);
+        setSelectedIds(new Set());
+        setFilterOpen(false);
+    };
 
     const { data: response, isLoading, isError } = useBatchDetails(batchId, {
         page: currentPage,
         size: pageSize,
-        search: debouncedSearch,
-        status: activeFilter,
+        search: applied.search || undefined,
+        status: applied.status,
+        start_date: applied.startDate || undefined,
+        end_date: applied.endDate || undefined,
         sort_by: sortKey || undefined,
         sort_dir: sortDir || undefined,
     });
@@ -159,7 +174,7 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
                 </div>
                 <Button
                     onClick={() => window.history.back()}
-                    className="inline-flex items-center gap-2 rounded-md border border-border bg-brand px-3 py-1.5 text-body-sm text-brand-fg transition-colors hover:bg-gold hover:text-text"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-body-sm"
                 >
                     <LuArrowLeft className="h-4 w-4" />
                     Go Back
@@ -178,7 +193,7 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
             <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-surface overflow-hidden">
 
                 {/* Toolbar */}
-                <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-3">
                     <div className="flex items-center gap-3">
                         <h2 className="text-body-lg font-semibold text-text">Files in Batch</h2>
                         {selectedIds.size > 0 && (
@@ -187,11 +202,17 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <SearchInput
                             value={search}
                             placeholder="Search files..."
-                            onChange={(v) => { setSearch(v); setCurrentPage(1); setSelectedIds(new Set()); }}
+                            onChange={setSearch}
+                        />
+                        <DateRangeFilter
+                            startDate={startDate}
+                            endDate={endDate}
+                            onStartDateChange={setStartDate}
+                            onEndDateChange={setEndDate}
                         />
                         {/* Filter dropdown */}
                         <div className="relative">
@@ -211,7 +232,6 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
                                             onClick={() => {
                                                 setActiveFilter(opt.value);
                                                 setFilterOpen(false);
-                                                setCurrentPage(1);
                                             }}
                                             className={`flex w-full items-center px-4 py-2 text-body-sm transition-colors ${activeFilter === opt.value
                                                 ? 'bg-brand-subtle text-brand font-medium'
@@ -224,6 +244,7 @@ export default function BatchDetailClient({ batchId }: BatchDetailClientProps) {
                                 </div>
                             )}
                         </div>
+                        <Button type="button" onClick={applyFilters}>Apply filters</Button>
                     </div>
                 </div>
 

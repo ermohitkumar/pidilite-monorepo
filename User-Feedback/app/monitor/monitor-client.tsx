@@ -3,6 +3,7 @@
 import { BatchStatusBadge } from '@/components/monitor/BatchStatusBadge';
 import { Pagination } from '@/components/ui/Pagination';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { DateRangeFilter } from '@/components/ui/DateRangeFilter';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Select } from '@/components/ui/Select';
 import { StatCard } from '@/components/ui/StatCard';
@@ -22,7 +23,6 @@ import {
 import { toast } from 'sonner';
 
 import { useBatches, useDashboardSummary } from '@/lib/hooks/queries';
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 
 const FILTER_OPTIONS: Array<{ label: string; value: BatchStatus | 'ALL' }> = [
     { label: 'All Status', value: 'ALL' },
@@ -40,7 +40,15 @@ export default function MonitorClient() {
     type SortDir = 'asc' | 'desc' | null;
 
     const [search, setSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [activeFilter, setActiveFilter] = useState<BatchStatus | 'ALL'>('ALL');
+    const [applied, setApplied] = useState({
+        search: '',
+        startDate: '',
+        endDate: '',
+        status: 'ALL' as BatchStatus | 'ALL',
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -65,13 +73,18 @@ export default function MonitorClient() {
         return <LuChevronDown className="h-3 w-3 text-brand" />;
     };
 
-    const debouncedSearch = useDebouncedValue(search);
+    const applyFilters = () => {
+        setApplied({ search, startDate, endDate, status: activeFilter });
+        setCurrentPage(1);
+    };
 
     const { data: response, isLoading, isError } = useBatches({
         page: currentPage,
         size: pageSize,
-        search: debouncedSearch,
-        status: activeFilter,
+        search: applied.search || undefined,
+        status: applied.status,
+        start_date: applied.startDate || undefined,
+        end_date: applied.endDate || undefined,
         sort_by: sortKey || undefined,
         sort_dir: sortDir || undefined,
     });
@@ -167,24 +180,28 @@ export default function MonitorClient() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-surface overflow-hidden">
-                <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-3">
                     <SearchInput
                         value={search}
                         placeholder="Search batches..."
-                        onChange={(v) => { setSearch(v); setCurrentPage(1); }}
+                        onChange={setSearch}
+                    />
+                    <DateRangeFilter
+                        startDate={startDate}
+                        endDate={endDate}
+                        onStartDateChange={setStartDate}
+                        onEndDateChange={setEndDate}
                     />
 
                     <div className="w-48">
                         <Select
                             value={activeFilter}
-                            onChange={(v) => {
-                                setActiveFilter(v as BatchStatus | 'ALL');
-                                setCurrentPage(1);
-                            }}
+                            onChange={(v) => setActiveFilter(v as BatchStatus | 'ALL')}
                             options={FILTER_OPTIONS}
                             placeholder='All Status'
                         />
                     </div>
+                    <Button type="button" onClick={applyFilters}>Apply filters</Button>
                 </div>
 
                 <div className="app-scrollbar min-h-0 flex-1 overflow-auto">

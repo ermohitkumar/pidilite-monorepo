@@ -458,20 +458,23 @@ def _summary_from_rows(rows) -> dict[str, Any]:
     tags: list[dict[str, Any]] = []
     categories: list[dict[str, Any]] = []
     total = 0
-    for category, tag, count, g_category, g_tag in rows:
+    for category, tag, count, visits, g_category, g_tag in rows:
         value = int(count or 0)
+        visit_count = int(visits or 0)
         if g_category and g_tag:
             total = value
         elif g_tag:
             categories.append({
                 "feedback_category": _serialize(category),
                 "feedback_count": value,
+                "site_visit_count": visit_count,
             })
         else:
             tags.append({
                 "feedback_category": _serialize(category),
                 "feedback_tag": _serialize(tag),
                 "feedback_count": value,
+                "site_visit_count": visit_count,
             })
     tags.sort(key=lambda row: (
         (row["feedback_category"] or ""),
@@ -487,6 +490,7 @@ def summary_counts(db: Session, fact: str, where_sql: str, params: dict[str, Any
             feedback_category,
             feedback_tag,
             COUNT(DISTINCT feedback_id) AS feedback_count,
+            COUNT(DISTINCT job_id) AS site_visit_count,
             GROUPING(feedback_category) AS g_category,
             GROUPING(feedback_tag) AS g_tag
         FROM {fact}
@@ -507,16 +511,18 @@ def summary_counts(db: Session, fact: str, where_sql: str, params: dict[str, Any
 
     union_sql = f"""
         SELECT feedback_category, feedback_tag,
-               COUNT(DISTINCT feedback_id) AS feedback_count, 0 AS g_category, 0 AS g_tag
+               COUNT(DISTINCT feedback_id) AS feedback_count,
+               COUNT(DISTINCT job_id) AS site_visit_count,
+               0 AS g_category, 0 AS g_tag
         FROM {fact} {where_sql}
         GROUP BY feedback_category, feedback_tag
         UNION ALL
         SELECT feedback_category, NULL,
-               COUNT(DISTINCT feedback_id), 0, 1
+               COUNT(DISTINCT feedback_id), COUNT(DISTINCT job_id), 0, 1
         FROM {fact} {where_sql}
         GROUP BY feedback_category
         UNION ALL
-        SELECT NULL, NULL, COUNT(DISTINCT feedback_id), 1, 1
+        SELECT NULL, NULL, COUNT(DISTINCT feedback_id), COUNT(DISTINCT job_id), 1, 1
         FROM {fact} {where_sql}
     """
     rows = execute(db, union_sql, params).fetchall()
@@ -590,7 +596,8 @@ def product_counts(
     sql = f"""
         SELECT
             COALESCE(NULLIF(TRIM(product_name), ''), :no_product) AS product_name,
-            COUNT(DISTINCT feedback_id) AS feedback_count
+            COUNT(DISTINCT feedback_id) AS feedback_count,
+            COUNT(DISTINCT job_id) AS site_visit_count
         FROM {fact}
         {where_sql}
         GROUP BY 1
@@ -600,13 +607,19 @@ def product_counts(
     """
     rows = execute(db, sql, query_params).fetchall()
     by_name, by_code, _catalog_names = _catalog_product_maps(db)
-    rolled: dict[str, int] = {}
-    for name, count in rows:
+    rolled: dict[str, dict[str, int]] = {}
+    for name, count, visits in rows:
         label = _canonical_catalog_product(_serialize(name), by_name, by_code)
-        rolled[label] = rolled.get(label, 0) + int(count or 0)
+        bucket = rolled.setdefault(label, {"feedback_count": 0, "site_visit_count": 0})
+        bucket["feedback_count"] += int(count or 0)
+        bucket["site_visit_count"] += int(visits or 0)
     items = [
-        {"product_name": name, "feedback_count": count}
-        for name, count in rolled.items()
+        {
+            "product_name": name,
+            "feedback_count": counts["feedback_count"],
+            "site_visit_count": counts["site_visit_count"],
+        }
+        for name, counts in rolled.items()
     ]
     items.sort(key=lambda row: (
         row["product_name"] == NO_PRODUCT_LABEL,

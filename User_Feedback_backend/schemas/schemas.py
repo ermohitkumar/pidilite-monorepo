@@ -98,6 +98,7 @@ class FailedFilesSummary(BaseModel):
 class DashboardSummaryData(BaseModel):
     total_batches: int
     completed_batches: int
+    recordings_processed: int = 0
     active_batches: ActiveBatchesSummary
     files_processed_24h: FilesProcessedSummary
     failed_files: FailedFilesSummary

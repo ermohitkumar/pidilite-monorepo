@@ -88,6 +88,7 @@ export type ReportSummaryTag = {
     feedback_category?: string | null;
     feedback_tag?: string | null;
     feedback_count: number;
+    site_visit_count?: number;
     ai_summary?: string | null;
     summary_status?: string | null;
 };
@@ -113,6 +114,7 @@ export type ReportSummaryResponse = {
 export type ReportProductCount = {
     product_name?: string | null;
     feedback_count: number;
+    site_visit_count?: number;
 };
 
 export type ReportProductsResponse = {

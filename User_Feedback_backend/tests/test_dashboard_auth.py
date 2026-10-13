@@ -303,10 +303,26 @@ class TestListBatches:
         assert len(items) == 1
         assert items[0]["status"] == "PROCESSING"
 
+    def test_list_batches_filter_by_created_date(
+        self, client, db_session, create_test_batch
+    ):
+        from datetime import datetime, timezone
+
+        early = create_test_batch(batch_number=1)
+        late = create_test_batch(batch_number=2)
+        early.created_at = datetime(2026, 1, 10, 8, 0, tzinfo=timezone.utc)
+        late.created_at = datetime(2026, 8, 20, 8, 0, tzinfo=timezone.utc)
+        db_session.commit()
+
+        resp = client.get("/api/v1/dashboard/batches?start_date=2026-08-01&end_date=2026-08-31")
+        numbers = [item["batch_number"] for item in resp.json()["data"]["items"]]
+        assert numbers == [2]
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD — SINGLE BATCH VIEW
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TestSingleBatchView:
 
@@ -496,6 +512,22 @@ class TestListJobs:
         assert items[0]["batch_number"] == 9999
 
     # ── Status Filter ─────────────────────────────────────────────────────
+
+    def test_list_jobs_filter_by_created_date(
+        self, client, db_session, create_test_batch, create_test_job
+    ):
+        from datetime import datetime, timezone
+
+        b = create_test_batch(batch_number=1)
+        early = create_test_job(batch_id=b.id, gcs_input_uri="gs://b/early.wav", file_name="early.wav")
+        late = create_test_job(batch_id=b.id, gcs_input_uri="gs://b/late.wav", file_name="late.wav")
+        early.created_at = datetime(2026, 1, 10, 8, 0, tzinfo=timezone.utc)
+        late.created_at = datetime(2026, 8, 20, 8, 0, tzinfo=timezone.utc)
+        db_session.commit()
+
+        resp = client.get("/api/v1/dashboard/jobs?start_date=2026-08-01&end_date=2026-08-31")
+        names = [item["file_name"] for item in resp.json()["data"]["items"]]
+        assert names == ["late.wav"]
 
     def test_list_jobs_filter_by_status(
         self, client, create_test_batch, create_test_job

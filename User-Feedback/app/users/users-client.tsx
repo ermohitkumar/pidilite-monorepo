@@ -114,7 +114,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                     <LuX className="h-4 w-4" />
                 </button>
                 <h2 className="text-h3 font-semibold text-text mb-1">Create User</h2>
-                <p className="text-body-sm text-text-subtle mb-5">Add a new admin or super admin to the Pidilite platform.</p>
+                <p className="text-body-sm text-text-subtle mb-5">Add a new admin or super admin to Samvad.</p>
 
                 {createUserMutation.isSuccess ? (
                     <div className="flex flex-col items-center gap-3 py-6">

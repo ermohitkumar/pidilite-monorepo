@@ -29,6 +29,8 @@ export interface PaginatedData<T> {
 // 1. Dashboard Summary Model
 export interface DashboardSummary {
     total_batches: number;
+    completed_batches?: number;
+    recordings_processed?: number;
     active_batches: {
         count: number;
         active_jobs: number;

@@ -50,7 +50,7 @@ function PasswordStrength({ password }: { password: string }) {
                         key={c.label}
                         className={`flex items-center gap-1.5 text-label-sm ${c.pass ? "text-status-green-fg" : "text-text-disabled"}`}
                     >
-                        <span className="text-[10px]">{c.pass ? "✓" : "○"}</span>
+                        <span className="text-[12px]">{c.pass ? "✓" : "○"}</span>
                         {c.label}
                     </li>
                 ))}
@@ -74,7 +74,7 @@ export default function ResetPasswordClient({ token }: Props) {
     // Invalid / missing token guard
     if (!token) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-bg p-6">
+            <div className="min-h-screen flex items-center justify-center bg-sidebar p-6">
                 <div className="w-full max-w-[440px]">
                     <div className="rounded-lg border border-border bg-surface shadow-[0px_10px_30px_rgba(0,0,0,0.08)] p-8 text-center space-y-4">
                         <div className="flex items-center justify-center w-14 h-14 rounded-full bg-status-red mx-auto">
@@ -118,18 +118,18 @@ export default function ResetPasswordClient({ token }: Props) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-bg p-6">
+        <div className="min-h-screen flex items-center justify-center bg-sidebar p-6">
             <div className="w-full max-w-[440px]">
                 <div className="rounded-lg border border-border bg-surface shadow-[0px_10px_30px_rgba(0,0,0,0.08)] p-8">
 
                     {/* Logo */}
                     <div className="flex justify-center mb-8">
                         <Image
-                            src="/pidilite-seeklogo.png"
-                            alt="Pidilite STT Service"
-                            width={80}
-                            height={80}
-                            className="w-auto h-auto"
+                            src="/samvad-logo.png"
+                            alt="Samvad"
+                            width={200}
+                            height={72}
+                            className="h-12 w-auto"
                         />
                     </div>
 

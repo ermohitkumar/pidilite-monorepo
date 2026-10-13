@@ -14,8 +14,8 @@ export function SentimentBadge({
     size?: "sm" | "md";
 }) {
     const label = normalizeSentiment(value);
-    if (!label) return <span className="text-[13px] text-slate-400">—</span>;
-    const sizing = size === "md" ? "px-2.5 py-1 text-sm" : "px-2 py-0.5 text-[13px]";
+    if (!label) return <span className="text-[15px] text-slate-400">—</span>;
+    const sizing = size === "md" ? "px-2.5 py-1 text-sm" : "px-2 py-0.5 text-[15px]";
     return (
         <span className={`inline-flex items-center rounded-full border font-medium ${sizing} ${SENTIMENT_CLASS[label]}`}>
             {label}

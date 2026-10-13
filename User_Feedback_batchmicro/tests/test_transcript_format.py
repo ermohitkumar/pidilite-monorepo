@@ -1,6 +1,7 @@
 """Unit tests for STT transcript formatting / speaker diarization."""
 from services.shared.transcript import (
     format_stt_results,
+    timed_utterances,
     transcript_meets_min_words,
     word_count,
     MIN_TRANSCRIPT_WORDS,
@@ -104,6 +105,35 @@ def test_format_keeps_full_transcript_when_diarization_window_is_short():
     assert "Speaker 1:" not in text
 
 
+def test_short_closing_chunk_does_not_replace_full_transcript():
+    """A last result that repeats only the opening must not drop the call."""
+    opening = "Namaste ji kaise hain aap. " * 4
+    middle = "Fevicol SH ka price kya hai aur scheme kab milegi dealer ko."
+    closing = opening[:100] + " Theek hai bye."
+    raw = {
+        "results": [
+            {"alternatives": [{"transcript": opening + middle}]},
+            {"alternatives": [{"transcript": closing}]},
+        ]
+    }
+    text = format_stt_results(raw)
+    assert "price kya hai" in text
+    assert "Theek hai bye." in text
+
+
+def test_full_final_result_still_replaces_chunked_prefix():
+    opening = "Namaste ji kaise hain aap. Fevicol SH bahut accha hai."
+    raw = {
+        "results": [
+            {"alternatives": [{"transcript": opening}]},
+            {"alternatives": [{"transcript": opening + " Delivery late hai dealer ke yahan."}]},
+        ]
+    }
+    text = format_stt_results(raw)
+    assert text == opening + " Delivery late hai dealer ke yahan."
+    assert text.count("Namaste") == 1
+
+
 def test_format_empty_results():
     assert format_stt_results({}) == ""
     assert format_stt_results({"results": []}) == ""
@@ -169,4 +199,36 @@ def test_long_spoken_transcript_passes_min_words():
     text = f"Speaker 1: {words}"
     assert word_count(text) == 100
     assert transcript_meets_min_words(text)
+
+
+def test_timed_utterances_split_on_pause_and_keep_times():
+    raw = {
+        "results": [
+            {
+                "alternatives": [
+                    {
+                        "transcript": "hello there how are you",
+                        "words": [
+                            {"word": "hello", "startOffset": "0.200s", "endOffset": "0.500s"},
+                            {"word": "there", "startOffset": "0.600s", "endOffset": "0.900s"},
+                            {"word": "how", "startOffset": "2.400s", "endOffset": "2.700s"},
+                            {"word": "are", "startOffset": "2.800s", "endOffset": "3.000s"},
+                            {"word": "you", "startOffset": "3.100s", "endOffset": "3.400s"},
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+    lines = timed_utterances(raw)
+    assert len(lines) == 2
+    assert lines[0]["text"] == "hello there"
+    assert lines[0]["start"] == 0.2
+    assert lines[1]["text"] == "how are you"
+    assert lines[1]["start"] == 2.4
+
+
+def test_timed_utterances_ignore_text_without_offsets():
+    raw = {"results": [{"alternatives": [{"transcript": "Hello there."}]}]}
+    assert timed_utterances(raw) == []
 

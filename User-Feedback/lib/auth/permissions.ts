@@ -1,11 +1,11 @@
 import type { AppUser } from "@/lib/api/users";
 
 export const AVAILABLE_RESOURCES = [
-  { label: "Reports", value: "reports" },
+  { label: "Summary", value: "reports" },
   { label: "Monitor", value: "monitor" },
   { label: "All Files", value: "all_files" },
   { label: "File Insight", value: "file_insight" },
-  { label: "Catalog", value: "library" },
+  { label: "Library", value: "library" },
 ] as const;
 
 export type ResourceType = (typeof AVAILABLE_RESOURCES)[number]["value"];

@@ -313,7 +313,7 @@ function AudioPlaybackModal({
                     <div className="rounded-xl border border-border bg-surface-raised px-4 py-5">
                         <div className="mb-3 flex items-end justify-between gap-3 tabular-nums">
                             <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                                <p className="text-[13px] font-semibold uppercase tracking-wide text-text-subtle">
                                     Current
                                 </p>
                                 <p className="mt-0.5 text-2xl font-semibold text-text">
@@ -321,7 +321,7 @@ function AudioPlaybackModal({
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-subtle">
+                                <p className="text-[13px] font-semibold uppercase tracking-wide text-text-subtle">
                                     Duration
                                 </p>
                                 <p className="mt-0.5 text-2xl font-semibold text-text">
@@ -370,7 +370,7 @@ function AudioPlaybackModal({
                             />
                         </div>
 
-                        <div className="mt-1 flex justify-between text-[11px] tabular-nums text-text-subtle">
+                        <div className="mt-1 flex justify-between text-[13px] tabular-nums text-text-subtle">
                             <span>{formatTime(0)}</span>
                             <span>
                                 {measuredDuration > 0

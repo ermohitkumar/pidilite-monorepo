@@ -280,7 +280,7 @@ export default function LibraryClient() {
                                                 {/* <td className="px-5 py-4">
                                                 <Badge
                                                     variant={term.status === 'PUBLISHED' ? 'success' : term.status === 'REVIEW' ? 'warning' : 'default'}
-                                                    className="uppercase text-[10px] font-bold px-2 py-0.5"
+                                                    className="uppercase text-[12px] font-bold px-2 py-0.5"
                                                 >
                                                     {term.status}
                                                 </Badge>

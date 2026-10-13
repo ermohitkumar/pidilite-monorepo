@@ -7,6 +7,8 @@ type FetchParams = {
     status?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";
+    start_date?: string;
+    end_date?: string;
 };
 
 function buildQueryString(params: FetchParams): string {
@@ -17,6 +19,8 @@ function buildQueryString(params: FetchParams): string {
     if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
     if (params.sort_by) searchParams.append('sort_by', params.sort_by);
     if (params.sort_dir) searchParams.append('sort_dir', params.sort_dir);
+    if (params.start_date) searchParams.append('start_date', params.start_date);
+    if (params.end_date) searchParams.append('end_date', params.end_date);
     return searchParams.toString();
 }
 

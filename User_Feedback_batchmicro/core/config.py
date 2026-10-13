@@ -51,8 +51,8 @@ class Settings(BaseSettings):
     GEMINI_STT_PRO_LOCATION: str = "us-central1"
     GEMINI_STT_PRO_THINKING_BUDGET: int = 1024  # Pro rejects thinkingBudget=0
     GEMINI_STT_TIMEOUT_SECONDS: int = 540
-    # gemini_flash (current) or speech_v2
-    STT_PROVIDER: str = "gemini_flash"
+    # speech_v2 telephony (current) or gemini_flash
+    STT_PROVIDER: str = "speech_v2"
     STT_FALLBACK_PROVIDER: str = "speech_v2"
 
     # ── Security & Tuning ──────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ class Settings(BaseSettings):
 
     @property
     def stt_provider(self) -> str:
-        return (self.STT_PROVIDER or "gemini_flash").strip().lower()
+        return (self.STT_PROVIDER or "speech_v2").strip().lower()
 
     @property
     def gemini_stt_model(self) -> str:

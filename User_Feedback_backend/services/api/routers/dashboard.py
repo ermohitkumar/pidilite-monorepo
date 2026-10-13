@@ -1,12 +1,12 @@
 import json
 import logging
 import math
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload, load_only, noload
-from sqlalchemy import inspect as sa_inspect, or_, String, func, case, asc, desc, text
+from sqlalchemy import cast, inspect as sa_inspect, or_, String, func, case, asc, desc, text
 
 from core.response import make_response
 from core.exceptions import APIException
@@ -85,6 +85,22 @@ def _apply_job_sort(query, sort_by: Optional[str], sort_dir: Optional[str], *, j
     if needs_files and not joined_files:
         query = query.outerjoin(FileDetails)
     return query.order_by(_order(column, sort_dir), desc(Job.id))
+
+
+def _apply_created_on(query, column, start_date: Optional[date], end_date: Optional[date]):
+    """Inclusive calendar dates.
+
+    created_at is timestamptz in the model and text in the live database.
+    ISO-8601 values sort correctly as text, so compare the text form.
+    """
+    if start_date is None and end_date is None:
+        return query
+    created = cast(column, String)
+    if start_date is not None:
+        query = query.filter(created >= start_date.isoformat())
+    if end_date is not None:
+        query = query.filter(created < (end_date + timedelta(days=1)).isoformat())
+    return query
 
 
 def _apply_batch_sort(query, sort_by: Optional[str], sort_dir: Optional[str]):
@@ -307,6 +323,8 @@ def get_dashboard_summary(db: DbSession):
 
         failed_count = db.query(Job).filter(Job.status.in_(
             [JobStatus.FAILED, JobStatus.ERROR])).count()
+        recordings_processed = db.query(Job).filter(
+            Job.status == JobStatus.COMPLETED).count()
 
         return make_response(
             success=True,
@@ -314,6 +332,7 @@ def get_dashboard_summary(db: DbSession):
             data={
                 "total_batches": total_batches,
                 "completed_batches": completed_batches,
+                "recordings_processed": recordings_processed,
                 "active_batches": {"count": active_batches_count, "active_jobs": active_jobs_count},
                 "files_processed_24h": {"count": completed_24h, "success_rate": success_rate},
                 "failed_files": {"count": failed_count}
@@ -332,10 +351,12 @@ def list_batches(
     db: DbSession,
     page: Page = 1, size: PageSize = 10,
     search: Optional[str] = None, status: Optional[str] = None,
+    start_date: Optional[date] = None, end_date: Optional[date] = None,
     sort_by: Optional[str] = None, sort_dir: SortDir = "desc",
 ):
     try:
         query = db.query(Batch)
+        query = _apply_created_on(query, Batch.created_at, start_date, end_date)
         if search:
             safe_search = _escape_like(search)
             query = query.filter(or_(Batch.id.cast(String).ilike(
@@ -380,6 +401,7 @@ def get_single_batch(
     batch_id: str, db: DbSession,
     page: Page = 1, size: PageSize = 10,
     search: Optional[str] = None, status: Optional[str] = None,
+    start_date: Optional[date] = None, end_date: Optional[date] = None,
     sort_by: Optional[str] = None, sort_dir: SortDir = "desc",
 ):
     try:
@@ -397,6 +419,7 @@ def get_single_batch(
             joined_files = True
         if status:
             jobs_query = jobs_query.filter(Job.status == status)
+        jobs_query = _apply_created_on(jobs_query, Job.created_at, start_date, end_date)
 
         total_jobs = jobs_query.count()
         jobs = (
@@ -441,10 +464,12 @@ def list_jobs(
     db: DbSession,
     page: Page = 1, size: PageSize = 10,
     search: Optional[str] = None, status: Optional[str] = None,
+    start_date: Optional[date] = None, end_date: Optional[date] = None,
     sort_by: Optional[str] = None, sort_dir: SortDir = "desc",
 ):
     try:
         query = db.query(Job)
+        query = _apply_created_on(query, Job.created_at, start_date, end_date)
         joined_files = False
         if search:
             safe_search = _escape_like(search)

@@ -18,8 +18,28 @@ function isIpHost(host: string): boolean {
     return /^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host);
 }
 
+function isLocalHost(host: string): boolean {
+    const name = host.split(':')[0]?.toLowerCase() || '';
+    return (
+        name === 'localhost' ||
+        name === '127.0.0.1' ||
+        name.startsWith('192.168.') ||
+        name.startsWith('10.')
+    );
+}
+
 export function getAppBaseUrl(request?: { headers: Headers }): string {
     const configured = stripTrailingSlash(process.env.NEXT_PUBLIC_APP_URL || '');
+
+    if (request) {
+        const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+        const host = forwardedHost || request.headers.get('host')?.split(',')[0]?.trim() || '';
+        const proto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+            || (isLocalHost(host) ? 'http' : 'https');
+        // Local dev often runs on a different port than NEXT_PUBLIC_APP_URL.
+        if (host && isLocalHost(host)) return `${proto}://${host}`;
+    }
+
     if (hasScheme(configured)) return configured;
 
     if (request) {

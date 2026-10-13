@@ -84,7 +84,7 @@ function OptionalSelect({
 }) {
     if (!options.length) return null;
     return (
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+        <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
             {label}
             <Select
                 key={selectKey}
@@ -158,7 +158,20 @@ export default function ReportsClient() {
     const [filters, setFilters] = useState<ReportFilters>(initialFilters);
     const [draft, setDraft] = useState<ReportFilters>(initialFilters);
     const [search, setSearch] = useState(fromUrl.search || "");
-    const [drill, setDrill] = useState<DrillScope | null>(null);
+    const [drill, setDrill] = useState<DrillScope | null>(() => {
+        if (!fromUrl.feedback_tag) return null;
+        const drillGroup: FeedbackGroup =
+            urlGroup === "USER GROUP" || urlGroup === "DEALER GROUP" || urlGroup === "PDT GROUP"
+                ? urlGroup
+                : "PDT GROUP";
+        return {
+            group: drillGroup,
+            level: "tag",
+            feedback_tag: fromUrl.feedback_tag,
+            feedback_category: fromUrl.feedback_category,
+            product_name: fromUrl.product_name,
+        };
+    });
     const [textModal, setTextModal] = useState<{
         title: string;
         body?: string;
@@ -329,9 +342,9 @@ export default function ReportsClient() {
             <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                 <div>
                     <Link href={summariesBackHref} className="text-xs font-medium text-brand hover:underline">
-                        ← Back to summaries
+                        ← Back to summary
                     </Link>
-                    <h1 className="mt-1 text-2xl font-bold text-slate-900">Insights</h1>
+                    <h1 className="mt-1 text-2xl font-bold text-slate-900">Feedback</h1>
                     <p className="text-sm text-slate-500 mt-1">
                         Counts follow your current filters. Click a count to drill into site visits
                         {group === "PDT GROUP" ? " (and products for Product Group)" : ""}.
@@ -354,10 +367,10 @@ export default function ReportsClient() {
                         key={tab.id}
                         type="button"
                         onClick={() => switchGroup(tab.id)}
-                        className={`rounded-md px-4 py-2 text-sm font-medium border transition-colors ${
+                        className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors ${
                             group === tab.id
-                                ? "bg-brand text-white border-brand"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                ? "bg-brand-subtle text-brand border-transparent"
+                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                         }`}
                     >
                         {tab.label}
@@ -418,7 +431,7 @@ export default function ReportsClient() {
                             onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
                             options={userTypeOptions}
                         />
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Time period
                             <Select
                                 className="mt-1"
@@ -428,7 +441,7 @@ export default function ReportsClient() {
                             />
                         </label>
                         {period.kind === "month" ? (
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                                 Month
                                 <input
                                     type="month"
@@ -439,7 +452,7 @@ export default function ReportsClient() {
                             </label>
                         ) : null}
                         {period.kind === "quarter" || period.kind === "year" ? (
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                                 Year
                                 <input
                                     type="number"
@@ -452,7 +465,7 @@ export default function ReportsClient() {
                             </label>
                         ) : null}
                         {period.kind === "quarter" ? (
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                                 Quarter
                                 <Select
                                     className="mt-1"
@@ -463,7 +476,7 @@ export default function ReportsClient() {
                             </label>
                         ) : null}
                         <div>
-                            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                            <div className="mb-1 text-[12px] font-bold uppercase tracking-wider text-slate-600">
                                 Search
                             </div>
                             <SearchInput value={search} onChange={setSearch} placeholder="Tag, product, file..." />

@@ -20,9 +20,11 @@ from schemas.schemas import TranslateRequest, TranslateResponseData
 from services.shared.cloud_tasks import enqueue_http_task
 from services.shared.pipeline_debug import record_pipeline_note
 from services.shared.transcript import (
+    download_stt_json,
     extract_transcript_from_stt_json,
     MIN_TRANSCRIPT_WORDS,
     TOO_FEW_WORDS_MESSAGE,
+    timed_utterances,
     word_count,
     transcript_meets_min_words,
 )
@@ -212,10 +214,28 @@ def translate_transcript(
                 error=msg,
             )
 
-        translated, _tokens = vertex_ai.translate_transcript(
-            raw_text,
-            product_catalog_tsv=build_product_tsv(db),
-        )
+        catalog = build_product_tsv(db)
+        segments: list[dict] = []
+        if payload.gcs_transcript_uri:
+            try:
+                segments = timed_utterances(download_stt_json(payload.gcs_transcript_uri))
+            except Exception:
+                logger.exception(
+                    "translate: timed STT segments unavailable for job %s",
+                    payload.job_id,
+                )
+        translated = ""
+        if len(segments) >= 2:
+            translated, _tokens = vertex_ai.label_timed_turns(
+                segments,
+                audio_gcs_uri=job.gcs_input_uri,
+                product_catalog_tsv=catalog,
+            )
+        if not translated:
+            translated, _tokens = vertex_ai.translate_transcript(
+                raw_text,
+                product_catalog_tsv=catalog,
+            )
 
         if not processed:
             processed = ProcessedFile(job_id=payload.job_id)

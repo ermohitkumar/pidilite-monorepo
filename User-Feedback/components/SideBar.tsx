@@ -39,13 +39,13 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
         resource: "reports",
       },
       {
-        title: "Reports",
+        title: "Summary",
         href: "/reports",
         icon: LuFileText,
         resource: "reports",
       },
       {
-        title: "Insights",
+        title: "Feedback",
         href: "/reports/insights",
         icon: LuTable,
         resource: "reports",
@@ -69,7 +69,7 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
         resource: "all_files",
       },
       {
-        title: "Catalog",
+        title: "Library",
         href: "/catalog",
         icon: LuPackage,
         resource: "library",
@@ -110,25 +110,25 @@ export default function SideBar() {
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen flex-col bg-brand-fg border-r border-border transition-all duration-300 z-50 ${
-        isExpanded ? "w-52" : "w-20"
+      className={`sticky top-0 flex h-screen flex-col bg-sidebar text-white transition-all duration-300 z-50 ${
+        isExpanded ? "w-56" : "w-20"
       }`}
     >
       <div
-        className={`relative flex items-center border-b border-border p-5 h-[72px] shrink-0 ${isExpanded ? "justify-between" : "justify-center"}`}
+        className={`relative flex items-center border-b border-white/10 px-4 h-[76px] shrink-0 ${isExpanded ? "justify-between" : "justify-center"}`}
       >
-        <div className="flex items-center gap-2 overflow-hidden mx-auto">
+        <div className="flex items-center overflow-hidden">
           <img
-            src="/pidilite-seeklogo.png"
-            alt="Pidilite Logo"
-            className={isExpanded ? "h-12 w-25" : "h-8 w-12"}
+            src={isExpanded ? "/samvad-logo-on-dark.png" : "/samvad-mark.png"}
+            alt="Samvad"
+            className={isExpanded ? "h-8 w-auto" : "h-8 w-8 object-contain"}
           />
         </div>
 
         {/* Toggle Button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-text-subtle shadow-sm hover:bg-surface-raised hover:text-text"
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-sidebar text-white/80 shadow-sm hover:bg-sidebar-active hover:text-white"
         >
           {isExpanded ? (
             <LuChevronLeft className="h-4 w-4" />
@@ -171,15 +171,15 @@ export default function SideBar() {
                     <li key={item.title}>
                       <Link
                         href={item.href}
-                        className={`flex w-full items-center gap-3 rounded-md py-2 text-left text-sm transition-colors ${
+                        className={`flex w-full items-center gap-3 rounded-lg py-2 text-left text-sm transition-colors ${
                           isActive
-                            ? "bg-brand-subtle font-medium text-brand"
-                            : "text-text-subtle hover:bg-surface-raised hover:text-text"
+                            ? "bg-sidebar-active font-medium text-white"
+                            : "text-[#c4c0cc] hover:bg-white/5 hover:text-white"
                         } ${isExpanded ? "px-3" : "justify-center px-0"}`}
                         title={!isExpanded ? item.title : undefined}
                       >
                         <Icon
-                          className={`h-5 w-5 shrink-0 ${isActive ? "text-brand" : "text-text-disabled"}`}
+                          className={`h-5 w-5 shrink-0 ${isActive ? "text-white" : "text-[#a09ea4]"}`}
                         />
                         {isExpanded && (
                           <span className="whitespace-nowrap text-body-lg">
@@ -196,20 +196,20 @@ export default function SideBar() {
       </nav>
 
       <div
-        className={`mt-auto mb-0 border-t border-border p-4 transition-all ${isExpanded ? "" : "flex flex-col items-center p-3"}`}
+        className={`mt-auto mb-0 border-t border-white/10 p-4 transition-all ${isExpanded ? "" : "flex flex-col items-center p-3"}`}
       >
         <div
           className={`flex items-center gap-2 py-3 ${isExpanded ? "" : "justify-center"}`}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg text-sm font-medium shadow-sm uppercase">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-white text-sm font-medium shadow-sm uppercase">
             {user?.full_name?.[0] || "U"}
           </div>
           {isExpanded && (
             <div className="flex flex-col overflow-hidden">
-              <p className="text-sm font-semibold truncate text-text">
+              <p className="text-sm font-semibold truncate text-white">
                 {userName}
               </p>
-              <p className="text-xs text-text-subtle truncate">{userRole}</p>
+              <p className="text-xs text-white/60 truncate">{userRole}</p>
             </div>
           )}
         </div>
@@ -220,7 +220,7 @@ export default function SideBar() {
         >
           <button
             type="submit"
-            className={`border border-border bg-surface text-xs font-medium text-text-subtle hover:bg-surface-raised hover:text-text flex justify-center items-center transition-colors ${
+            className={`border border-white/20 bg-white/5 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white flex justify-center items-center transition-colors ${
               isExpanded
                 ? "w-full rounded-md px-3 py-1.5"
                 : "w-8 h-8 rounded-full"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LuMessageSquare, LuQuote, LuSparkles } from "react-icons/lu";
 
 import { ConversationThread } from "@/components/reports/ConversationThread";
@@ -65,6 +65,24 @@ export function DrillDownModal({
     );
     const items = useMemo(() => uniqueFeedbackItems(scoped), [scoped]);
     const showBreakdown = Boolean(drill && breakdown.length > 0 && drill.level !== "item");
+    const breakdownRowRef = useRef<HTMLTableRowElement>(null);
+    useLayoutEffect(() => {
+        const row = breakdownRowRef.current;
+        if (!row) return;
+        const paint = () => {
+            const width = row.getBoundingClientRect().width;
+            for (const cell of row.children) {
+                const el = cell as HTMLElement;
+                el.style.backgroundSize = `${width}px 100%`;
+                el.style.backgroundPosition = `${-el.offsetLeft}px 0px`;
+                el.style.backgroundRepeat = "no-repeat";
+            }
+        };
+        paint();
+        const observer = new ResizeObserver(paint);
+        observer.observe(row);
+        return () => observer.disconnect();
+    }, [showBreakdown, breakdown]);
 
     if (!drill) return null;
 
@@ -93,10 +111,10 @@ export function DrillDownModal({
                         </h3>
                         <div className="overflow-hidden rounded-lg border border-border">
                             <table className="w-full text-sm">
-                                <thead className="bg-[#FFC000] text-left">
-                                    <tr>
-                                        <th className="px-3 py-2 font-bold">Level</th>
-                                        <th className="px-3 py-2 font-bold text-center w-28">Count</th>
+                                <thead className="text-white text-left">
+                                    <tr ref={breakdownRowRef}>
+                                        <th className="bg-brand-gradient px-3 py-2 font-bold">Level</th>
+                                        <th className="bg-brand-gradient px-3 py-2 text-center font-bold w-28">Count</th>
                                     </tr>
                                 </thead>
                                 <tbody>

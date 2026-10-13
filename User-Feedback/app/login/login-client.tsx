@@ -23,31 +23,33 @@ const ERROR_MESSAGES: Record<string, string> = {
     callback_failed: "Sign-in failed. Please contact the administrator.",
     no_subject: "Please contact the administrator.",
     unauthorized_user: "You are not authorized to access this application. Please contact the administrator.",
+    invalid_credentials: "Invalid email or password.",
+    missing_credentials: "Email and password are required.",
 };
 
 type Props = { error?: string };
 
 export default function LoginClient({ error }: Props) {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const isDev = process.env.NEXT_PUBLIC_NODE_ENV === 'development';
     const urlErrorText = error
         ? (ERROR_MESSAGES[error] ?? "Sign-in failed. Please try again.")
         : null;
     const errorText = formError ?? urlErrorText;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        const submitted = new FormData(e.currentTarget);
+        const submittedEmail = String(submitted.get("email") ?? "").trim();
+        const submittedPassword = String(submitted.get("password") ?? "");
         setFormError(null);
         setIsSubmitting(true);
         try {
             const res = await fetch('/bff/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email.trim(), password }),
+                body: JSON.stringify({ email: submittedEmail, password: submittedPassword }),
             });
             const data = await res.json().catch(() => ({}));
 
@@ -65,20 +67,20 @@ export default function LoginClient({ error }: Props) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-bg p-6">
+        <div className="min-h-screen flex items-center justify-center bg-sidebar p-6">
             <div className="w-full max-w-[500px]">
                 <div className="rounded-lg border border-border bg-surface shadow-[0px_10px_30px_rgba(0,0,0,0.08)] p-6">
                     <div className="flex flex-col items-center text-center space-y-2">
                         {/** LOGO HERE */}
                         <Image
-                            src="/pidilite-seeklogo.png"
-                            alt="Pidilite STT Service"
-                            width={100}
-                            height={100}
-                            className="py-5 w-auto h-auto"
+                            src="/samvad-logo.png"
+                            alt="Samvad"
+                            width={220}
+                            height={80}
+                            className="py-5 h-14 w-auto"
                         />
                         <h1 className="text-2xl font-bold">
-                            Pidilite User Feedback System
+                            Samvad
                         </h1>
                         <p className="text-sm text-text-subtle">
                             Sign in to access your workspace
@@ -94,9 +96,7 @@ export default function LoginClient({ error }: Props) {
                         </div>
                     ) : null}
 
-                    <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-                        {isDev && (
-                            <>
+                    <form action="/bff/login" method="post" onSubmit={handleSubmit} className="mt-6 space-y-5">
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label
@@ -112,11 +112,10 @@ export default function LoginClient({ error }: Props) {
                                             />
                                             <input
                                                 id="email"
+                                                name="email"
                                                 type="email"
-                                                autoComplete="email"
+                                                autoComplete="username"
                                                 required
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
                                                 placeholder="Enter your email"
                                                 className="h-9 w-full rounded-md border border-border bg-surface pl-10 pr-3 text-sm text-text placeholder:text-text-disabled transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
                                             />
@@ -137,11 +136,10 @@ export default function LoginClient({ error }: Props) {
                                             />
                                             <input
                                                 id="password"
+                                                name="password"
                                                 type={showPassword ? "text" : "password"}
                                                 autoComplete="current-password"
                                                 required
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
                                                 placeholder="Enter your password"
                                                 className="h-9 w-full rounded-md border border-border bg-surface pl-10 pr-10 text-sm text-text placeholder:text-text-disabled transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand"
                                             />
@@ -174,34 +172,27 @@ export default function LoginClient({ error }: Props) {
                                         Forgot your password?
                                     </a>
                                 </div>
-                            </>
-                        )}
 
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="primary"
-                                className="w-full"
-                                disabled={isSubmitting}
-                                onClick={() => {
-                                    setIsSubmitting(true);
-                                    window.location.href = "/bff/auth/microsoft/login";
-                                }}
-                            >
-                                <MicrosoftMark className="h-5 w-5 mr-2" />
-                                {isDev ? "Sign in with Microsoft" : "Login with SSO"}
-                            </Button>
-                            {isDev && (
-                                <Button
-                                    type="submit"
-                                    variant="primary"
-                                    className="w-full"
-                                    disabled={isSubmitting}
-                                >
-                                    Sign in with Email
-                                </Button>
-                            )}
-                        </div>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            className="w-full"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? "Signing in…" : "Sign in"}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            className="w-full"
+                            disabled={isSubmitting}
+                            onClick={() => {
+                                window.location.href = "/bff/auth/microsoft/login";
+                            }}
+                        >
+                            <MicrosoftMark className="h-5 w-5 mr-2" />
+                            Sign in with Microsoft
+                        </Button>
                     </form>
                 </div>
             </div>

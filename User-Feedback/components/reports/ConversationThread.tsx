@@ -106,7 +106,7 @@ export function ConversationThread({
                             className={`flex ${mine ? "justify-end" : "justify-start"}`}
                         >
                             <div className={`flex max-w-[80%] flex-col ${mine ? "items-end" : "items-start"}`}>
-                                <div className={`mb-1 px-1 text-[11px] font-semibold ${labelClass(highlighted, mine)}`}>
+                                <div className={`mb-1 px-1 text-[13px] font-semibold ${labelClass(highlighted, mine)}`}>
                                     {turn.speaker}
                                     {label}
                                 </div>

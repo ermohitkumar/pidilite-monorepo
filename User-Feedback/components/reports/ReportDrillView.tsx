@@ -149,7 +149,7 @@ export function ReportDrillView({
                 <h2 className="mt-2 text-xl font-bold text-slate-900">{drillTitle(drill)}</h2>
                 {showHeaderNarratives && tagNarrative ? (
                     <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
-                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        <p className="mb-1 text-[13px] font-semibold uppercase tracking-wider text-slate-500">
                             Tag summary
                         </p>
                         <FormattedSummary

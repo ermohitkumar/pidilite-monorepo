@@ -60,7 +60,7 @@ function OptionalSelect({
 }) {
     if (!options.length) return null;
     return (
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+        <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
             {label}
             <Select
                 className="mt-1"
@@ -361,7 +361,7 @@ export default function ComplianceClient() {
                         onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
                         options={filterOptions.user_types}
                     />
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                         Time period
                         <Select
                             className="mt-1"
@@ -371,7 +371,7 @@ export default function ComplianceClient() {
                         />
                     </label>
                     {period.kind === "month" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Month
                             <input
                                 type="month"
@@ -382,7 +382,7 @@ export default function ComplianceClient() {
                         </label>
                     ) : null}
                     {period.kind === "quarter" || period.kind === "year" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Year
                             <input
                                 type="number"
@@ -395,7 +395,7 @@ export default function ComplianceClient() {
                         </label>
                     ) : null}
                     {period.kind === "quarter" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Quarter
                             <Select
                                 className="mt-1"
@@ -423,7 +423,7 @@ export default function ComplianceClient() {
                             {COLUMNS.map((column) => (
                                 <th
                                     key={column.key}
-                                    className={`whitespace-normal px-3 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-600 ${
+                                    className={`whitespace-normal px-3 py-3 text-[13px] font-semibold uppercase tracking-wide text-slate-600 ${
                                         column.metric ? "text-slate-900" : ""
                                     }`}
                                 >

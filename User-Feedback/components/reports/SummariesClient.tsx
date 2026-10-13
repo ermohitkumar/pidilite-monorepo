@@ -9,7 +9,7 @@ import { LuLoader } from "react-icons/lu";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
 import { PeriodSummaryCard } from "@/components/reports/PeriodSummaryCard";
-import { usePeriodSummaries, usePeriodSummary, useReportFilterOptions } from "@/lib/hooks/reports";
+import { usePeriodSummaries, usePeriodSummary, useReportFilterOptions, useReportProducts, useReportSummary } from "@/lib/hooks/reports";
 import {
     datesForPeriod,
     defaultPeriod,
@@ -18,6 +18,7 @@ import {
     hasVisibleSummary,
     insightsHref,
     periodFromDateRange,
+    summariesHref,
     restrictToAvailable,
     type GroupFilter,
     type PeriodKind,
@@ -75,7 +76,7 @@ function OptionalSelect({
 }) {
     if (!options.length) return null;
     return (
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+        <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
             {label}
             <Select
                 className="mt-1"
@@ -150,7 +151,7 @@ function GroupTagSection({
                     href={insightsLink}
                     className="text-xs font-medium text-brand hover:underline"
                 >
-                    View insights
+                    View feedback
                 </Link>
             </div>
             {loading ? (
@@ -179,7 +180,152 @@ function groupFromUrl(value?: string): GroupFilter {
     return "ALL";
 }
 
-export default function SummariesClient() {
+function countLabel(count: number | undefined, singular: string, plural: string): string {
+    const value = Number(count || 0);
+    return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
+}
+
+function SummaryBlock({
+    href,
+    title,
+    subtitle,
+    feedbackCount,
+    siteVisitCount,
+    color,
+}: {
+    href: string;
+    title: string;
+    subtitle?: string | null;
+    feedbackCount?: number;
+    siteVisitCount?: number;
+    color: string;
+}) {
+    return (
+        <Link
+            href={href}
+            className="flex min-h-36 flex-col justify-between rounded-md p-4 text-white shadow-[0_8px_18px_rgba(16,4,36,0.12)] transition hover:brightness-110"
+            style={{ backgroundColor: color }}
+        >
+            <span>
+                {subtitle ? <span className="block text-xs font-medium text-white/80">{subtitle}</span> : null}
+                <span className="mt-1 block text-lg font-semibold leading-snug">{title}</span>
+            </span>
+            <span className="mt-4 block text-sm leading-5">
+                <span className="block">{countLabel(feedbackCount, "feedback", "feedbacks")}</span>
+                <span className="block">{countLabel(siteVisitCount, "site visit", "site visits")}</span>
+            </span>
+        </Link>
+    );
+}
+
+function SummaryIndex() {
+    const [group, setGroup] = useState<GroupFilter>("ALL");
+    const productGroup = useReportSummary({ feedback_group: "PDT GROUP" });
+    const userGroup = useReportSummary({ feedback_group: "USER GROUP" });
+    const dealerGroup = useReportSummary({ feedback_group: "DEALER GROUP" });
+    const productsQuery = useReportProducts(group === "ALL" ? {} : { feedback_group: group });
+    const loading = [productGroup, userGroup, dealerGroup, productsQuery].some(
+        (query) => query.isLoading && !query.data,
+    );
+    const tagSections: { id: FeedbackGroup; label: string; color: string; tags: { feedback_tag?: string | null; feedback_category?: string | null; feedback_count: number; site_visit_count?: number }[] }[] = [
+        { id: "PDT GROUP", label: "Product Group", color: "#2f6fe0", tags: productGroup.data?.data?.tags || [] },
+        { id: "USER GROUP", label: "User Group", color: "#7b3aed", tags: userGroup.data?.data?.tags || [] },
+        { id: "DEALER GROUP", label: "Dealer Group", color: "#0f9aae", tags: dealerGroup.data?.data?.tags || [] },
+    ].filter((section) => group === "ALL" || section.id === group);
+    const products = (productsQuery.data?.data?.items || []).filter(
+        (item) => item.product_name && item.product_name !== "(No product)" && (item.feedback_count || 0) > 0,
+    );
+
+    return (
+        <div className="p-6">
+            <header className="mb-6">
+                <h1 className="text-xl font-semibold text-slate-900">Summary</h1>
+                <p className="text-sm text-slate-500">
+                    Choose a tag or product to open its summary.
+                </p>
+            </header>
+            <div className="mb-6 flex flex-wrap gap-2">
+                {GROUP_FILTER_TABS.map((tab) => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setGroup(tab.id)}
+                        className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                            group === tab.id
+                                ? "border-transparent bg-brand-subtle text-brand"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+            {loading ? (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-text-disabled">
+                    <LuLoader className="mb-4 h-8 w-8 animate-spin text-brand" />
+                    <p className="text-sm">Loading tags and products…</p>
+                </div>
+            ) : (
+                <div className="space-y-8">
+                    <section>
+                        <h2 className="mb-3 text-sm font-semibold text-slate-800">Tags</h2>
+                        <div className="space-y-6">
+                            {tagSections.map((section) => (
+                                <div key={section.id}>
+                                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                        {section.label}
+                                    </h3>
+                                    {section.tags.length === 0 ? (
+                                        <p className="text-sm text-slate-500">No tags in this group.</p>
+                                    ) : (
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                            {section.tags.map((tag) => (
+                                                <SummaryBlock
+                                                    key={`${section.id}-${tag.feedback_tag}`}
+                                                    href={summariesHref({
+                                                        feedback_group: section.id,
+                                                        feedback_tag: tag.feedback_tag || undefined,
+                                                        feedback_category: tag.feedback_category || undefined,
+                                                    })}
+                                                    title={tag.feedback_tag || "Tag"}
+                                                    subtitle={tag.feedback_category}
+                                                    feedbackCount={tag.feedback_count}
+                                                    siteVisitCount={tag.site_visit_count}
+                                                    color={section.color}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                    <section>
+                        <h2 className="mb-3 text-sm font-semibold text-slate-800">Products</h2>
+                        {products.length === 0 ? (
+                            <p className="text-sm text-slate-500">No products yet.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                {products.map((product) => (
+                                    <SummaryBlock
+                                        key={product.product_name}
+                                        href={summariesHref({ product_name: product.product_name || undefined })}
+                                        title={product.product_name || "Product"}
+                                        feedbackCount={product.feedback_count}
+                                        siteVisitCount={product.site_visit_count}
+                                        color="#6d28d9"
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SummaryDetail() {
     const searchParams = useSearchParams();
     const fromUrl = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
     const initialPeriod = useMemo(
@@ -265,9 +411,12 @@ export default function SummariesClient() {
         <div className="p-6">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
+                    <Link href="/reports" className="text-sm font-medium text-brand hover:underline">
+                        ← All tags and products
+                    </Link>
+                    <h1 className="mt-1 text-xl font-semibold text-slate-900">Summary</h1>
                     <p className="text-sm text-slate-500">
-                        Tag summaries by feedback group. Open insights to see counts and drill into site visits.
+                        Tag summaries by feedback group. Open feedback to see counts and drill into site visits.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -276,7 +425,7 @@ export default function SummariesClient() {
                         {showFilters ? "Hide filters" : "Show filters"}
                     </Button>
                     <Link href={insightsLink}>
-                        <Button type="button">View insights</Button>
+                        <Button type="button">View feedback</Button>
                     </Link>
                 </div>
             </div>
@@ -287,10 +436,10 @@ export default function SummariesClient() {
                         key={tab.id}
                         type="button"
                         onClick={() => setGroup(tab.id)}
-                        className={`rounded-md px-4 py-2 text-sm font-medium border transition-colors ${
+                        className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors ${
                             group === tab.id
-                                ? "bg-brand text-white border-brand"
-                                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                                ? "bg-brand-subtle text-brand border-transparent"
+                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                         }`}
                     >
                         {tab.label}
@@ -330,7 +479,7 @@ export default function SummariesClient() {
                         onChange={(value) => setDraft((prev) => applySelect(prev, "product_name", value))}
                         options={productOptions}
                     />
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                         Time period
                         <Select
                             className="mt-1"
@@ -340,7 +489,7 @@ export default function SummariesClient() {
                         />
                     </label>
                     {period.kind === "month" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Month
                             <input
                                 type="month"
@@ -351,7 +500,7 @@ export default function SummariesClient() {
                         </label>
                     ) : null}
                     {period.kind === "quarter" || period.kind === "year" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Year
                             <input
                                 type="number"
@@ -364,7 +513,7 @@ export default function SummariesClient() {
                         </label>
                     ) : null}
                     {period.kind === "quarter" ? (
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                             Quarter
                             <Select
                                 className="mt-1"
@@ -400,6 +549,7 @@ export default function SummariesClient() {
                             title="Location summary"
                             record={current}
                             emptyLabel="No stored summary for this filter yet."
+                            insightsHref={insightsLink}
                         />
                     ) : null}
                     {appliedFilters.product_name && hasVisibleSummary(productSummary) ? (
@@ -407,20 +557,36 @@ export default function SummariesClient() {
                             title={`${appliedFilters.product_name} summary`}
                             record={productSummary}
                             emptyLabel="No stored product summary for this filter yet."
+                            insightsHref={insightsLink}
                         />
                     ) : null}
-                    {groupsToShow.map((tab) => (
-                        <GroupTagSection
-                            key={tab.id}
-                            group={tab.id}
-                            label={`${tab.label} tags`}
-                            tags={tagsForGroup(tags, tab.id, viewingAll)}
-                            loading={listQuery.isFetching && !listQuery.data}
-                            insightsLink={insightsHref({ ...appliedFilters, feedback_group: tab.id })}
+                    {appliedFilters.feedback_tag ? (
+                        <PeriodSummaryCard
+                            title={appliedFilters.feedback_tag}
+                            record={summaryQuery.data?.data?.tag}
+                            emptyLabel="No stored summary for this tag yet."
+                            insightsHref={insightsLink}
                         />
-                    ))}
+                    ) : (
+                        groupsToShow.map((tab) => (
+                            <GroupTagSection
+                                key={tab.id}
+                                group={tab.id}
+                                label={`${tab.label} tags`}
+                                tags={tagsForGroup(tags, tab.id, viewingAll)}
+                                loading={listQuery.isFetching && !listQuery.data}
+                                insightsLink={insightsHref({ ...appliedFilters, feedback_group: tab.id })}
+                            />
+                        ))
+                    )}
                 </div>
             )}
         </div>
     );
+}
+
+export default function SummariesClient() {
+    const searchParams = useSearchParams();
+    const isDetail = Boolean(searchParams.get("feedback_tag") || searchParams.get("product_name"));
+    return isDetail ? <SummaryDetail /> : <SummaryIndex />;
 }

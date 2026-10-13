@@ -84,7 +84,14 @@ def _plain_transcript(results: list) -> str:
     if len(parts) >= 2:
         earlier = " ".join(parts[:-1])
         last = parts[-1]
-        if last.startswith(earlier[:80]) or earlier in last:
+        # The final Speech result sometimes repeats the whole call. Keep it
+        # only when it is at least as long as the earlier chunks. A short
+        # closing line that merely shares the opening words must not replace
+        # the rest of the transcript.
+        last_covers_earlier = earlier in last or (
+            len(last) >= len(earlier) and last.startswith(earlier[:80])
+        )
+        if last_covers_earlier:
             return last
     return " ".join(parts).strip()
 
@@ -185,6 +192,88 @@ def extract_transcript_from_stt_json(gcs_uri: str) -> str:
     transcript = format_stt_results(raw_json)
     logger.info("Extracted transcript (%d chars) from %s", len(transcript), gcs_uri)
     return transcript
+
+
+def _offset_seconds(value) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(str(value).rstrip("s"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _word_offset(word: dict, *keys: str) -> float | None:
+    for key in keys:
+        seconds = _offset_seconds(word.get(key))
+        if seconds is not None:
+            return seconds
+    return None
+
+
+def timed_utterances(raw_json: dict, gap_seconds: float = 0.8) -> list[dict]:
+    """Split telephony results into spoken lines that carry real audio times.
+
+    A pause, or a new Speech result, starts a new line. Lines without word
+    offsets are omitted so the speaker step is not asked to invent times.
+    """
+    utterances: list[dict] = []
+    if not isinstance(raw_json, dict):
+        return utterances
+
+    for result in raw_json.get("results") or []:
+        alternatives = result.get("alternatives") or []
+        if not alternatives:
+            continue
+        words = [
+            word for word in (alternatives[0].get("words") or [])
+            if (word.get("word") or "").strip()
+            and _word_offset(word, "startOffset", "start_offset", "endOffset", "end_offset")
+            is not None
+        ]
+        current: dict | None = None
+
+        def flush() -> None:
+            nonlocal current
+            if current and current["words"]:
+                utterances.append({
+                    "start": current["start"],
+                    "end": current["end"],
+                    "text": " ".join(current["words"]),
+                })
+            current = None
+
+        for word in words:
+            token = word["word"].strip()
+            start = _word_offset(word, "startOffset", "start_offset")
+            end = _word_offset(word, "endOffset", "end_offset")
+            if start is None:
+                start = current["end"] if current else (end or 0.0)
+            if end is None:
+                end = start
+            if current is not None and start - current["end"] >= gap_seconds:
+                flush()
+            if current is None:
+                current = {"start": start, "end": end, "words": [token]}
+            else:
+                current["words"].append(token)
+                current["end"] = end
+        flush()
+    return utterances
+
+
+def download_stt_json(gcs_uri: str) -> dict:
+    """Download Speech-to-Text JSON from GCS."""
+    if not _HAS_GCS:
+        raise RuntimeError("google-cloud-storage is not installed")
+
+    global _gcs_client
+    if _gcs_client is None:
+        _gcs_client = gcs_storage.Client()
+    without_prefix = gcs_uri.replace("gs://", "")
+    bucket_name, blob_path = without_prefix.split("/", 1)
+    blob = _gcs_client.bucket(bucket_name).blob(blob_path)
+    return json.loads(blob.download_as_text())
 
 
 def gcs_blob_exists(gcs_uri: str) -> bool:

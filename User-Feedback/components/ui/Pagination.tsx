@@ -69,7 +69,7 @@ export function Pagination({
     const btnDefault =
         `${btnBase} border-border text-text-subtle hover:bg-surface-raised hover:text-text`;
     const btnActive =
-        `${btnBase} border-brand bg-brand text-brand-fg font-semibold cursor-default`;
+        `${btnBase} border-[#0f6b4c] bg-[#0f6b4c] text-white font-semibold cursor-default`;
     const btnEllipsis =
         `${btnBase} border-transparent text-text-disabled cursor-default pointer-events-none`;
 

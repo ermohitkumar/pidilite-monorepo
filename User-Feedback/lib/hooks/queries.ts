@@ -14,6 +14,8 @@ export type FetchParams = {
     status?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";
+    start_date?: string;
+    end_date?: string;
 };
 
 export const useDashboardSummary = () => {

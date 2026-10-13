@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { FormattedSummary } from "@/components/reports/FormattedSummary";
 import { hasVisibleSummary } from "@/lib/reports/period";
 import type { PeriodSummaryRecord } from "@/lib/reports/types";
@@ -33,17 +35,24 @@ export function PeriodSummaryCard({
     record,
     emptyLabel,
     hideMeta = false,
+    insightsHref,
 }: {
     title: string;
     record?: PeriodSummaryRecord | null;
     emptyLabel: string;
     hideMeta?: boolean;
+    insightsHref?: string;
 }) {
     if (!record || (!hasVisibleSummary(record) && record.status !== "error")) {
         return (
             <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-700">
                 <h3 className="text-base font-semibold text-slate-800">{title}</h3>
                 <p className="mt-2 text-base text-slate-500">{emptyLabel}</p>
+                {insightsHref ? (
+                    <Link href={insightsHref} className="mt-3 inline-block text-sm font-medium text-brand hover:underline">
+                        View feedback
+                    </Link>
+                ) : null}
             </section>
         );
     }
@@ -74,9 +83,14 @@ export function PeriodSummaryCard({
                 <span title="Distinct field calls / site visits that contributed to this summary">
                     {Number(highlights.site_visit_count ?? record.call_count ?? 0)} site visits
                 </span>
-                <span title="Tagged feedback rows used as input; the text above is an AI-condensed theme, not one bullet per insight">
-                    {record.insight_count ?? 0} insights summarized
+                <span title="Tagged feedback rows used as input; the text above is an AI-condensed theme, not one bullet per feedback row">
+                    {record.insight_count ?? 0} feedback
                 </span>
+                {insightsHref ? (
+                    <Link href={insightsHref} className="font-medium text-brand hover:underline">
+                        View feedback
+                    </Link>
+                ) : null}
                 {highlights.truncated ? <span>Sampled for length</span> : null}
             </div>
         </section>

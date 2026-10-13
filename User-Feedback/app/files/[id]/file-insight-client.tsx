@@ -34,7 +34,7 @@ function TranscriptPane({
     return (
         <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-surface">
             <div className="shrink-0 border-b border-border px-4 py-3">
-                <h2 className="text-[13px] font-semibold uppercase tracking-wide text-text">{title}</h2>
+                <h2 className="text-[15px] font-semibold uppercase tracking-wide text-text">{title}</h2>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto app-scrollbar">
                 {text ? (
@@ -152,9 +152,9 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                             <tr className="border-b border-border bg-surface-raised">
                                 <th colSpan={6} className="px-4 py-3">
                                     <div className="flex items-center gap-3">
-                                        <span className="text-[13px] font-semibold uppercase tracking-wide text-text">Insights</span>
+                                        <span className="text-[15px] font-semibold uppercase tracking-wide text-text">Feedback</span>
                                         {summary?.summary_product ? (
-                                            <span className="inline-flex items-center rounded-full border border-brand-subtle bg-brand-subtle px-3 py-1 text-[13px] font-medium text-brand">
+                                            <span className="inline-flex items-center rounded-full border border-brand-subtle bg-brand-subtle px-3 py-1 text-[15px] font-medium text-brand">
                                                 {summary.summary_product}
                                             </span>
                                         ) : null}
@@ -162,19 +162,19 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                                 </th>
                             </tr>
                             <tr className="border-b border-border bg-surface">
-                                <th className="w-[12%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product group</th>
-                                <th className="w-[14%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Product name</th>
-                                <th className="w-[14%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Tag</th>
-                                <th className="w-[10%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Sentiment</th>
-                                <th className="w-[25%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">Raw Verbatim</th>
-                                <th className="w-[25%] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">AI Summary</th>
+                                <th className="w-[12%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">Product group</th>
+                                <th className="w-[14%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">Product name</th>
+                                <th className="w-[14%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">Tag</th>
+                                <th className="w-[10%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">Sentiment</th>
+                                <th className="w-[25%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">Raw Verbatim</th>
+                                <th className="w-[25%] px-5 py-3 text-[13px] font-semibold uppercase tracking-wider text-text-subtle">AI Summary</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {feedbacks.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-5 py-8 text-sm text-text-subtle">
-                                        {empty_reason || 'No insights were generated for this file.'}
+                                        {empty_reason || 'No feedback was generated for this file.'}
                                     </td>
                                 </tr>
                             ) : feedbacks.map((item: FeedbackItem, i: number) => (
@@ -207,7 +207,7 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                     <Card className="relative rounded-xl border border-border bg-surface p-6 shadow-sm">
                         <div className="mb-4 flex items-start justify-between">
                             <div>
-                                <h3 className="text-[15px] font-semibold text-text">Summary</h3>
+                                <h3 className="text-[17px] font-semibold text-text">Summary</h3>
                                 <p className="mt-0.5 text-xs text-text-disabled">Sentiment and topics from this site visit</p>
                             </div>
                         </div>

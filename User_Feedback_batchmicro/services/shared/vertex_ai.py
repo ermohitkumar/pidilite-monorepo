@@ -23,6 +23,10 @@ _model_cache: dict[str, object] = {}
 # calls (e.g. vimal) return empty MAX_TOKENS. Budget 0 does not change the
 # prompt — only skips hidden reasoning.
 _THINKING_OFF = {"thinkingBudget": 0}
+# Speaker labeling is a short structured pass. Thinking stays on so Flash can
+# use each timestamp (and the audio) instead of collapsing the visit into two blocks.
+_SPEAKER_THINKING = {"thinkingBudget": 8192}
+_SPEAKER_MAX_OUTPUT = 65536
 _SAFETY_OFF = [
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
@@ -150,6 +154,202 @@ Transcript:
     return split_text.strip(), tokens
 
 
+def _clock_label(seconds: float) -> str:
+    total = max(0, int(round(float(seconds or 0))))
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _role_name(value: str) -> str:
+    lowered = (value or "").strip().lower()
+    if lowered.startswith("fme"):
+        return "FME"
+    return "User"
+
+
+def _audio_mime(gcs_uri: str) -> str:
+    path = (gcs_uri or "").lower().split("?", 1)[0]
+    if path.endswith(".wav"):
+        return "audio/wav"
+    if path.endswith(".m4a") or path.endswith(".mp4"):
+        return "audio/mp4"
+    if path.endswith(".webm"):
+        return "audio/webm"
+    if path.endswith(".ogg"):
+        return "audio/ogg"
+    return "audio/mpeg"
+
+
+def format_labeled_turns(lines: list[dict]) -> str:
+    """One timestamped FME/User line per spoken stretch. Adjacent lines stay separate."""
+    rendered: list[str] = []
+    for line in lines:
+        text = (line.get("english") or line.get("text") or "").strip()
+        if not text:
+            continue
+        stamp = f"[{_clock_label(line.get('start'))}–{_clock_label(line.get('end'))}]"
+        rendered.append(f"{stamp} {_role_name(line.get('role') or '')}: {text}")
+    return "\n".join(rendered)
+
+
+def label_timed_turns(
+    segments: list[dict],
+    audio_gcs_uri: str | None = None,
+    product_catalog_tsv: str = "",
+    model_name: str | None = None,
+) -> tuple[str, dict]:
+    """Label every timestamped line as FME or User and translate that line.
+
+    Returns formatted English lines, or empty text when Flash collapses the
+    visit so the caller can keep the older translate path.
+    """
+    rows = [
+        segment for segment in (segments or [])
+        if (segment.get("text") or "").strip()
+    ]
+    empty = {"input": 0, "output": 0, "total": 0}
+    if len(rows) < 2:
+        return "", empty
+
+    catalog_block = ""
+    if (product_catalog_tsv or "").strip():
+        catalog_block = f"""
+PRODUCT DATABASE (use an EXACT Product_Name when a spoken Pidilite SKU matches):
+sku|Product_Name|description
+{product_catalog_tsv.strip()}
+"""
+    source_lines = "\n".join(
+        f"{index}|{float(segment['start']):.2f}|{float(segment['end']):.2f}|{segment['text'].strip()}"
+        for index, segment in enumerate(rows)
+    )
+    prompt = f"""Label each spoken line of this Pidilite field visit and translate that line to English.
+
+The audio is the recording. Each input row is index|start_seconds|end_seconds|telephony text. The times are when that text was spoken. Listen to the voice at that time.
+
+Who is who:
+- FME: the Pidilite field person. They introduce the product, ask what worked and what did not, and collect feedback.
+- User: the site person, dealer, carpenter, or contractor. They describe use, price, packaging, and complaints.
+
+RULES:
+1. Return exactly {len(rows)} lines, same order, same index. One output line per input row.
+2. Do NOT merge the visit into two blocks. Do NOT join several input rows into one FME paragraph and one User paragraph. The same person may speak many separate lines; keep every line.
+3. Use one role for every line only when a single voice really speaks the whole recording.
+4. Translate only the words of that row. Do not summarize and do not move words onto another row.
+5. role is only "FME" or "User".
+{catalog_block}
+Input rows:
+{source_lines}
+"""
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "lines": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "index": {"type": "INTEGER"},
+                        "role": {"type": "STRING"},
+                        "english": {"type": "STRING"},
+                    },
+                    "required": ["index", "role", "english"],
+                },
+            }
+        },
+        "required": ["lines"],
+    }
+    parts: list[dict] = []
+    if (audio_gcs_uri or "").startswith("gs://"):
+        parts.append({
+            "fileData": {"fileUri": audio_gcs_uri, "mimeType": _audio_mime(audio_gcs_uri)},
+        })
+    parts.append({"text": prompt})
+
+    tokens = dict(empty)
+    labeled: list[dict] = []
+    for attempt in range(2):
+        try:
+            text, call_tokens = VertexRestAdapter.generate_parts(
+                parts,
+                temperature=0.0,
+                model_name=model_name,
+                timeout=900,
+                thinking_config=_SPEAKER_THINKING,
+                response_schema=schema,
+                max_output_tokens=_SPEAKER_MAX_OUTPUT,
+            )
+        except Exception:
+            logger.exception("Timestamped speaker label failed")
+            return "", tokens
+        tokens = {
+            "input": tokens["input"] + call_tokens.get("input", 0),
+            "output": tokens["output"] + call_tokens.get("output", 0),
+            "total": tokens["total"] + call_tokens.get("total", 0),
+        }
+        labeled = _align_labeled_lines(rows, text)
+        if len(labeled) >= len(rows):
+            break
+        logger.warning(
+            "Speaker label returned %d lines for %d inputs; retrying",
+            len(labeled),
+            len(rows),
+        )
+        parts = [part for part in parts if "fileData" in part]
+        parts.append({
+            "text": (
+                prompt
+                + f"\nYour previous answer had {len(labeled)} lines. "
+                + f"Return exactly {len(rows)} lines, one per input index.\n"
+            )
+        })
+    if len(labeled) < len(rows):
+        logger.warning(
+            "Speaker label still short (%d/%d); leaving the untimed translate path",
+            len(labeled),
+            len(rows),
+        )
+        return "", tokens
+    return format_labeled_turns(labeled), tokens
+
+
+def _align_labeled_lines(rows: list[dict], raw_text: str) -> list[dict]:
+    try:
+        payload = json.loads(_strip_json_fences(raw_text or ""))
+    except json.JSONDecodeError:
+        return []
+    incoming = payload.get("lines") if isinstance(payload, dict) else None
+    if not isinstance(incoming, list):
+        return []
+    by_index: dict[int, dict] = {}
+    for item in incoming:
+        if not isinstance(item, dict):
+            continue
+        try:
+            index = int(item.get("index"))
+        except (TypeError, ValueError):
+            continue
+        english = (item.get("english") or "").strip()
+        if not english:
+            continue
+        by_index[index] = item
+    if len(by_index) < len(rows) and len(incoming) >= len(rows):
+        by_index = {}
+        for index, item in enumerate(incoming[: len(rows)]):
+            if isinstance(item, dict) and (item.get("english") or "").strip():
+                by_index[index] = item
+    aligned: list[dict] = []
+    for index, segment in enumerate(rows):
+        item = by_index.get(index)
+        if not item:
+            return aligned
+        aligned.append({
+            "start": segment["start"],
+            "end": segment["end"],
+            "role": _role_name(item.get("role") or ""),
+            "english": (item.get("english") or "").strip(),
+        })
+    return aligned
+
+
 def relabel_speakers(translated_text: str, model_name: str | None = None) -> tuple[str, dict]:
     """Second pass: lock FME: and User: for the whole call."""
     text = (translated_text or "").strip()
@@ -187,6 +387,24 @@ Transcript:
         logger.warning("Speaker relabel dropped content; keeping translation labels")
         return text, tokens
     return relabeled, tokens
+
+
+def _candidate_text(res_json: dict) -> str:
+    """Join answer parts. Skip thought parts that thinking mode returns first."""
+    try:
+        parts = res_json["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise ValueError(
+            f"Cannot get the response text: {res_json.get('candidates')}"
+        ) from exc
+    answers = [
+        part.get("text") or ""
+        for part in parts
+        if not part.get("thought") and (part.get("text") or "")
+    ]
+    if not answers:
+        answers = [part.get("text") or "" for part in parts if part.get("text")]
+    return "\n".join(answers).strip()
 
 
 def _rest_token_count(res_json: dict) -> dict:
@@ -253,6 +471,54 @@ class VertexRestAdapter:
                 f"Cannot get the response text: {res_json.get('candidates')}"
             ) from exc
         return (text or "").strip(), _rest_token_count(res_json)
+
+    @staticmethod
+    def generate_parts(
+        parts: list[dict],
+        temperature: float = 0.0,
+        model_name: str | None = None,
+        timeout: int = 900,
+        thinking_config: dict | None = None,
+        response_schema: dict | None = None,
+        max_output_tokens: int | None = None,
+    ) -> tuple[str, dict]:
+        """generateContent with optional audio parts and thinking left on."""
+        import requests
+
+        name = model_name or settings.GEMINI_MODEL
+        creds = VertexRestAdapter._get_credentials()
+        url = (
+            f"https://{settings.GCP_LOCATION}-aiplatform.googleapis.com/v1/"
+            f"projects/{settings.GCP_PROJECT_ID}/locations/{settings.GCP_LOCATION}/"
+            f"publishers/google/models/{name}:generateContent"
+        )
+        generation: dict = {
+            "temperature": temperature,
+            "thinkingConfig": thinking_config or _SPEAKER_THINKING,
+        }
+        if max_output_tokens:
+            generation["maxOutputTokens"] = max_output_tokens
+        if response_schema:
+            generation["responseMimeType"] = "application/json"
+            generation["responseSchema"] = response_schema
+        payload = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": generation,
+            "safetySettings": _SAFETY_OFF,
+        }
+        res = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {creds.token}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=timeout,
+        )
+        res_json = res.json()
+        if "error" in res_json:
+            raise RuntimeError(f"REST API Error: {res_json['error']}")
+        return _candidate_text(res_json), _rest_token_count(res_json)
 
     @staticmethod
     def generate_content(

@@ -259,9 +259,9 @@ export default function CatalogClient() {
         <div className="flex h-full flex-col gap-5 p-6">
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h1 className="text-h1 font-bold text-text">Catalog</h1>
+                    <h1 className="text-h1 font-bold text-text">Library</h1>
                     <p className="mt-1 text-body-md text-text-subtle">
-                        Maintain Pidilite product names and feedback tags used by insights and reports.
+                        Maintain Pidilite product names and feedback tags used by feedback and summary.
                     </p>
                 </div>
                 {tab === "products" ? (
@@ -384,7 +384,7 @@ export default function CatalogClient() {
             <ConfirmationDialog
                 open={!!deleteProductId}
                 title="Delete product"
-                message="Delete this product from the catalog? Feedback that still references it may block delete — deactivate instead if needed."
+                message="Delete this product from the library? Feedback that still references it may block delete — deactivate instead if needed."
                 confirmLabel="Delete"
                 variant="danger"
                 isLoading={deleteProductMutation.isPending}

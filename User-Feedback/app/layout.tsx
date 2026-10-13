@@ -4,20 +4,42 @@ import { RouteGuard } from "@/components/providers/RouteGuard";
 import SideBar from "@/components/SideBar";
 import { getSession } from "@/lib/auth/session";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
+const chillax = localFont({
+  src: [
+    {
+      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
+      weight: "600",
+      style: "normal",
+    },
+    {
+      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-chillax",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Pidilite User Feedback App",
-  description: "Pidilite User Feedback App",
+  title: "Samvad",
+  description: "Samvad user feedback",
   icons: {
-    icon: "/pidilite-seeklogo.png",
+    icon: "/samvad-mark.png",
   },
 };
 
@@ -31,14 +53,14 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} h-full antialiased`}
+      className={`${chillax.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
         <QueryProvider>
           <AuthProvider initialUser={session}>
             <RouteGuard>
-              <div className="flex h-screen w-full bg-zinc-50 overflow-hidden">
+              <div className="flex h-screen w-full bg-bg overflow-hidden">
                 <SideBar />
                 <div className="flex-1 overflow-y-auto">
                   {children}
