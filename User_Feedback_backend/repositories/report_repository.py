@@ -101,7 +101,7 @@ def build_filters(
     search_sql: str = DIM_SEARCH,
     exact_tag: bool = False,
 ) -> tuple[str, dict[str, Any]]:
-    clauses: list[str] = []
+    clauses: list[str] = ["NULLIF(TRIM(COALESCE(product_name, '')), '') IS NOT NULL"]
     params: dict[str, Any] = {}
 
     def eq(column: str, value: Optional[str]) -> None:
@@ -200,15 +200,18 @@ def build_filters(
         params["feedback_category"] = feedback_category
 
     if feedback_tag:
-        if exact_tag:
-            clauses.append("LOWER(TRIM(feedback_tag)) = LOWER(TRIM(:feedback_tag))")
-        else:
-            clauses.append(
-                "("
-                "LOWER(TRIM(feedback_tag)) = LOWER(TRIM(:feedback_tag)) "
-                "OR LOWER(TRIM(COALESCE(feedback_sub_tag, ''))) = LOWER(TRIM(:feedback_tag))"
-                ")"
+        # A category filter already scopes the level-2 tag. Matching the category
+        # column again would return every level-3 row when the names are the same.
+        tag_match = ["LOWER(TRIM(feedback_tag)) = LOWER(TRIM(:feedback_tag))"]
+        if not exact_tag:
+            tag_match.append(
+                "LOWER(TRIM(COALESCE(feedback_sub_tag, ''))) = LOWER(TRIM(:feedback_tag))"
             )
+            if not feedback_category:
+                tag_match.append(
+                    "LOWER(TRIM(COALESCE(feedback_category, ''))) = LOWER(TRIM(:feedback_tag))"
+                )
+        clauses.append(tag_match[0] if len(tag_match) == 1 else "(" + " OR ".join(tag_match) + ")")
         params["feedback_tag"] = feedback_tag
 
     if start_date:
@@ -227,6 +230,19 @@ def build_filters(
 
     where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where_sql, params
+
+
+def where_summarized(db: Session, fact: str, where_sql: str) -> str:
+    """Drop feedbacks whose own summary has not been generated yet."""
+    clause = "NULLIF(TRIM(COALESCE(feedback_summary_ai, '')), '') IS NOT NULL"
+    try:
+        db.execute(text(f"SELECT feedback_summary_ai FROM {fact} WHERE 1 = 0"))
+    except (ProgrammingError, OperationalError):
+        db.rollback()
+        return where_sql
+    if " where " in where_sql.lower():
+        return f"{where_sql} AND {clause}"
+    return f"WHERE {clause}" if not where_sql.strip() else f"{where_sql} WHERE {clause}"
 
 
 def execute(db: Session, sql: str, params: dict[str, Any]):
@@ -529,6 +545,119 @@ def summary_counts(db: Session, fact: str, where_sql: str, params: dict[str, Any
     return _summary_from_rows(rows)
 
 
+def theme_counts(
+    db: Session,
+    *,
+    feedback_group: Optional[str] = None,
+    product_name: Optional[str] = None,
+    feedback_category: Optional[str] = None,
+    feedback_tag: Optional[str] = None,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+    fme_code: Optional[str] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+) -> list[dict[str, Any]]:
+    """Theme counts for the same slice the summary filters use."""
+    try:
+        feedback_cols = {col["name"] for col in inspect(db.get_bind()).get_columns("feedbacks")}
+        detail_cols = {col["name"] for col in inspect(db.get_bind()).get_columns("file_details")}
+    except (ProgrammingError, OperationalError):
+        return []
+    if "theme" not in feedback_cols:
+        return []
+
+    dialect = getattr(getattr(db.get_bind(), "dialect", None), "name", "") or "postgresql"
+    call_parts = []
+    if "call_date" in detail_cols:
+        call_parts.append("CAST(fd.call_date AS DATE)" if dialect != "sqlite" else "DATE(fd.call_date)")
+    call_parts.append("CAST(fb.created_at AS DATE)" if dialect != "sqlite" else "DATE(fb.created_at)")
+    call_date = call_parts[0] if len(call_parts) == 1 else f"COALESCE({', '.join(call_parts)})"
+    others_sql = (
+        "GROUP_CONCAT(DISTINCT NULLIF(TRIM(fb.others_info), ''))"
+        if dialect == "sqlite"
+        else "string_agg(DISTINCT NULLIF(TRIM(COALESCE(fb.others_info, '')), ''), ' · ')"
+    )
+    clauses = [
+        "NULLIF(TRIM(COALESCE(fb.theme, '')), '') IS NOT NULL",
+        "NULLIF(TRIM(COALESCE(fb.product_name, '')), '') IS NOT NULL",
+    ]
+    params: dict[str, Any] = {}
+    if feedback_group:
+        clauses.append("UPPER(TRIM(COALESCE(fb.group_type, ''))) = :feedback_group")
+        params["feedback_group"] = feedback_group.strip().upper()
+    if product_name:
+        clauses.append("LOWER(TRIM(COALESCE(fb.product_name, ''))) = LOWER(TRIM(:product_name))")
+        params["product_name"] = product_name
+    if division and "division" in detail_cols:
+        clauses.append("fd.division = :division")
+        params["division"] = division
+    if zone and "zone" in detail_cols:
+        clauses.append("fd.zone = :zone")
+        params["zone"] = zone
+    if cluster:
+        cluster_cols = [name for name in ("rfmm_cluster", "cluster") if name in detail_cols]
+        if cluster_cols:
+            clauses.append("(" + " OR ".join(f"fd.{name} = :cluster" for name in cluster_cols) + ")")
+            params["cluster"] = cluster
+    if fme_code and "fme_code" in detail_cols:
+        clauses.append("fd.fme_code = :fme_code")
+        params["fme_code"] = fme_code
+    if start_date:
+        clauses.append(f"{call_date} >= :start_date")
+        params["start_date"] = start_date.isoformat()
+    if end_date:
+        clauses.append(f"{call_date} <= :end_date")
+        params["end_date"] = end_date.isoformat()
+    if feedback_category or feedback_tag:
+        tag_clauses = ["l.feedback_id = fb.id"]
+        if feedback_category:
+            tag_clauses.append("LOWER(TRIM(COALESCE(t.group_type, ''))) = LOWER(TRIM(:tag_category))")
+            params["tag_category"] = feedback_category
+        if feedback_tag:
+            tag_clauses.append(
+                "("
+                "LOWER(TRIM(COALESCE(t.category, ''))) = LOWER(TRIM(:tag_name)) "
+                "OR LOWER(TRIM(COALESCE(fb.category_type, ''))) = LOWER(TRIM(:tag_name))"
+                ")"
+            )
+            params["tag_name"] = feedback_tag
+        clauses.append(
+            "EXISTS (SELECT 1 FROM feedback_tag_link l "
+            "JOIN feedback_tags t ON t.tag_id = l.tag_id WHERE " + " AND ".join(tag_clauses) + ")"
+        )
+    sql = f"""
+        SELECT
+            TRIM(fb.theme) AS theme,
+            NULLIF(TRIM(COALESCE(fb.category_type, '')), '') AS feedback_tag,
+            COUNT(DISTINCT fb.id) AS feedback_count,
+            COUNT(DISTINCT fb.job_id) AS site_visit_count,
+            {others_sql} AS others_info
+        FROM feedbacks fb
+        LEFT JOIN file_details fd ON fd.job_id = fb.job_id
+        WHERE {" AND ".join(clauses)}
+        GROUP BY TRIM(fb.theme), NULLIF(TRIM(COALESCE(fb.category_type, '')), '')
+        ORDER BY COUNT(DISTINCT fb.id) DESC, TRIM(fb.theme)
+    """
+    try:
+        rows = execute(db, sql, params).fetchall()
+    except (ProgrammingError, OperationalError, MissingFactView):
+        return []
+    themes = []
+    for row in rows:
+        mapping = row._mapping if hasattr(row, "_mapping") else row
+        info = _serialize(mapping["others_info"])
+        themes.append({
+            "theme": _serialize(mapping["theme"]),
+            "feedback_tag": _serialize(mapping["feedback_tag"]) or None,
+            "feedback_count": int(mapping["feedback_count"] or 0),
+            "site_visit_count": int(mapping["site_visit_count"] or 0),
+            "others_info": info or None,
+        })
+    return themes
+
+
 def _norm_product(value: str | None) -> str:
     return " ".join((value or "").split()).strip().lower()
 
@@ -823,7 +952,6 @@ def compliance_rows(
 ) -> list[dict[str, Any]]:
     """FME-level open-conversation compliance from file_details / transcripts."""
     fd_cols = _table_columns(db, "file_details")
-    pf_cols = _table_columns(db, "processed_file")
     dialect = getattr(getattr(db.get_bind(), "dialect", None), "name", "") or "postgresql"
     site_expr = (
         "NULLIF(TRIM(COALESCE(fd.site_number, '')), '')"
@@ -836,25 +964,10 @@ def compliance_rows(
         if "rfmm_cluster" in fd_cols
         else "NULLIF(TRIM(COALESCE(fd.cluster, '')), '')"
     )
-    transcript_parts = []
-    for name in ("raw_transcript_text", "translated_text", "normalized_text"):
-        if name in pf_cols:
-            transcript_parts.append(f"NULLIF(TRIM(COALESCE(pf.{name}, '')), '')")
-    # Only join job_ids that have text — avoid pulling large transcript columns into GROUP BY.
-    if transcript_parts:
-        recorded_join = f"""
-        LEFT JOIN (
-            SELECT pf.job_id
-            FROM processed_file pf
-            WHERE {' OR '.join(f'{part} IS NOT NULL' for part in transcript_parts)}
-        ) recorded ON recorded.job_id = fd.job_id
-        """
-        recorded_site = f"CASE WHEN recorded.job_id IS NOT NULL THEN {site_expr} END"
-        recorded_duration = f"CASE WHEN recorded.job_id IS NOT NULL THEN {duration_expr} END"
-    else:
-        recorded_join = ""
-        recorded_site = "NULL"
-        recorded_duration = "NULL"
+    # Temporary: count every file as recorded, including failed and empty transcripts.
+    recorded_join = ""
+    recorded_site = "j.id"
+    recorded_duration = duration_expr
     date_expr = (
         "DATE(COALESCE(fd.call_date, j.created_at))"
         if dialect == "sqlite"
@@ -892,7 +1005,7 @@ def compliance_rows(
             NULLIF(TRIM(COALESCE(fd.user_type, '')), '') AS user_type,
             {rfmm_expr} AS rfmm_cluster,
             NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') AS fme_code,
-            COUNT(DISTINCT {site_expr}) AS sites_visited,
+            COUNT(DISTINCT j.id) AS sites_visited,
             COUNT(DISTINCT {recorded_site}) AS sites_recorded,
             AVG({recorded_duration}) AS avg_seconds
         FROM file_details fd

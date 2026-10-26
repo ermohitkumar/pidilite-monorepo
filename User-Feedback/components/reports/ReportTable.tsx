@@ -4,6 +4,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LuArrowDown, LuArrowUp, LuSettings2 } from "react-icons/lu";
 
 import { AudioPlayer } from "@/components/reports/AudioPlayer";
+import { summaryDisplayText } from "@/components/reports/FormattedSummary";
+import { canPlayAudio } from "@/lib/auth/permissions";
+import { useAppStore } from "@/lib/store/useAppStore";
 import { FileSourceLink } from "@/components/reports/FileSourceLink";
 import { SentimentBadge } from "@/components/reports/SentimentBadge";
 import { Pagination } from "@/components/ui/Pagination";
@@ -182,10 +185,11 @@ function CellContent({
         return <SentimentBadge value={row.sentiment || value} />;
     }
     if (column === "feedback_summary_ai") {
-        if (!value) return "—";
+        const display = summaryDisplayText(value);
+        if (!display) return "—";
         return (
             <ClampedSummary
-                value={value}
+                value={display}
                 onViewMore={
                     onTextClick && row.kind === "data" ? () => onTextClick(column, row) : undefined
                 }
@@ -412,6 +416,8 @@ export function ReportTable({
     settingsStorageKey,
     serverMode,
     insightLevel = false,
+    pinnedColumns = [],
+    columnLabels,
 }: Readonly<{
     columns: MatrixColumn[];
     rows: MatrixRow[];
@@ -426,9 +432,19 @@ export function ReportTable({
     serverMode?: ReportTableServer;
     /** Insight/detail rows keep "Sentiment"; rollups use "Net Sentiment". */
     insightLevel?: boolean;
+    /** Stay in the table even when every row has the same value. */
+    pinnedColumns?: MatrixColumn[];
+    columnLabels?: Partial<Record<MatrixColumn, string>>;
 }>) {
-    const labelFor = (column: MatrixColumn) => columnLabel(column, { insightLevel });
-    const [sort, setSort] = useState<{ column: MatrixColumn; dir: SortDir } | null>(null);
+    const user = useAppStore((state) => state.user);
+    const isUserLoaded = useAppStore((state) => state.isUserLoaded);
+    const audioAllowed = isUserLoaded && canPlayAudio(user);
+    const labelFor = (column: MatrixColumn) => columnLabels?.[column] || columnLabel(column, { insightLevel });
+    const [sort, setSort] = useState<{ column: MatrixColumn; dir: SortDir } | null>(() =>
+        serverMode || !columns.includes("feedback_count")
+            ? null
+            : { column: "feedback_count", dir: "desc" },
+    );
     const [filters, setFilters] = useState<Partial<Record<MatrixColumn, string>>>({});
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(pageSizeOptions[0] || 10);
@@ -464,14 +480,23 @@ export function ReportTable({
         });
     };
 
-    const shared = useMemo(
-        () => (serverMode ? {} : constantValues(rows, columns)),
-        [rows, columns, serverMode],
-    );
+    const shared = useMemo(() => {
+        if (serverMode) return {};
+        const pinned = new Set(pinnedColumns);
+        return constantValues(
+            rows,
+            columns.filter((column) => !pinned.has(column)),
+        );
+    }, [rows, columns, serverMode, pinnedColumns]);
     const visibleColumns = useMemo(
-        () => columns.filter((column) => !shared[column] && !hiddenColumns.has(column)),
-        [columns, shared, hiddenColumns],
+        () =>
+            columns.filter(
+                (column) =>
+                    (audioAllowed || column !== "audio") && !shared[column] && !hiddenColumns.has(column),
+            ),
+        [audioAllowed, columns, shared, hiddenColumns],
     );
+    const optionalForSettings = optionalColumns.filter((column) => audioAllowed || column !== "audio");
     useLayoutEffect(() => {
         const rows = [headerRowRef.current, filterRowRef.current].filter(
             (row): row is HTMLTableRowElement => row !== null,
@@ -505,7 +530,7 @@ export function ReportTable({
             return true;
         });
         return [...pinned, ...fromRows];
-    }, [context, shared, insightLevel]);
+    }, [context, shared, insightLevel, columnLabels]);
 
     const optionsByColumn = useMemo(() => {
         const map: Partial<Record<MatrixColumn, string[]>> = {};
@@ -569,7 +594,7 @@ export function ReportTable({
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-            {contextChips.length > 0 || optionalColumns.length > 0 ? (
+            {contextChips.length > 0 || optionalForSettings.length > 0 ? (
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                         {contextChips.map((chip) => (
@@ -584,9 +609,9 @@ export function ReportTable({
                             </div>
                         ))}
                     </div>
-                    {optionalColumns.length > 0 ? (
+                    {optionalForSettings.length > 0 ? (
                         <TableSettings
-                            columns={optionalColumns}
+                            columns={optionalForSettings}
                             hidden={hiddenColumns}
                             onToggle={toggleOptionalColumn}
                             labelFor={labelFor}
@@ -659,7 +684,7 @@ export function ReportTable({
                         ) : (
                             pageRows.map((row, index) => (
                                 <tr
-                                    key={`${row.kind}-${row.feedback_id || row.product_name || row.feedback_tag || index}`}
+                                    key={`${row.kind}-${row.feedback_id || row.product_name || ""}-${row.feedback_category || ""}-${row.feedback_tag || ""}-${row.feedback_sub_tag || ""}-${index}`}
                                     className={row.kind === "total" ? "bg-[#EFEFEF] font-bold" : "bg-white hover:bg-slate-50"}
                                 >
                                     {visibleColumns.map((column) => {

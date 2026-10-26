@@ -24,16 +24,13 @@ from core.enums import JobStatus, BatchStatus
 from schemas.schemas import CheckerRunRequest, CheckerRunResponseData
 from services.shared.cloud_tasks import enqueue_http_task
 from services.shared.gcs_paths import build_stt_output_gcs_uri
-from services.shared.gemini_stt import is_gemini_flash_operation
 from services.shared.pipeline_debug import record_pipeline_note
 from services.shared.stt_client import (
     _HAS_SPEECH,
     file_error_from_operation,
     get_operation,
     output_uri_from_operation,
-    submit_batch_recognize,
 )
-from services.shared.transcript import gcs_blob_exists
 
 logger = logging.getLogger(__name__)
 
@@ -83,66 +80,10 @@ def _mark_recovery_enqueued(db: Session, job_id: str, step: str, message: str) -
 
 # ── Poll outstanding STT LROs ────────────────────────────────────────────────
 
-def _poll_gemini_flash_job(db: Session, job: Job) -> str:
-    """
-    Handle STT_SUBMITTED jobs whose operation name is the gemini-flash sentinel.
-
-    Never calls Speech get_operation. If the canonical GCS blob exists, mark
-    STT_COMPLETED. If the job is stuck with no blob, submit Speech v2.
-    Returns completed | fallback | wait | errored.
-    """
-    gcs_uri = job.gcs_stt_output_uri or build_stt_output_gcs_uri(job.id)
-    try:
-        exists = gcs_blob_exists(gcs_uri)
-    except Exception as exc:
-        logger.warning("Failed to check Gemini Flash STT blob for job %s: %s", job.id, exc)
-        exists = False
-
-    if exists:
-        logger.info("Gemini Flash STT blob present for job %s, marking STT_COMPLETED", job.id)
-        batch_repository.update_job_status(
-            db, job.id,
-            status=JobStatus.STT_COMPLETED,
-            gcs_stt_output_uri=gcs_uri,
-        )
-        return "completed"
-
-    if not _job_is_stuck(job):
-        return "wait"
-
-    prefix = f"gs://{settings.GCS_OUTPUT_BUCKET}/stt-output/{job.id}/"
-    try:
-        operation_name = submit_batch_recognize(
-            job.gcs_input_uri,
-            prefix,
-            language_code="hi-IN",
-            model="telephony",
-        )
-    except Exception as exc:
-        logger.warning("Gemini Flash stuck fallback to Speech v2 failed for job %s: %s", job.id, exc)
-        return "errored"
-
-    logger.warning(
-        "Gemini Flash STT stuck with no GCS blob for job %s; submitted Speech v2 op=%s",
-        job.id, operation_name,
-    )
-    batch_repository.update_job_status(
-        db, job.id,
-        status=JobStatus.STT_SUBMITTED,
-        stt_operation_name=operation_name,
-        error_message="Gemini Flash STT produced no GCS output; fell back to Speech v2",
-    )
-    _mark_recovery_enqueued(
-        db, job.id, "checker",
-        f"gemini-flash stuck: submitted Speech v2 LRO ({operation_name})",
-    )
-    return "fallback"
-
-
 def _poll_stt_lros(db: Session, limit: int) -> dict:
     """
     For every job in STT_SUBMITTED status that has an stt_operation_name,
-    check if STT has completed (Speech LRO or Gemini Flash GCS blob).
+    check if the Chirp 3 BatchRecognize LRO has completed.
     """
     submitted_jobs = batch_repository.get_jobs_by_status(db, JobStatus.STT_SUBMITTED, limit=limit)
     completed, errored = 0, 0
@@ -152,13 +93,6 @@ def _poll_stt_lros(db: Session, limit: int) -> dict:
 
     for job in submitted_jobs:
         if not job.stt_operation_name:
-            continue
-        if is_gemini_flash_operation(job.stt_operation_name):
-            result = _poll_gemini_flash_job(db, job)
-            if result == "completed":
-                completed += 1
-            elif result == "errored":
-                errored += 1
             continue
         if not _HAS_SPEECH:
             continue

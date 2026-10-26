@@ -8,21 +8,25 @@ from __future__ import annotations
 import logging
 import math
 from datetime import date
+from types import SimpleNamespace
 from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.exceptions import APIException
 from core.permissions import Permissions
 from core.response import make_response
-from core.dependencies import RoleChecker
+from core.dependencies import RoleChecker, get_current_user
 from db.session import get_db
 from repositories import report_repository as report_repo
 from repositories.batch_repository import get_file_details_by_job_id, get_job
 from services.api.gcs_audio import content_type_for_name, is_allowed_audio_uri
 from services.period_summarize import store as period_store
+from services.period_summarize.compact import format_findings, merge_findings
 from services.period_summarize.period_keys import (
     group_token,
     infer_period,
@@ -182,6 +186,38 @@ def _serialize_visible(row: Any) -> Optional[dict[str, Any]]:
     return period_store.serialize_row(row)
 
 
+# Product × tag rows already stored from the audios, used when the cluster rollup
+# has not been written yet (for example the visit has no RFMM cluster).
+_STORED_PRODUCT_TAG_GRAINS = ("rfmm_pt", "zone_pt", "div_pt", "bde_pt")
+
+
+def _merge_same_tag(rows: list[Any]) -> list[Any]:
+    """One row per tag. Several officers' product summaries are kept together."""
+    grouped: dict[str, list[Any]] = {}
+    for row in rows:
+        grouped.setdefault(_tag_dedupe_key(row), []).append(row)
+    merged: list[Any] = []
+    for group in grouped.values():
+        if len(group) == 1:
+            merged.append(group[0])
+            continue
+        texts: list[str] = []
+        for row in group:
+            text = (getattr(row, "summary_text", None) or "").strip()
+            if text and text not in texts:
+                texts.append(text)
+        base = group[0]
+        merged.append(SimpleNamespace(
+            grain=base.grain,
+            grain_key=base.grain_key,
+            grain_label=base.grain_label,
+            summary_text="\n\n".join(texts),
+            status=getattr(base, "status", None),
+            highlights_json=getattr(base, "highlights_json", None),
+        ))
+    return merged
+
+
 def _tag_dedupe_key(row: Any) -> str:
     try:
         parsed = parse_insight_key(row.grain, row.grain_key)
@@ -219,7 +255,8 @@ def _period_product_and_tag_rows(
     slices = slice_grains_for_geo(geo_grain)
     product_grain = slices["product"]
     if product_name:
-        tag_grain = slices["cube"] if slices["cube"] != "product" else "div_pt"
+        # Cluster × product × tag, rolled to zone, then to all_pt when no geo is selected.
+        tag_grain = slices["cube"]
         tag_identity = geo_key if geo_grain else None
     else:
         tag_grain = slices["tag"]
@@ -236,17 +273,6 @@ def _period_product_and_tag_rows(
         )
         if period_store.matches_product(row, product_name)
     ]
-    if not product_rows and product_grain != "product":
-        product_rows = [
-            row
-            for row in period_store.filter_group(
-                period_store.list_current(
-                    db, grain="product", period_type=period_type, period_key=period_key, status="ok",
-                ),
-                token,
-            )
-            if period_store.matches_product(row, product_name)
-        ]
     tag_rows = [
         row
         for row in period_store.filter_group(
@@ -258,6 +284,20 @@ def _period_product_and_tag_rows(
         )
         if period_store.matches_product(row, product_name)
     ]
+    if product_name and not tag_rows and not geo_grain:
+        stored: list[Any] = []
+        for grain in _STORED_PRODUCT_TAG_GRAINS:
+            stored.extend(
+                row
+                for row in period_store.filter_group(
+                    period_store.list_current(
+                        db, grain=grain, period_type=period_type, period_key=period_key, status="ok",
+                    ),
+                    token,
+                )
+                if period_store.matches_product(row, product_name)
+            )
+        tag_rows = _merge_same_tag(stored)
     if product_name and not geo_grain:
         seen: set[str] = set()
         unique: list[Any] = []
@@ -269,6 +309,62 @@ def _period_product_and_tag_rows(
             unique.append(row)
         tag_rows = unique
     return product_rows, tag_rows
+
+
+def _row_tag_id(row: Any) -> Optional[str]:
+    try:
+        parsed = parse_insight_key(row.grain, row.grain_key)
+    except (ValueError, AttributeError):
+        return None
+    tag_id = parsed.get("tag_id")
+    return str(tag_id) if tag_id else None
+
+
+def _active_tag_catalog(db: Session) -> tuple[dict[tuple[str, str], str], set[str]]:
+    """Map (category, level-3 name) to tag_id. Names like Others repeat across categories."""
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT tag_id, category, tag_name
+                FROM feedback_tags
+                WHERE is_active IS NOT FALSE
+                """
+            )
+        ).fetchall()
+    except (OperationalError, ProgrammingError):
+        return {}, set()
+    catalog: dict[tuple[str, str], str] = {}
+    names: dict[str, set[str]] = {}
+    for tag_id, category, tag_name in rows:
+        if tag_id is None or not tag_name:
+            continue
+        name = period_store.norm_label(str(tag_name))
+        catalog[(period_store.norm_label(category), name)] = str(tag_id)
+        names.setdefault(name, set()).add(str(tag_id))
+    ambiguous = {name for name, ids in names.items() if len(ids) > 1}
+    return catalog, ambiguous
+
+
+def _row_for_level_three(
+    item: dict[str, Any],
+    catalog: dict[tuple[str, str], str],
+    ambiguous_names: set[str],
+    by_tag_id: dict[str, Any],
+    by_label: dict[str, Any],
+) -> Any:
+    name = period_store.norm_label(item.get("feedback_tag"))
+    category = period_store.norm_label(item.get("feedback_category"))
+    tag_id = catalog.get((category, name))
+    if tag_id and by_tag_id.get(tag_id):
+        return by_tag_id[tag_id]
+    if name in ambiguous_names:
+        return None
+    for key in period_store.label_keys(item.get("feedback_tag")):
+        row = by_label.get(key)
+        if row:
+            return row
+    return None
 
 
 def _attach_tag_ai_summaries(
@@ -289,9 +385,7 @@ def _attach_tag_ai_summaries(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
     )
     slices = slice_grains_for_geo(geo_grain)
-    tag_grain = slices["cube"] if product_name and slices["cube"] != "product" else (
-        "div_pt" if product_name else slices["tag"]
-    )
+    tag_grain = slices["cube"] if product_name else slices["tag"]
     _, tag_rows = _period_product_and_tag_rows(
         db,
         period_type=period_type,
@@ -325,22 +419,26 @@ def _attach_tag_ai_summaries(
                 product_name=product_name,
             )
     by_label: dict[str, Any] = {}
+    by_tag_id: dict[str, Any] = {}
     for row in tag_rows:
         if not period_store.is_visible_summary(row):
             continue
+        tag_id = _row_tag_id(row)
+        if tag_id:
+            by_tag_id.setdefault(tag_id, row)
         for key in _tag_lookup_keys(row):
             by_label.setdefault(key, row)
+    catalog, ambiguous_names = _active_tag_catalog(db)
     attached = []
     for tag in tags:
         item = dict(tag)
-        row = None
-        for key in period_store.label_keys(item.get("feedback_tag")):
-            row = by_label.get(key)
-            if row:
-                break
+        row = _row_for_level_three(item, catalog, ambiguous_names, by_tag_id, by_label)
         summary, status = _narrative_for_tag_row(row)
         item["ai_summary"] = summary
         item["summary_status"] = status
+        highlights = getattr(row, "highlights_json", None) or {}
+        sentiment = highlights.get("sentiment") if isinstance(highlights, dict) else None
+        item["sentiment"] = sentiment if isinstance(sentiment, str) and sentiment.strip() else None
         attached.append(item)
     return attached
 
@@ -356,13 +454,91 @@ def _lookup_product_summary(db, product_name, period_type, period_key, token, ge
         return None
     if geo_grain and geo_key:
         slice_grain = slice_grains_for_geo(geo_grain)["product"]
-        row = period_store.get_current_by_label(
+        return period_store.get_current_by_label(
             db, slice_grain, product_name, period_type, period_key,
             group_token=token, identity=geo_key,
         )
-        if row:
-            return row
     return period_store.get_current_scoped(db, "product", product_name, period_type, period_key, token)
+
+
+def _merged_category_summary(db, label, period_type, period_key, token):
+    """Roll level-3 theme summaries up to the level-2 tag, keeping each product heading."""
+    if not label:
+        return None
+    try:
+        tag_ids = [
+            row[0]
+            for row in db.execute(
+                text(
+                    """
+                    SELECT tag_id
+                    FROM feedback_tags
+                    WHERE is_active = true
+                      AND LOWER(TRIM(COALESCE(category, ''))) = LOWER(TRIM(:label))
+                    """
+                ),
+                {"label": label},
+            ).fetchall()
+        ]
+    except (OperationalError, ProgrammingError):
+        return None
+    tokens = [token] if token else ["PDT", "USER", "DEALER"]
+    rows = []
+    for tag_id in tag_ids:
+        for tok in tokens:
+            row = period_store.get_current(db, "tag", f"{tag_id}::{tok}", period_type, period_key)
+            if period_store.is_visible_summary(row):
+                rows.append(row)
+    if not rows:
+        return None
+    findings = [
+        item
+        for item in merge_findings([{"highlights": row.highlights_json or {}} for row in rows])
+        if str(item.get("product") or item.get("title") or "").strip()
+    ]
+    summary_text = format_findings(findings)
+    if not summary_text:
+        return None
+    visits = 0
+    insights = 0
+    for row in rows:
+        highlights = row.highlights_json or {}
+        visits += int(highlights.get("site_visit_count") or row.call_count or 0)
+        insights += int(row.insight_count or highlights.get("insight_count") or 0)
+    return {
+        "id": f"category::{label}",
+        "grain": "tag",
+        "grain_key": label,
+        "grain_label": label,
+        "parent_key": None,
+        "period_type": period_type,
+        "period_key": period_key,
+        "period_start": None,
+        "period_end": None,
+        "summary_text": summary_text,
+        "highlights": {"findings": findings, "site_visit_count": visits, "insight_count": insights},
+        "source_kind": "rollup",
+        "source_count": len(rows),
+        "call_count": visits,
+        "insight_count": insights,
+        "status": "ok",
+        "version": 1,
+        "is_current": True,
+        "model_name": None,
+        "prompt_tokens": None,
+        "output_tokens": None,
+        "error_message": None,
+        "generated_at": None,
+    }
+
+
+def _tag_summary_payload(db, feedback_tag, period_type, period_key, token, geo_grain, geo_key):
+    row = _serialize_visible(
+        _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, geo_grain, geo_key)
+    )
+    if row is not None or not feedback_tag:
+        return row
+    return _merged_category_summary(db, feedback_tag, period_type, period_key, token)
 
 
 def _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, geo_grain, geo_key):
@@ -370,12 +546,10 @@ def _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, geo_gr
         return None
     if geo_grain and geo_key:
         slice_grain = slice_grains_for_geo(geo_grain)["tag"]
-        row = period_store.get_current_by_label(
+        return period_store.get_current_by_label(
             db, slice_grain, feedback_tag, period_type, period_key,
             group_token=token, identity=geo_key,
         )
-        if row:
-            return row
     return period_store.get_current_by_label(
         db, "tag", feedback_tag, period_type, period_key, group_token=token,
     )
@@ -490,9 +664,7 @@ def get_period_summary(
     product = _serialize_visible(
         _lookup_product_summary(db, product_name, period_type, period_key, token, grain, grain_key)
     )
-    tag = _serialize_visible(
-        _lookup_tag_summary(db, feedback_tag, period_type, period_key, token, grain, grain_key)
-    )
+    tag = _tag_summary_payload(db, feedback_tag, period_type, period_key, token, grain, grain_key)
     previous = None
     previous_product = None
     previous_tag = None
@@ -505,9 +677,7 @@ def get_period_summary(
         previous_product = _serialize_visible(
             _lookup_product_summary(db, product_name, prev_type, prev_key, token, grain, grain_key)
         )
-        previous_tag = _serialize_visible(
-            _lookup_tag_summary(db, feedback_tag, prev_type, prev_key, token, grain, grain_key)
-        )
+        previous_tag = _tag_summary_payload(db, feedback_tag, prev_type, prev_key, token, grain, grain_key)
     return make_response(
         success=True,
         message="Period summary retrieved successfully",
@@ -589,6 +759,18 @@ def get_period_summaries(
         for row in tag_rows
         if period_store.is_visible_summary(row)
     ]
+    cube_grain = slice_grains_for_geo(geo_grain)["cube"]
+    product_tags = [
+        period_store.serialize_row(row)
+        for row in period_store.filter_group(
+            period_store.list_current(
+                db, grain=cube_grain, period_type=period_type, period_key=period_key, status="ok",
+            ),
+            token,
+            identity=geo_key if geo_grain else None,
+        )
+        if period_store.matches_product(row, product_name) and period_store.is_visible_summary(row)
+    ]
     available_filters = {
         "divisions": period_store.display_values(
             period_store.filter_group(
@@ -638,6 +820,7 @@ def get_period_summaries(
             "items": items,
             "products": products,
             "tags": tags,
+            "product_tags": product_tags,
             "available_filters": available_filters,
         },
     )
@@ -700,7 +883,21 @@ def get_report_summary(
             division, zone, cluster, state, data_source, start_date, end_date, search,
             fme_code=fme_code, user_type=user_type,
         )
+        where_sql = report_repo.where_summarized(db, fact, where_sql)
         counts = report_repo.summary_counts(db, fact, where_sql, params)
+        counts["themes"] = report_repo.theme_counts(
+            db,
+            feedback_group=feedback_group,
+            product_name=product_name,
+            feedback_category=feedback_category,
+            feedback_tag=feedback_tag,
+            division=division,
+            zone=zone,
+            cluster=cluster,
+            fme_code=fme_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
         period_type, period_key = _period_from_dates(start_date, end_date)
         counts["tags"] = _attach_tag_ai_summaries(
             db,
@@ -756,6 +953,7 @@ def get_report_products(
             division, zone, cluster, state, data_source, start_date, end_date, search,
             fme_code=fme_code, user_type=user_type,
         )
+        where_sql = report_repo.where_summarized(db, fact, where_sql)
         items, total = report_repo.product_counts(db, fact, where_sql, params)
     except report_repo.MissingFactView as exc:
         logger.warning("report products view missing: %s", exc)
@@ -804,6 +1002,7 @@ def get_report_details(
             fme_code=fme_code, user_type=user_type,
             search_sql=report_repo.DETAIL_SEARCH,
         )
+        where_sql = report_repo.where_summarized(db, fact, where_sql)
         items, total = report_repo.detail_page(
             db, fact, where_sql, params,
             page=page, page_size=page_size, sort_by=sort_by, sort_dir=sort_dir,
@@ -996,9 +1195,24 @@ def get_feedback_fact(
     )
 
 
+_AUDIO_PLAYBACK_ROLES = frozenset({"admin", "super_admin"})
+
+
+def require_audio_playback(user: dict = Depends(get_current_user)) -> dict:
+    """Recording playback is limited to Admin and Super Admin."""
+    if user.get("role") not in _AUDIO_PLAYBACK_ROLES:
+        raise APIException(
+            status_code=403,
+            message="Audio playback is limited to Admin and Super Admin",
+            error="Forbidden",
+        )
+    return user
+
+
 @router.get("/audio-locator")
 def get_audio_locator(
     db: DbSession,
+    _: dict = Depends(require_audio_playback),
     job_id: str = Query(..., min_length=8, max_length=64),
 ):
     """Return the private GCS locator for a job. Browser clients must not call this;

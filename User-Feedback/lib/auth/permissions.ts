@@ -4,11 +4,30 @@ export const AVAILABLE_RESOURCES = [
   { label: "Summary", value: "reports" },
   { label: "Monitor", value: "monitor" },
   { label: "All Files", value: "all_files" },
-  { label: "File Insight", value: "file_insight" },
+  { label: "File Feedback", value: "file_insight" },
   { label: "Library", value: "library" },
 ] as const;
 
 export type ResourceType = (typeof AVAILABLE_RESOURCES)[number]["value"];
+
+const AUDIO_PLAYBACK_ROLES = new Set(["admin", "super_admin"]);
+
+/** Recording playback is limited to the Admin and Super Admin roles. */
+export function canPlayAudio(user: { role?: string | null } | null | undefined): boolean {
+  return Boolean(user?.role && AUDIO_PLAYBACK_ROLES.has(user.role));
+}
+
+export function formatRoleLabel(role?: string | null): string {
+  if (!role) return "User";
+  if (role === "super_admin") return "Super Admin";
+  if (role === "admin") return "Admin";
+  if (role === "user") return "User";
+  return role
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 /**
  * Helper function to check if a user has access to a specific resource.

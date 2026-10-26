@@ -25,7 +25,7 @@ def _nodes(_db, _start, _end):
 
 
 def _gather(_db, start, end, grain, grain_key):
-    assert grain in {"bde", "product", "tag", "bde_pt", "bde_p", "bde_t"}
+    assert grain in {"bde", "product", "tag", "bde_pt", "bde_p", "bde_t", "rfmm_pt", "rfmm_p", "rfmm_t", "all_pt"}
     summary = "FAILME hold issue" if grain_key == "BAD" else f"{grain_key} likes Marine"
     return [{
         "insight_id": f"{grain}:{grain_key}",
@@ -150,6 +150,17 @@ def test_runner_writes_tag_months_after_product(db_session):
             assert kwargs.get("grain_label") == "Packaging"
         return _ok("tag narrative")
 
+    def list_cube(_db, _start, _end, group_type=None):
+        return [{
+            "bde_key": "GOOD",
+            "rfmm_key": "RFMM-A",
+            "zone_key": "ZONE-A",
+            "division_key": "DIV-A",
+            "product_name": "Marine",
+            "tag_id": "22",
+            "tag_name": "Packaging",
+        }]
+
     results = run_month(
         db_session,
         "2026-09",
@@ -158,13 +169,24 @@ def test_runner_writes_tag_months_after_product(db_session):
         list_nodes=lambda *_args: [],
         list_products=lambda *_args: ["Marine"],
         list_tags=lambda *_args: [{"grain_key": "22", "grain_label": "Packaging"}],
+        list_cube=list_cube,
     )
-    assert order == ["product", "tag"]
+    assert order == ["rfmm_pt"]
+    product = get_current(db_session, "rfmm_p", "RFMM-A::Marine", "month", "2026-09")
+    assert product is not None
+    assert product.source_kind == "child_summaries"
+    cluster_tag = get_current(db_session, "rfmm_t", "RFMM-A::22", "month", "2026-09")
+    assert cluster_tag is not None
+    assert cluster_tag.source_kind == "child_summaries"
+    assert cluster_tag.grain_label == "Packaging"
     assert any(item["grain"] == "tag" and item["grain_key"] == "22" and item["status"] == "ok" for item in results)
     row = get_current(db_session, "tag", "22", "month", "2026-09")
     assert row is not None
     assert row.grain_label == "Packaging"
-    assert row.source_kind == "insights"
+    assert row.source_kind == "child_summaries"
+    zone = get_current(db_session, "zone_t", "ZONE-A::22", "month", "2026-09")
+    assert zone is not None
+    assert zone.source_kind == "child_summaries"
 
 
 def test_tag_quarter_built_from_child_months_not_insights(db_session):
@@ -179,12 +201,24 @@ def test_tag_quarter_built_from_child_months_not_insights(db_session):
     def summarize(lines, **_kwargs):
         return _ok("child combine")
 
+    def list_cube(_db, _start, _end, group_type=None):
+        return [{
+            "bde_key": "GOOD",
+            "rfmm_key": "RFMM-A",
+            "zone_key": "ZONE-A",
+            "division_key": "DIV-A",
+            "product_name": None,
+            "tag_id": "6",
+            "tag_name": "Performance",
+        }]
+
     kwargs = dict(
         summarize=summarize,
         gather=gather,
         list_nodes=lambda *_args: [],
         list_products=lambda *_args: [],
         list_tags=lambda *_args: [{"grain_key": "6", "grain_label": "Performance"}],
+        list_cube=list_cube,
     )
     run_month(db_session, "2026-07", **kwargs)
     run_month(db_session, "2026-08", **kwargs)
@@ -196,6 +230,48 @@ def test_tag_quarter_built_from_child_months_not_insights(db_session):
     assert quarter is not None
     assert quarter.source_kind == "child_summaries"
     assert quarter.grain_label == "Performance"
+
+
+def test_runner_summarizes_audios_without_a_cluster(db_session):
+    seen: list[str] = []
+
+    def gather(db, start, end, grain, grain_key):
+        seen.append(grain)
+        return _gather(db, start, end, grain, grain_key)
+
+    def list_cube(_db, _start, _end, group_type=None):
+        return [{
+            "bde_key": "GOOD",
+            "rfmm_key": None,
+            "zone_key": None,
+            "division_key": None,
+            "product_name": "Marine",
+            "tag_id": "22",
+            "tag_name": "Packaging",
+        }]
+
+    results = run_month(
+        db_session,
+        "2026-09",
+        summarize=lambda lines, **_kwargs: _ok("unclustered narrative"),
+        gather=gather,
+        list_nodes=lambda *_args: [],
+        list_cube=list_cube,
+    )
+    assert "rfmm_pt" not in seen
+    assert "all_pt" in seen
+    assert any(item["grain"] == "all_pt" and item["grain_key"] == "ALL::Marine::22" and item["status"] == "ok" for item in results)
+    row = get_current(db_session, "all_pt", "ALL::Marine::22", "month", "2026-09")
+    assert row is not None
+    assert row.grain_label == "Marine × Packaging"
+    assert row.source_kind == "insights"
+    product = get_current(db_session, "product", "Marine", "month", "2026-09")
+    assert product is not None
+    assert product.source_kind == "child_summaries"
+    tag = get_current(db_session, "tag", "22", "month", "2026-09")
+    assert tag is not None
+    assert tag.source_kind == "child_summaries"
+    assert tag.grain_label == "Packaging"
 
 
 def test_runner_uses_findings_when_llm_empty(db_session):
@@ -261,12 +337,24 @@ def test_runner_writes_pdt_cube_and_user_tag_without_product(db_session):
         list_groups=lambda *_args, **_kwargs: ["PDT GROUP", "USER GROUP"],
         list_cube=list_cube,
     )
-    assert any(item["grain"] == "bde_pt" and item["grain_key"] == "GOOD::PDT::Marine::22" and item["status"] == "ok" for item in results)
-    assert any(item["grain"] == "bde_t" and item["grain_key"] == "GOOD::USER::30" and item["status"] == "ok" for item in results)
-    assert get_current(db_session, "bde_pt", "GOOD::PDT::Marine::22", "month", "2026-09") is not None
-    assert get_current(db_session, "bde_t", "GOOD::USER::30", "month", "2026-09") is not None
-    assert get_current(db_session, "bde_pt", "GOOD::USER::Marine::30", "month", "2026-09") is None
-    assert get_current(db_session, "tag", "22::PDT", "month", "2026-09") is not None
+    assert any(item["grain"] == "rfmm_pt" and item["grain_key"] == "RFMM-A::PDT::Marine::22" and item["status"] == "ok" for item in results)
+    pdt_product = get_current(db_session, "rfmm_p", "RFMM-A::PDT::Marine", "month", "2026-09")
+    assert pdt_product is not None
+    assert pdt_product.source_kind == "child_summaries"
+    pdt_tag = get_current(db_session, "rfmm_t", "RFMM-A::PDT::22", "month", "2026-09")
+    assert pdt_tag is not None
+    assert pdt_tag.source_kind == "child_summaries"
+    assert any(item["grain"] == "rfmm_t" and item["grain_key"] == "RFMM-A::USER::30" and item["status"] == "ok" for item in results)
+    assert get_current(db_session, "rfmm_pt", "RFMM-A::PDT::Marine::22", "month", "2026-09") is not None
+    user_tag = get_current(db_session, "rfmm_t", "RFMM-A::USER::30", "month", "2026-09")
+    assert user_tag is not None
+    assert user_tag.source_kind == "insights"
+    assert get_current(db_session, "rfmm_pt", "RFMM-A::USER::Marine::30", "month", "2026-09") is None
+    tag = get_current(db_session, "tag", "22::PDT", "month", "2026-09")
+    assert tag is not None
+    assert tag.source_kind == "child_summaries"
+    assert get_current(db_session, "zone_t", "ZONE-A::PDT::22", "month", "2026-09") is not None
+    assert get_current(db_session, "all_pt", "ALL::PDT::Marine::22", "month", "2026-09") is not None
     assert get_current(db_session, "tag", "30::USER", "month", "2026-09") is not None
     assert get_current(db_session, "bde", "GOOD::PDT", "month", "2026-09") is not None
     assert get_current(db_session, "bde", "GOOD::USER", "month", "2026-09") is not None
@@ -302,7 +390,7 @@ def test_quarter_rolls_cube_key_and_records_missing_month(db_session):
     run_month(db_session, "2026-07", **kwargs)
     run_month(db_session, "2026-08", **kwargs)
     roll_quarter(db_session, "2026-Q3", force=False, summarize=summarize)
-    quarter = get_current(db_session, "bde_pt", "GOOD::PDT::Marine::22", "quarter", "2026-Q3")
+    quarter = get_current(db_session, "rfmm_pt", "RFMM-A::PDT::Marine::22", "quarter", "2026-Q3")
     assert quarter is not None
     assert quarter.source_kind == "child_summaries"
     missing = (quarter.highlights_json or {}).get("missing") or []

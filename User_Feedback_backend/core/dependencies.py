@@ -8,6 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from core.config import settings
 from db.session import get_db
 from db.models import User
+from core.roles import resource_granted
 
 logger = logging.getLogger(__name__)
 
@@ -70,24 +71,58 @@ class RoleChecker:
         if user.role == "super_admin":
             return payload
 
-        # 5. Check if this specific user has been granted this specific resource
-        has_access = False
-        if user.allowed_resources:
-            for item in user.allowed_resources:
-                if isinstance(item, str) and item == self.resource_name:
-                    has_access = True
-                    break
-                elif isinstance(item, dict) and self.resource_name in item.values():
-                    has_access = True
-                    break
-
-        if not has_access:
+        # 5. Page grants from the admin panel also satisfy the API permission
+        #    behind that page (for example "reports" grants view_dashboard).
+        if not resource_granted(user.allowed_resources, self.resource_name):
             raise HTTPException(
                 status_code=403,
                 detail=f"You do not have permission to access the '{self.resource_name}' resource."
             )
 
         return payload
+
+
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    swagger_auth: HTTPAuthorizationCredentials = Depends(token_auth_scheme),
+) -> dict:
+    """Authenticated caller, without a resource check.
+
+    A user must be able to load their own profile after form login so the
+    admin-assigned role can drive the pages they see.
+    """
+    if not settings.is_production:
+        return {"user_id": "dev-bypass-id", "role": "super_admin"}
+
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token:
+        token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(
+            status_code=401, detail="Not authenticated. Missing session token.")
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id") or payload.get("userId") or payload.get("sub")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Session expired.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid session token.")
+
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=403, detail="Account is disabled or deleted.")
+
+    return {
+        "user_id": str(user.user_id),
+        "role": user.role,
+        "email": user.email,
+    }
 
 
 def verify_sso_user(

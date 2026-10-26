@@ -6,10 +6,12 @@ export type ReportView = "matrix" | "product" | "detail";
 
 export type TaxonomyTag = {
     tag_id: number;
+    level_1?: string | null;
     feedback_group: string;
     feedback_category: string;
     feedback_tag: string;
     feedback_sub_tag?: string | null;
+    is_other?: boolean;
     description?: string | null;
 };
 
@@ -91,6 +93,15 @@ export type ReportSummaryTag = {
     site_visit_count?: number;
     ai_summary?: string | null;
     summary_status?: string | null;
+    sentiment?: string | null;
+};
+
+export type ReportThemeCount = {
+    theme: string;
+    feedback_tag?: string | null;
+    feedback_count: number;
+    site_visit_count?: number;
+    others_info?: string | null;
 };
 
 export type ReportSummaryCategory = {
@@ -104,6 +115,7 @@ export type ReportSummaryResponse = {
     data?: {
         tags: ReportSummaryTag[];
         categories: ReportSummaryCategory[];
+        themes?: ReportThemeCount[];
         total: number;
         filter_options?: FilterOptions;
         source?: string;
@@ -264,6 +276,7 @@ export type PeriodSummariesResponse = {
         items: PeriodSummaryRecord[];
         products?: PeriodSummaryRecord[];
         tags?: PeriodSummaryRecord[];
+        product_tags?: PeriodSummaryRecord[];
         available_filters?: {
             divisions?: string[];
             zones?: string[];
@@ -378,9 +391,9 @@ export type MatrixRow = {
 export const COLUMN_LABELS: Record<MatrixColumn, string> = {
     feedback_group: "FEEDBACK GROUP",
     product_name: "Product Name",
-    feedback_category: "Feedback category",
+    feedback_category: "Feedback Category",
     feedback_tag: "Feedback Tag",
-    feedback_sub_tag: "Feedback sub Tag",
+    feedback_sub_tag: "Theme",
     feedback_count: "Feedback Count",
     feedback_summary_ai: "Feedback summary (AI generated)",
     feedback_excerpt: "Feedback voice recording (Excerpt)",

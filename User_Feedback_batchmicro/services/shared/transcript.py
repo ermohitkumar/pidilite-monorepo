@@ -37,10 +37,19 @@ def extract_job_id_from_path(gcs_path: str) -> str | None:
 
 
 def _speaker_tag(word: dict) -> int | None:
-    if "speakerTag" in word:
-        return int(word["speakerTag"])
-    if "speaker_tag" in word:
-        return int(word["speaker_tag"])
+    """Speaker id from legacy speakerTag (1-based) or Chirp 3 speakerLabel (0-based)."""
+    for key in ("speakerTag", "speaker_tag"):
+        if key in word and word[key] not in (None, ""):
+            try:
+                return int(word[key])
+            except (TypeError, ValueError):
+                return None
+    for key in ("speakerLabel", "speaker_label"):
+        if key in word and word[key] not in (None, ""):
+            raw = str(word[key]).strip()
+            if raw.isdigit():
+                return int(raw) + 1
+            return None
     return None
 
 
@@ -131,22 +140,18 @@ def _diarized_transcript(words: list[dict]) -> str:
 
 def format_stt_results(raw_json: dict) -> str:
     """
-    Build a plain-text transcript from Cloud STT JSON or Gemini Flash JSON.
+    Build a plain-text transcript from Chirp 3 / Cloud STT JSON.
 
-    Gemini Flash writes {provider: gemini_flash, transcript: "Speaker 1: ..."}.
-    Cloud STT uses results[]. When speaker diarization is enabled, Cloud STT
-    attaches speakerTag on words (often only on a trailing window of the final
-    result). Those become:
+    Chirp 3 BatchRecognize writes results[].alternatives[].words with
+    speakerLabel ("0", "1", ...) and startOffset/endOffset. Those become:
 
         Speaker 1: ...
         Speaker 2: ...
 
-    If that window is shorter than the concatenated chunk transcripts, keep the
-    full text so long videos are not reduced to the last few seconds.
+    Older telephony JSON uses speakerTag. If the tagged window is shorter
+    than the concatenated chunk transcripts, keep the full text so a partial
+    diarization slice does not replace the call.
     """
-    if (raw_json.get("provider") or "") == "gemini_flash":
-        return (raw_json.get("transcript") or "").strip()
-
     results = raw_json.get("results") or []
     plain = _plain_transcript(results)
 
@@ -275,15 +280,3 @@ def download_stt_json(gcs_uri: str) -> dict:
     blob = _gcs_client.bucket(bucket_name).blob(blob_path)
     return json.loads(blob.download_as_text())
 
-
-def gcs_blob_exists(gcs_uri: str) -> bool:
-    """True when the GCS object exists (used by checker for Gemini Flash STT)."""
-    if not _HAS_GCS:
-        raise RuntimeError("google-cloud-storage is not installed")
-
-    global _gcs_client
-    if _gcs_client is None:
-        _gcs_client = gcs_storage.Client()
-    without_prefix = gcs_uri.replace("gs://", "")
-    bucket_name, blob_path = without_prefix.split("/", 1)
-    return _gcs_client.bucket(bucket_name).blob(blob_path).exists()

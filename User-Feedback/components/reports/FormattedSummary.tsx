@@ -68,15 +68,6 @@ function looksTruncated(value: string): boolean {
     return false;
 }
 
-function softTheme(value: string): string {
-    const text = value.trim().replace(/\.+$/, "");
-    if (!text) return "";
-    if (text[0] === text[0].toUpperCase() && text.slice(1) !== text.slice(1).toUpperCase()) {
-        return text[0].toLowerCase() + text.slice(1);
-    }
-    return text;
-}
-
 function firstSentence(value: string): string {
     let cleaned = value.replace(/\s+/g, " ").trim();
     if (!cleaned) return "";
@@ -88,10 +79,19 @@ function firstSentence(value: string): string {
     return (match?.[1] || cleaned).trim().replace(/\.+$/, "");
 }
 
-function countTail(count: number): string {
-    const noun = count === 1 ? "user" : "users";
-    return `(${count} ${noun})`;
+function isOthersTheme(value: string): boolean {
+    return value.replace(/\s+/g, " ").trim().toLowerCase() === "others";
 }
+
+function othersLast(keys: string[]): string[] {
+    return [...keys].sort((left, right) => Number(isOthersTheme(left)) - Number(isOthersTheme(right)));
+}
+
+type PointDisplay = {
+    lead: string;
+    body: string;
+    separator: "" | " " | " — ";
+};
 
 function sentenceCase(value: string): string {
     const text = value.trim();
@@ -99,14 +99,10 @@ function sentenceCase(value: string): string {
     return text[0].toUpperCase() + text.slice(1);
 }
 
-/** Theme/detail first; user count trails the sentence. */
-export function formatPointLine(point: SummaryPoint): string {
-    const count = Math.max(Number(point.user_count || 0), 0);
-    const theme = String(point.theme || "").trim();
+function pointBody(point: SummaryPoint): string {
     const detail = String(point.detail || "").trim();
     const summary = String(point.summary || "").trim();
     const line = String(point.line || "").trim();
-
     let body = "";
     if (summary && (!detail || looksTruncated(detail) || summary.length > detail.length + 12)) {
         body = firstSentence(summary);
@@ -117,35 +113,182 @@ export function formatPointLine(point: SummaryPoint): string {
     } else if (line.includes(" — ")) {
         body = line.split(" — ").slice(1).join(" — ").trim().replace(COUNT_SUFFIX_RE, "").trim();
     }
+    return body.replace(COUNT_SUFFIX_RE, "").trim();
+}
 
-    const themeLabel = softTheme(theme);
-    const tail = count >= 1 ? ` ${countTail(count)}` : "";
+const PAREN_COUNT_RE = /^\((\d+)\)\s+(.+)$/;
 
-    if (count >= 1) {
-        if (
-            body &&
-            themeLabel &&
-            body.toLowerCase() !== themeLabel.toLowerCase() &&
-            !themeLabel.toLowerCase().includes(body.toLowerCase())
-        ) {
-            return `${sentenceCase(themeLabel)} — ${body}${tail}`;
-        }
-        if (body) return `${sentenceCase(body)}${tail}`;
-        if (themeLabel) return `${sentenceCase(themeLabel)}${tail}`;
-        if (COUNT_PREFIX_RE.test(line) || COUNT_SUFFIX_RE.test(line)) {
-            const stripped = line
-                .replace(COUNT_PREFIX_RE, "")
-                .replace(/^\s*reported\s+/i, "")
-                .replace(COUNT_SUFFIX_RE, "")
-                .replace(/\s+—\s+/g, " — ")
-                .trim();
-            return stripped ? `${sentenceCase(stripped)}${tail}` : countTail(count);
-        }
-        return countTail(count);
+/** (1) Theme - detail. Same string in the cell and in View more. */
+export function pointDisplay(point: SummaryPoint): PointDisplay {
+    const line = String(point.line || "").trim();
+    const parsedCount = line.match(PAREN_COUNT_RE) || line.match(COUNT_SUFFIX_RE) || line.match(COUNT_PREFIX_RE);
+    const count = Math.max(Number(point.user_count || 0), parsedCount ? Number(parsedCount[1]) : 0);
+    let themeLabel = sentenceCase(String(point.theme || "").trim());
+    let body = pointBody(point);
+    if (!themeLabel && line.includes(" — ")) {
+        const [left, ...rest] = line.replace(COUNT_SUFFIX_RE, "").replace(PAREN_COUNT_RE, "$2").split(" — ");
+        themeLabel = sentenceCase(left.trim());
+        if (!body) body = rest.join(" — ").trim();
     }
+    if (!themeLabel && line.includes(" - ") && PAREN_COUNT_RE.test(line)) {
+        const rest = line.replace(PAREN_COUNT_RE, "$2");
+        const [left, ...tail] = rest.split(" - ");
+        themeLabel = sentenceCase(left.trim());
+        if (!body) body = tail.join(" - ").trim();
+    }
+    const prefix = count >= 1 ? `(${count})` : "";
+    if (prefix && themeLabel && body && body.toLowerCase() !== themeLabel.toLowerCase()) {
+        return { lead: "", body: `${prefix} ${themeLabel} - ${body}`, separator: "" };
+    }
+    if (prefix && themeLabel) return { lead: "", body: `${prefix} ${themeLabel}`, separator: "" };
+    if (prefix && body) return { lead: "", body: `${prefix} ${sentenceCase(body)}`, separator: "" };
+    if (line) return { lead: "", body: line, separator: "" };
+    return { lead: "", body: body, separator: "" };
+}
 
-    if (COUNT_PREFIX_RE.test(line) || COUNT_SUFFIX_RE.test(line)) return line;
-    return body || line;
+const SUMMARY_LINE_RE = /^\((\d+)\)\s+(.+)$/;
+
+function cleanProduct(value?: string | null): string {
+    const text = (value || "").trim();
+    if (!text || text.toLowerCase() === "other" || text.toLowerCase() === "unknown") return "";
+    return text;
+}
+
+function parseSummaryLine(line: string): { count: number; label: string; detail: string } {
+    const match = line.match(SUMMARY_LINE_RE);
+    if (!match) return { count: 0, label: line.trim(), detail: "" };
+    const rest = match[2].trim();
+    const dash = rest.indexOf(" - ");
+    return {
+        count: Number(match[1]) || 1,
+        label: (dash >= 0 ? rest.slice(0, dash) : rest).trim(),
+        detail: dash >= 0 ? rest.slice(dash + 3).trim() : "",
+    };
+}
+
+/** One line per theme. Name the product only when the same issue is on more than one product. */
+export function groupedFindingText(findings: SummaryFinding[]): string {
+    const groups = new Map<string, { label: string; count: number; parts: Array<{ product: string; detail: string }> }>();
+    const order: string[] = [];
+    for (const finding of findings) {
+        const product = cleanProduct(finding.product);
+        for (const point of sortPoints(finding.points || [])) {
+            const formatted = formatPointLine(point);
+            if (!formatted) continue;
+            const parsed = parseSummaryLine(formatted);
+            const theme = sentenceCase(String(point.theme || "").trim()) || parsed.label;
+            if (!theme) continue;
+            const namedProduct = product && product.toLowerCase() !== theme.toLowerCase() ? product : "";
+            const detail = String(point.detail || "").trim() || parsed.detail;
+            const count = Math.max(Number(point.user_count || 0), parsed.count || 0) || 1;
+            const key = theme.toLowerCase();
+            const bucket = groups.get(key);
+            if (!bucket) {
+                groups.set(key, { label: theme, count, parts: detail ? [{ product: namedProduct, detail }] : [] });
+                order.push(key);
+                continue;
+            }
+            bucket.count += count;
+            if (detail && !bucket.parts.some((part) => part.product.toLowerCase() === namedProduct.toLowerCase() && part.detail.toLowerCase() === detail.toLowerCase())) {
+                bucket.parts.push({ product: namedProduct, detail });
+            }
+        }
+    }
+    return othersLast(order)
+        .map((key) => {
+            const bucket = groups.get(key);
+            if (!bucket) return "";
+            const products = new Set(bucket.parts.map((part) => part.product).filter(Boolean));
+            const detail = bucket.parts
+                .map((part) => (products.size > 1 && part.product ? `${part.product}: ${part.detail}` : part.detail))
+                .join("; ");
+            return detail ? `(${bucket.count}) ${bucket.label} - ${detail}` : `(${bucket.count}) ${bucket.label}`;
+        })
+        .filter(Boolean)
+        .join("\n");
+}
+
+/** Same lines the table cell and View more both show. */
+export function summaryDisplayText(
+    text?: string | null,
+    highlights?: PeriodSummaryRecord["highlights"],
+): string {
+    const parsed = parseSummaryText(text, highlights);
+    if (parsed.findings.length) return groupedFindingText(parsed.findings);
+    const lines: string[] = [];
+    for (const block of parsed.blocks) {
+        if (block.type === "heading") continue;
+        if (block.type === "list") {
+            for (const item of block.items) {
+                const line = formatPointLine({ line: item, user_count: 1 });
+                if (line) lines.push(line);
+            }
+            continue;
+        }
+        if (block.text.trim()) lines.push(block.text.trim());
+    }
+    return groupSummaryLines(lines.join("\n"));
+}
+
+/** Collapse repeated themes into one line. Several products stay in that one line. */
+export function groupSummaryLines(text?: string | null): string {
+    const groups = new Map<string, { label: string; count: number; details: string[] }>();
+    const order: string[] = [];
+    for (const raw of (text || "").split(/\n+/)) {
+        const line = raw.replaceAll("\u00a0", " ").trim();
+        if (!line) continue;
+        const match = line.match(SUMMARY_LINE_RE);
+        if (!match) {
+            const key = line.toLowerCase();
+            if (!groups.has(key)) {
+                groups.set(key, { label: line, count: 0, details: [] });
+                order.push(key);
+            }
+            continue;
+        }
+        const count = Number(match[1]) || 1;
+        const rest = match[2].trim();
+        const dash = rest.indexOf(" - ");
+        const label = (dash >= 0 ? rest.slice(0, dash) : rest).trim();
+        const detail = dash >= 0 ? rest.slice(dash + 3).trim() : "";
+        const key = label.toLowerCase();
+        const bucket = groups.get(key);
+        if (!bucket) {
+            groups.set(key, { label, count, details: detail ? [detail] : [] });
+            order.push(key);
+            continue;
+        }
+        bucket.count += count;
+        if (detail && !bucket.details.some((seen) => seen.toLowerCase() === detail.toLowerCase())) {
+            bucket.details.push(detail);
+        }
+    }
+    return othersLast(order)
+        .map((key) => {
+            const bucket = groups.get(key);
+            if (!bucket) return "";
+            if (!bucket.count) return bucket.label;
+            const detail = bucket.details.join("; ");
+            return detail ? `(${bucket.count}) ${bucket.label} - ${detail}` : `(${bucket.count}) ${bucket.label}`;
+        })
+        .filter(Boolean)
+        .join("\n");
+}
+
+/** Count first, then the theme and detail. */
+export function formatPointLine(point: SummaryPoint): string {
+    const display = pointDisplay(point);
+    return `${display.lead}${display.separator}${display.body}`.trim();
+}
+
+function sortPoints(points: SummaryPoint[]): SummaryPoint[] {
+    return [...points].sort((left, right) => {
+        const others = Number(isOthersTheme(left.theme || "")) - Number(isOthersTheme(right.theme || ""));
+        if (others) return others;
+        const count = Number(right.user_count || 0) - Number(left.user_count || 0);
+        if (count) return count;
+        return (left.theme || left.line || "").localeCompare(right.theme || right.line || "");
+    });
 }
 
 function asPoints(
@@ -192,7 +335,7 @@ function findingsFromHighlights(highlights?: PeriodSummaryRecord["highlights"]):
                 sentiment: String(item.sentiment || "").trim() || undefined,
             };
         })
-        .filter((item) => item.title && (item.points?.length || item.summary));
+        .filter((item) => Boolean(item.points?.length) || Boolean(item.title && item.summary));
 }
 
 function parseFindingsFromText(text?: string | null): SummaryFinding[] {
@@ -204,7 +347,7 @@ function parseFindingsFromText(text?: string | null): SummaryFinding[] {
         if (!current.points?.length && current.summary) {
             current.points = [{ line: current.summary, user_count: current.user_count || 0 }];
         }
-        if (current.title && current.points?.length) findings.push(current);
+        if (current.points?.length) findings.push(current);
         current = null;
     };
 
@@ -218,13 +361,14 @@ function parseFindingsFromText(text?: string | null): SummaryFinding[] {
             current = { title: numbered[2].trim(), points: [], summary: "", quotes: [], user_count: 0 };
             continue;
         }
+        const counted = line.match(PAREN_COUNT_RE);
         const bullet = line.match(BULLET_RE);
-        if (bullet) {
-            const item = bullet[1].trim();
+        const item = counted ? line : bullet ? bullet[1].trim() : "";
+        if (item) {
             if (/^["“].+["”]$/.test(item)) continue;
             if (!current) current = { title: "", points: [], summary: "", quotes: [], user_count: 0 };
             current.points = current.points || [];
-            const countMatch = item.match(COUNT_SUFFIX_RE) || item.match(COUNT_PREFIX_RE);
+            const countMatch = item.match(PAREN_COUNT_RE) || item.match(COUNT_SUFFIX_RE) || item.match(COUNT_PREFIX_RE);
             current.points.push({
                 line: item,
                 user_count: countMatch ? Number(countMatch[1]) : 1,
@@ -355,51 +499,22 @@ function collapseFindings(findings: SummaryFinding[]): SummaryFinding[] {
     return out;
 }
 
-function headingMatches(findingTitle: string, cardTitle?: string): boolean {
-    const finding = normalizeHeading(findingTitle);
-    if (!finding || finding === "other" || finding === "unknown") return true;
-    if (!cardTitle) return false;
-    const card = normalizeHeading(cardTitle);
-    return Boolean(card && (finding === card || finding.startsWith(`${card} —`) || card.startsWith(`${finding} —`)));
-}
-
-function FindingList({ findings, heading }: { findings: SummaryFinding[]; heading?: string }) {
-    const items = collapseFindings(findings);
-    const hideAllTitles = items.length === 1 && headingMatches(items[0].title, heading);
+function FindingList({
+    findings,
+}: {
+    findings: SummaryFinding[];
+    heading?: string;
+    productHref?: (product: string) => string;
+}) {
+    const lines = groupedFindingText(collapseFindings(findings)).split("\n").filter(Boolean);
+    if (!lines.length) return null;
     return (
-        <div className="space-y-6">
-            {items.map((finding, index) => {
-                const hideTitle = hideAllTitles || headingMatches(finding.title, heading);
-                const points = finding.points || [];
-                return (
-                    <section
-                        key={`${index}-${finding.title}`}
-                        className={hideTitle ? "" : "border-t border-slate-200 pt-4 first:border-t-0 first:pt-0"}
-                    >
-                        {hideTitle ? null : (
-                            <h4 className="mb-2 text-base font-semibold text-slate-900">
-                                {finding.title}
-                            </h4>
-                        )}
-                        {points.length ? (
-                            <ul className="list-disc space-y-2 pl-5 text-base leading-7 text-slate-800">
-                                {points.map((point, pointIndex) => {
-                                    const display = formatPointLine(point);
-                                    return (
-                                        <li key={`${pointIndex}-${display}`} className="whitespace-pre-wrap break-words">
-                                            {display}
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        ) : finding.summary ? (
-                            <p className="whitespace-pre-wrap break-words text-base leading-7 text-slate-800">
-                                {finding.summary}
-                            </p>
-                        ) : null}
-                    </section>
-                );
-            })}
+        <div className="space-y-2 text-[17px] leading-7 text-slate-800">
+            {lines.map((line) => (
+                <p key={line} className="whitespace-pre-wrap break-words">
+                    {line}
+                </p>
+            ))}
         </div>
     );
 }
@@ -409,11 +524,13 @@ export function FormattedSummary({
     highlights,
     heading,
     emptyLabel = "No summary.",
+    productHref,
 }: {
     text?: string | null;
     highlights?: PeriodSummaryRecord["highlights"];
     heading?: string;
     emptyLabel?: string;
+    productHref?: (product: string) => string;
 }) {
     const parsed = parseSummaryText(text, highlights);
     if (!parsed.findings.length && !parsed.blocks.length) {
@@ -422,7 +539,7 @@ export function FormattedSummary({
     return (
         <div className="space-y-4">
             {parsed.findings.length ? (
-                <FindingList findings={parsed.findings} heading={heading} />
+                <FindingList findings={parsed.findings} heading={heading} productHref={productHref} />
             ) : parsed.blocks.length ? (
                 <div className="space-y-3">
                     {parsed.blocks.map((block, index) => {

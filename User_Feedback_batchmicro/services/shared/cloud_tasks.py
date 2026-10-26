@@ -105,19 +105,3 @@ def enqueue_http_task(
         task_name, queue_name, url, job_id, auth_mode,
     )
     return task_name
-
-
-def enqueue_gemini_stt_task(payload: dict) -> str | None:
-    """Enqueue the long-running Gemini Flash STT worker on its dedicated queue."""
-    url = settings.gemini_stt_callback_url
-    if not url:
-        raise ValueError(
-            "Gemini STT callback URL is not configured "
-            "(set CLOUD_TASKS_GEMINI_STT_URL or CLOUD_TASKS_CALLBACK_URL)"
-        )
-    return enqueue_http_task(
-        url=url,
-        payload=payload,
-        queue=settings.CLOUD_TASKS_GEMINI_STT_QUEUE,
-        dispatch_deadline_seconds=settings.GEMINI_STT_DISPATCH_DEADLINE_SECONDS,
-    )

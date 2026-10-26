@@ -10,12 +10,23 @@ Endpoints:
   6. Dashboard & Auth endpoints
 """
 from __future__ import annotations
-from typing import Any, Optional, List, Dict, Union, Literal
+from typing import Any, Optional, List, Dict, Union
 from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
 from datetime import datetime, timezone
+import re
 import secrets
 import string
 from core.config import settings
+
+_ROLE_SLUG = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
+
+
+def _validate_role_slug(value: str) -> str:
+    if not _ROLE_SLUG.fullmatch(value):
+        raise ValueError(
+            "Role must be a lowercase slug using letters, numbers, and underscores."
+        )
+    return value
 
 
 def _coerce_datetime(value: Any) -> Optional[datetime]:
@@ -284,18 +295,19 @@ class FileInsightsResponse(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-# ── Allowed roles (3 roles) ──
-_VALID_ROLES = Literal["user", "admin", "super_admin"]
-
-
 class UserCreate(BaseModel):
     email: EmailStr = Field(max_length=254)
     password: Optional[str] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
-    role: _VALID_ROLES = "user"
+    role: str = "user"
     allowed_resources: List[Union[str, Dict[str, Any]]
                             ] = Field(default_factory=list)
+
+    @field_validator("role")
+    @classmethod
+    def role_slug(cls, value: str) -> str:
+        return _validate_role_slug(value)
 
     @field_validator("password")
     @classmethod
@@ -316,13 +328,13 @@ class UserCreate(BaseModel):
 
     @model_validator(mode="after")
     def password_required_in_dev(self) -> "UserCreate":
-        """In development, password is mandatory. In production, it's forbidden (SSO only)."""
-        if settings.ENVIRONMENT == "development":
-            if not self.password:
-                raise ValueError("Password is required in development environment")
-        else:
-            if self.password is not None:
-                raise ValueError("Password must not be provided in production. Users authenticate via SSO.")
+        """Development always needs a password.
+
+        Other environments accept a password so an administrator can create a
+        form-login account, and still allow Microsoft sign-in users with none.
+        """
+        if settings.ENVIRONMENT == "development" and not self.password:
+            raise ValueError("Password is required in development environment")
         return self
 
 
@@ -331,9 +343,16 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
-    role: Optional[_VALID_ROLES] = None
+    role: Optional[str] = None
     is_active: Optional[bool] = None
     allowed_resources: Optional[List[Union[str, Dict[str, Any]]]] = None
+
+    @field_validator("role")
+    @classmethod
+    def role_slug(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _validate_role_slug(value)
 
     @field_validator("password")
     @classmethod
@@ -384,6 +403,97 @@ class UserListResponse(BaseModel):
     success: bool = True
     message: str
     data: Optional[UserListResponseData] = None
+    error: Optional[str] = None
+    timestamp: Optional[str] = None
+    request_id: Optional[str] = None
+
+
+class RoleCreate(BaseModel):
+    label: str = Field(min_length=2, max_length=80)
+    slug: str
+    description: Optional[str] = Field(default=None, max_length=300)
+    permissions: List[str] = Field(default_factory=list)
+
+    @field_validator("slug")
+    @classmethod
+    def role_slug(cls, value: str) -> str:
+        return _validate_role_slug(value)
+
+    @field_validator("label")
+    @classmethod
+    def label_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 2:
+            raise ValueError("Role name must be at least 2 characters")
+        return cleaned
+
+    @field_validator("description")
+    @classmethod
+    def description_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+
+class RoleUpdate(BaseModel):
+    label: Optional[str] = Field(default=None, min_length=2, max_length=80)
+    description: Optional[str] = Field(default=None, max_length=300)
+    permissions: Optional[List[str]] = None
+
+    @field_validator("label")
+    @classmethod
+    def label_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if len(cleaned) < 2:
+            raise ValueError("Role name must be at least 2 characters")
+        return cleaned
+
+    @field_validator("description")
+    @classmethod
+    def description_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+
+class RoleResponseData(BaseModel):
+    role_id: str
+    slug: str
+    label: str
+    description: Optional[str] = None
+    permissions: List[str]
+    is_system: bool
+    user_count: int = 0
+    created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _parse_created_at(cls, value: Any) -> Optional[datetime]:
+        return _coerce_datetime(value)
+
+
+class RoleResponse(BaseModel):
+    success: bool = True
+    message: str
+    data: Optional[RoleResponseData] = None
+    error: Optional[str] = None
+    timestamp: Optional[str] = None
+    request_id: Optional[str] = None
+
+
+class RoleListResponseData(BaseModel):
+    items: List[RoleResponseData]
+    total: int
+
+
+class RoleListResponse(BaseModel):
+    success: bool = True
+    message: str
+    data: Optional[RoleListResponseData] = None
     error: Optional[str] = None
     timestamp: Optional[str] = None
     request_id: Optional[str] = None

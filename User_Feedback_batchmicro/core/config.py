@@ -31,9 +31,6 @@ class Settings(BaseSettings):
     CLOUD_TASKS_USE_OIDC: bool = True
     # Optional override for OIDC audience (defaults to scheme+host of task URL).
     CLOUD_RUN_SERVICE_AUDIENCE: str = ""
-    CLOUD_TASKS_GEMINI_STT_QUEUE: str = "pidilite-gemini-stt-queue"
-    CLOUD_TASKS_GEMINI_STT_URL: str = ""  # POST /api/v1/files/gemini-stt
-    GEMINI_STT_DISPATCH_DEADLINE_SECONDS: int = 900
 
     # ── Batch ──────────────────────────────────────────────────────────────────
     BATCH_SIZE: int = 10
@@ -43,17 +40,13 @@ class Settings(BaseSettings):
     # Set 0 to disable the age gate (tests / emergency).
     STUCK_JOB_RECOVERY_MINUTES: int = 10
 
-    # ── Gemini ─────────────────────────────────────────────────────────────────
+    # ── Speech-to-Text (Chirp 3) ───────────────────────────────────────────────
+    # Chirp 3 is only in the us and eu multi-regions, not asia-south1.
+    STT_LOCATION: str = "us"
+    STT_MODEL: str = "chirp_3"
+
+    # ── Gemini (translate / insights — not transcription) ─────────────────────
     GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_STT_MODEL: str = ""  # default: same as GEMINI_MODEL (attempt 1, asia-south1)
-    # Attempt 2 after Flash failure — Pro is not in asia-south1.
-    GEMINI_STT_PRO_MODEL: str = "gemini-2.5-pro"
-    GEMINI_STT_PRO_LOCATION: str = "us-central1"
-    GEMINI_STT_PRO_THINKING_BUDGET: int = 1024  # Pro rejects thinkingBudget=0
-    GEMINI_STT_TIMEOUT_SECONDS: int = 540
-    # speech_v2 telephony (current) or gemini_flash
-    STT_PROVIDER: str = "speech_v2"
-    STT_FALLBACK_PROVIDER: str = "speech_v2"
 
     # ── Security & Tuning ──────────────────────────────────────────────────────
     ALLOWED_ORIGINS: list[str] = ["*"]  # Override in production via env var
@@ -89,29 +82,12 @@ class Settings(BaseSettings):
         return ""
 
     @property
-    def stt_provider(self) -> str:
-        return (self.STT_PROVIDER or "speech_v2").strip().lower()
+    def stt_model(self) -> str:
+        return (self.STT_MODEL or "chirp_3").strip() or "chirp_3"
 
     @property
-    def gemini_stt_model(self) -> str:
-        return (self.GEMINI_STT_MODEL or self.GEMINI_MODEL or "gemini-2.5-flash").strip()
-
-    @property
-    def gemini_stt_pro_model(self) -> str:
-        return (self.GEMINI_STT_PRO_MODEL or "gemini-2.5-pro").strip()
-
-    @property
-    def gemini_stt_pro_location(self) -> str:
-        return (self.GEMINI_STT_PRO_LOCATION or "us-central1").strip()
-
-    @property
-    def gemini_stt_callback_url(self) -> str:
-        if self.CLOUD_TASKS_GEMINI_STT_URL:
-            return self.CLOUD_TASKS_GEMINI_STT_URL.strip()
-        base = (self.CLOUD_TASKS_CALLBACK_URL or "").rstrip("/")
-        if base.endswith("/files/transcription"):
-            return f"{base[: -len('/files/transcription')]}/files/gemini-stt"
-        return ""
+    def stt_location(self) -> str:
+        return (self.STT_LOCATION or "us").strip() or "us"
 
     @property
     def DATABASE_URL(self) -> str:

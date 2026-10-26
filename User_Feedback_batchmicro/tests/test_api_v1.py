@@ -198,7 +198,7 @@ class TestSTTSubmit:
             "projects/test/locations/asia-south1/operations/123456"
         )
 
-    def test_stt_submit_uses_v2_telephony(
+    def test_stt_submit_passes_language_and_requested_model(
         self, client, create_test_job, mock_speech_client, db_session
     ):
         job = create_test_job(

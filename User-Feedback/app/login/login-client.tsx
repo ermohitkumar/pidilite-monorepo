@@ -83,7 +83,7 @@ export default function LoginClient({ error }: Props) {
                             Samvad
                         </h1>
                         <p className="text-sm text-text-subtle">
-                            Sign in to access your workspace
+                            Sign in with the email and password created in the admin panel
                         </p>
                     </div>
 

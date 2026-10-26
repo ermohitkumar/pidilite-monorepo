@@ -11,6 +11,9 @@ import { useAppStore } from '@/lib/store/useAppStore';
 import type { AppUser, UserRole, UserStatus } from '@/lib/api/users';
 import { mapBackendUserToAppUser } from '@/lib/api/users';
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/lib/hooks/users';
+import { useRoles } from '@/lib/hooks/roles';
+import { AVAILABLE_RESOURCES, formatRoleLabel } from '@/lib/auth/permissions';
+import RolesPanel from './roles-panel';
 import { useEffect, useState } from 'react';
 import {
     LuArrowUpDown,
@@ -28,8 +31,7 @@ import {
 import { toast } from 'sonner';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const ROLE_OPTIONS: Array<{ label: string; value: UserRole | 'ALL' }> = [
-    { label: 'All Roles', value: 'ALL' },
+const FALLBACK_ROLES: Array<{ label: string; value: UserRole }> = [
     { label: 'Admin', value: 'admin' },
     { label: 'Super Admin', value: 'super_admin' },
     { label: 'User', value: 'user' },
@@ -46,12 +48,13 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function RoleBadge({ role }: { role: UserRole }) {
-    const map: Record<UserRole, { cls: string; icon: React.ReactNode; label: string }> = {
-        super_admin: { cls: 'bg-[#fef9c3] text-gold-dark', icon: <LuShieldCheck className="h-3 w-3" />, label: 'Super Admin' },
-        admin: { cls: 'bg-[#ede9fe] text-purple-700', icon: <LuShieldCheck className="h-3 w-3" />, label: 'Admin' },
-        user: { cls: 'bg-brand-subtle text-brand', icon: <LuUser className="h-3 w-3" />, label: 'User' },
+    const map: Record<string, { cls: string; icon: React.ReactNode }> = {
+        super_admin: { cls: 'bg-[#fef9c3] text-gold-dark', icon: <LuShieldCheck className="h-3 w-3" /> },
+        admin: { cls: 'bg-[#ede9fe] text-purple-700', icon: <LuShieldCheck className="h-3 w-3" /> },
+        user: { cls: 'bg-brand-subtle text-brand', icon: <LuUser className="h-3 w-3" /> },
     };
-    const { cls, icon, label } = map[role];
+    const { cls, icon } = map[role] ?? { cls: 'bg-surface-raised text-text-subtle', icon: <LuShieldCheck className="h-3 w-3" /> };
+    const label = formatRoleLabel(role);
     return (
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-label-sm font-medium ${cls}`}>
             {icon}{label}
@@ -82,10 +85,13 @@ function InviteModal({ onClose }: { onClose: () => void }) {
     const [showPassword, setShowPassword] = useState(false);
     const [role, setRole] = useState<UserRole>('user');
     const [errorMessage, setErrorMessage] = useState('');
+    const { data: rolesResponse } = useRoles();
+    const roleOptions = (rolesResponse?.data?.items ?? []).map((item) => ({
+        label: item.label || formatRoleLabel(item.slug),
+        value: item.slug,
+    }));
 
     const createUserMutation = useCreateUser();
-
-    const isDevelopment = process.env.NEXT_PUBLIC_NODE_ENV === 'development';
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,7 +99,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
         try {
             await createUserMutation.mutateAsync({
                 email,
-                password: isDevelopment ? password : '',
+                password,
                 full_name: name,
                 username: email.split('@')[0],
                 role,
@@ -105,16 +111,18 @@ function InviteModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div
-                className="relative rounded-xl border border-border bg-surface shadow-2xl p-6 mx-4"
-                style={{ width: '450px', maxWidth: 'calc(100vw - 2rem)', flexShrink: 0 }}
+                className="relative max-h-full overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl p-6"
+                style={{ width: '450px', maxWidth: '100%', flexShrink: 0 }}
             >
                 <button onClick={onClose} className="absolute right-4 top-4 text-text-disabled hover:text-text">
                     <LuX className="h-4 w-4" />
                 </button>
                 <h2 className="text-h3 font-semibold text-text mb-1">Create User</h2>
-                <p className="text-body-sm text-text-subtle mb-5">Add a new admin or super admin to Samvad.</p>
+                <p className="text-body-sm text-text-subtle mb-5">
+                    This email and password are what the person uses on the sign-in form.
+                </p>
 
                 {createUserMutation.isSuccess ? (
                     <div className="flex flex-col items-center gap-3 py-6">
@@ -146,40 +154,37 @@ function InviteModal({ onClose }: { onClose: () => void }) {
                                 className="w-full rounded-md border border-border bg-bg px-3 py-2 text-body-sm text-text placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-brand/30"
                             />
                         </div>
-                        {isDevelopment && (
-                            <div>
-                                <label className="block text-body-sm font-medium text-text-subtle mb-1.5">Password</label>
-                                <div className="relative">
-                                    <input
-                                        required
-                                        type={showPassword ? 'text' : 'password'}
-                                        minLength={8}
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="w-full rounded-md border border-border bg-bg pl-3 pr-10 py-2 text-body-sm text-text placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-brand/30"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-disabled hover:text-text transition-colors focus:outline-none cursor-pointer"
-                                        title={showPassword ? "Hide password" : "Show password"}
-                                    >
-                                        {showPassword ? <LuEyeOff className="h-4 w-4" /> : <LuEye className="h-4 w-4" />}
-                                    </button>
-                                </div>
+                        <div>
+                            <label className="block text-body-sm font-medium text-text-subtle mb-1.5">Password</label>
+                            <div className="relative">
+                                <input
+                                    required
+                                    type={showPassword ? 'text' : 'password'}
+                                    minLength={12}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="At least 12 characters"
+                                    className="w-full rounded-md border border-border bg-bg pl-3 pr-10 py-2 text-body-sm text-text placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-brand/30"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-disabled hover:text-text transition-colors focus:outline-none cursor-pointer"
+                                    title={showPassword ? "Hide password" : "Show password"}
+                                >
+                                    {showPassword ? <LuEyeOff className="h-4 w-4" /> : <LuEye className="h-4 w-4" />}
+                                </button>
                             </div>
-                        )}
+                            <p className="mt-1 text-label-sm text-text-disabled">
+                                Include an uppercase letter and a digit. This is the sign-in password.
+                            </p>
+                        </div>
                         <div>
                             <label className="block text-body-sm font-medium text-text-subtle mb-1.5">Role</label>
                             <Select
                                 value={role}
                                 onChange={(v) => setRole(v as UserRole)}
-                                options={[
-                                    { label: 'Admin', value: 'admin' },
-                                    { label: 'Super Admin', value: 'super_admin' },
-                                    { label: 'User', value: 'user' },
-                                ]}
+                                options={roleOptions.length ? roleOptions : FALLBACK_ROLES}
                             />
                         </div>
                         <div className="flex gap-2 pt-1">
@@ -197,27 +202,23 @@ function InviteModal({ onClose }: { onClose: () => void }) {
     );
 }
 
-import { AVAILABLE_RESOURCES, ResourceType } from '@/lib/auth/permissions';
-
-function resourcesFromUser(raw: string[] | undefined): ResourceType[] {
-    const known = new Set(AVAILABLE_RESOURCES.map((item) => item.value));
-    const next = new Set<ResourceType>();
-    for (const item of raw || []) {
-        if (item === 'dashboard' || item === 'metrics') {
-            next.add('reports');
-            continue;
-        }
-        if (known.has(item as ResourceType)) next.add(item as ResourceType);
-    }
-    return [...next];
-}
-
-// ── Edit Role Modal ───────────────────────────────────────────────────────────
 function EditRoleModal({ user, onClose }: { user: AppUser; onClose: () => void }) {
     const [role, setRole] = useState<UserRole>(user.role);
-    const [resources, setResources] = useState<ResourceType[]>(resourcesFromUser(user.allowed_resources));
     const [errorMessage, setErrorMessage] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const { data: rolesResponse } = useRoles();
+    const roles = rolesResponse?.data?.items ?? [];
+    const roleOptions = roles.map((item) => ({
+        label: item.label || formatRoleLabel(item.slug),
+        value: item.slug,
+    }));
+    const selected = roles.find((item) => item.slug === role);
+    const pages = role === 'super_admin'
+        ? 'Full access'
+        : AVAILABLE_RESOURCES
+            .filter((item) => selected?.permissions?.includes(item.value))
+            .map((item) => item.label)
+            .join(', ') || 'No pages yet';
 
     const updateUserMutation = useUpdateUser();
 
@@ -226,7 +227,7 @@ function EditRoleModal({ user, onClose }: { user: AppUser; onClose: () => void }
         try {
             await updateUserMutation.mutateAsync({
                 userId: user.user_id,
-                payload: { role, allowed_resources: resources },
+                payload: { role },
             });
             onClose();
         } catch (err: any) {
@@ -236,15 +237,15 @@ function EditRoleModal({ user, onClose }: { user: AppUser; onClose: () => void }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div
-                className="relative rounded-xl border border-border bg-surface shadow-2xl p-6 mx-4"
-                style={{ width: '450px', maxWidth: 'calc(100vw - 2rem)', flexShrink: 0 }}
+                className="relative max-h-full overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl p-6"
+                style={{ width: '450px', maxWidth: '100%', flexShrink: 0 }}
             >
                 <button onClick={onClose} className="absolute right-4 top-4 text-text-disabled hover:text-text">
                     <LuX className="h-4 w-4" />
                 </button>
-                <h2 className="text-h3 font-semibold text-text mb-1">Edit Role & Permissions</h2>
+                <h2 className="text-h3 font-semibold text-text mb-1">Assign Role</h2>
                 <p className="text-body-sm text-text-subtle mb-4">{user.name} · {user.email}</p>
                 {errorMessage && (
                     <div className="rounded-md bg-status-red/10 p-3 text-body-sm text-status-red-fg mb-4">
@@ -257,37 +258,16 @@ function EditRoleModal({ user, onClose }: { user: AppUser; onClose: () => void }
                     <Select
                         value={role}
                         onChange={(v) => setRole(v as UserRole)}
-                        options={[
-                            { label: 'Admin', value: 'admin' },
-                            { label: 'Super Admin', value: 'super_admin' },
-                            { label: 'User', value: 'user' },
-                        ]}
+                        options={roleOptions.length ? roleOptions : FALLBACK_ROLES}
                     />
                 </div>
 
                 <div className="mb-6">
-                    <label className="block text-body-sm font-medium text-text-subtle mb-2">Resources</label>
-                    <div className="flex flex-col gap-3">
-                        {AVAILABLE_RESOURCES.map((opt) => (
-                            <label key={opt.value} className="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    name="resource"
-                                    value={opt.value}
-                                    checked={resources.includes(opt.value)}
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setResources(prev => [...prev, opt.value]);
-                                        } else {
-                                            setResources(prev => prev.filter(r => r !== opt.value));
-                                        }
-                                    }}
-                                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand/30 cursor-pointer"
-                                />
-                                <span className="text-body-sm text-text group-hover:text-brand transition-colors">{opt.label}</span>
-                            </label>
-                        ))}
-                    </div>
+                    <label className="block text-body-sm font-medium text-text-subtle mb-1.5">Pages this role can open</label>
+                    <p className="text-body-sm text-text">{pages}</p>
+                    <p className="mt-1 text-label-sm text-text-disabled">
+                        Change the pages from the Roles tab. Saving applies that role to this account.
+                    </p>
                 </div>
 
                 <div className="flex gap-2">
@@ -302,7 +282,7 @@ function EditRoleModal({ user, onClose }: { user: AppUser; onClose: () => void }
             <ConfirmationDialog
                 open={confirmOpen}
                 title="Update User Role"
-                message={`Are you sure you want to update the role and permissions for ${user.name}?`}
+                message={`Assign ${formatRoleLabel(role)} to ${user.name}? Their sign-in will follow that role.`}
                 confirmLabel="Update"
                 variant="action"
                 isLoading={updateUserMutation.isPending}
@@ -326,6 +306,7 @@ export default function UsersClient() {
     const [pageSize, setPageSize] = useState(10);
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>(null);
+    const [tab, setTab] = useState<'users' | 'roles'>('users');
     const [inviteOpen, setInviteOpen] = useState(false);
     const [editUser, setEditUser] = useState<AppUser | null>(null);
     const [deleteConfirmUser, setDeleteConfirmUser] = useState<string | null>(null);
@@ -335,6 +316,14 @@ export default function UsersClient() {
 
     // React Query Hooks
     const { data: response, isLoading, isError } = useUsers();
+    const { data: rolesResponse } = useRoles();
+    const roleFilterOptions = [
+        { label: 'All Roles', value: 'ALL' },
+        ...((rolesResponse?.data?.items ?? []).map((item) => ({
+            label: item.label || formatRoleLabel(item.slug),
+            value: item.slug,
+        }))),
+    ];
 
     useEffect(() => {
         if (isError) {
@@ -397,21 +386,42 @@ export default function UsersClient() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                    <h1 className="text-h1 font-bold text-text">User Management</h1>
+                    <h1 className="text-h1 font-bold text-text">Admin</h1>
                     <p className="mt-1 text-body-md text-text-subtle">
-                        Manage team members, roles, and access across the platform.
+                        Create sign-in accounts and the roles that decide which pages they can open.
                     </p>
+                    <div className="mt-4 flex gap-2">
+                        <Button
+                            type="button"
+                            variant={tab === 'users' ? 'action' : 'secondary'}
+                            onClick={() => setTab('users')}
+                        >
+                            Users
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={tab === 'roles' ? 'action' : 'secondary'}
+                            onClick={() => setTab('roles')}
+                        >
+                            Roles
+                        </Button>
+                    </div>
                 </div>
-                <Button
-                    id="invite-user-btn"
-                    variant="action"
-                    onClick={() => setInviteOpen(true)}
-                    className="flex items-center gap-2 shadow-sm"
-                >
-                    <LuUserPlus className="h-4 w-4" />
-                    Create User
-                </Button>
+                {tab === 'users' && (
+                    <Button
+                        id="invite-user-btn"
+                        variant="action"
+                        onClick={() => setInviteOpen(true)}
+                        className="flex items-center gap-2 shadow-sm"
+                    >
+                        <LuUserPlus className="h-4 w-4" />
+                        Create User
+                    </Button>
+                )}
             </div>
+
+            {tab === 'roles' ? <RolesPanel /> : null}
+            {tab === 'users' && (<>
 
             {/* Stat chips */}
             <div className="flex gap-4 flex-wrap">
@@ -453,7 +463,7 @@ export default function UsersClient() {
                             <Select
                                 value={roleFilter}
                                 onChange={(v) => { setRoleFilter(v as UserRole | 'ALL'); setCurrentPage(1); }}
-                                options={ROLE_OPTIONS}
+                                options={roleFilterOptions.length > 1 ? roleFilterOptions : [{ label: 'All Roles', value: 'ALL' }, ...FALLBACK_ROLES]}
                                 placeholder='All Roles'
                             />
                         </div>
@@ -564,6 +574,7 @@ export default function UsersClient() {
                     onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
                 />
             </div>
+            </>)}
 
             {/* Modals */}
             {inviteOpen && <InviteModal onClose={() => setInviteOpen(false)} />}

@@ -14,6 +14,7 @@ from repositories.report_repository import (
     filter_options,
     product_counts,
     summary_counts,
+    where_summarized,
 )
 
 
@@ -118,6 +119,25 @@ def test_build_filters_exact_tag_and_search():
 
 def test_fact_table_prefers_slim(fact_view):
     assert fact_table(fact_view) == "vw_pbi_feedback_fact_slim"
+
+
+def test_summary_counts_skip_feedback_without_summary(fact_view):
+    fact_view.execute(text("""
+        INSERT INTO _report_fact VALUES
+        (
+            'fb-empty-4444', 'job-4', '2026-08-04T10:00:00',
+            'PDT GROUP', 'Product', 'Existing Product - Performance improvements',
+            NULL, 'Marine', NULL, 'MAR', NULL, NULL,
+            'pending.mp3', '2026-08-04', 'Fevicol', 'West', 'Mumbai', 'Maharashtra',
+            'M-Power', 'FME001', 'Dealer', NULL, NULL
+        )
+    """))
+    fact_view.commit()
+    fact = fact_table(fact_view)
+    where_sql, params = build_filters(feedback_group="PDT GROUP")
+    where_sql = where_summarized(fact_view, fact, where_sql)
+    result = summary_counts(fact_view, fact, where_sql, params)
+    assert result["total"] == 2
 
 
 def test_summary_counts_by_group(fact_view):

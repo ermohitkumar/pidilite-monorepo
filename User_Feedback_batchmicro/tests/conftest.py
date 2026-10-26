@@ -74,12 +74,6 @@ def db_session():
 
 
 @pytest.fixture(autouse=True)
-def default_speech_v2_stt(monkeypatch):
-    """Keep STT on Speech v2 unless a test explicitly flips STT_PROVIDER."""
-    monkeypatch.setattr("core.config.settings.STT_PROVIDER", "speech_v2")
-
-
-@pytest.fixture(autouse=True)
 def disable_stuck_age_gate(monkeypatch):
     """
     Default tests expect immediate checker recovery.
@@ -303,7 +297,6 @@ def mock_cloud_tasks():
     """Mock Cloud Tasks enqueue at each router import site."""
     mock = MagicMock(return_value="projects/test/locations/asia-south1/queues/test/tasks/1")
     with patch("services.api.routers.batch.enqueue_http_task", mock), \
-         patch("services.api.routers.stt.enqueue_gemini_stt_task", mock), \
          patch("services.api.routers.stt_complete.enqueue_http_task", mock), \
          patch("services.api.routers.translate.enqueue_http_task", mock), \
          patch("services.api.routers.checker.enqueue_http_task", mock):

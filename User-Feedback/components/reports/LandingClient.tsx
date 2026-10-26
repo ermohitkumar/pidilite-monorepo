@@ -5,13 +5,28 @@ import Link from "next/link";
 import { useDashboardSummary } from "@/lib/hooks/queries";
 
 const MENU_TILES = [
-    { label: "Summary", href: "/reports", color: "#2f6fe0" },
-    { label: "Feedback", href: "/reports/insights", color: "#7b3aed" },
-    { label: "Compliance", href: "/reports/compliance", color: "#0f9aae" },
+    {
+        label: "Summary",
+        description: "Feedback at a summarized level",
+        href: "/reports",
+        color: "#2f6fe0",
+    },
+    {
+        label: "Feedback",
+        description: "Navigate across the feedbacks",
+        href: "/reports/feedback",
+        color: "#7b3aed",
+    },
+    {
+        label: "Compliance",
+        description: "Pilot tracking KPIs",
+        href: "/reports/compliance",
+        color: "#0f9aae",
+    },
 ] as const;
 
-const tileClass =
-    "flex h-36 w-56 items-center justify-center rounded-md px-5 text-center text-white shadow-[0_8px_18px_rgba(16,4,36,0.12)]";
+const tileFrame =
+    "flex h-36 w-56 items-center justify-center rounded-md px-5 text-center shadow-[0_8px_18px_rgba(16,4,36,0.12)]";
 
 function formatCount(value: number | undefined, loading: boolean): string {
     if (loading || value === undefined || !Number.isFinite(value)) return "—";
@@ -45,10 +60,11 @@ export default function LandingClient() {
                         <Link
                             key={tile.href}
                             href={tile.href}
-                            className={`${tileClass} text-2xl font-semibold transition hover:brightness-110`}
+                            className={`${tileFrame} flex-col gap-2 text-white transition hover:brightness-110`}
                             style={{ backgroundColor: tile.color }}
                         >
-                            {tile.label}
+                            <span className="text-2xl font-semibold leading-tight">{tile.label}</span>
+                            <span className="text-sm font-normal leading-snug text-white/90">{tile.description}</span>
                         </Link>
                     ))}
                 </nav>
@@ -57,8 +73,8 @@ export default function LandingClient() {
                     {stats.map((tile) => (
                         <div
                             key={tile.label}
-                            className={`${tileClass} cursor-default flex-col gap-2`}
-                            style={{ backgroundColor: tile.color }}
+                            className={`${tileFrame} cursor-default flex-col gap-2 border-2 bg-transparent`}
+                            style={{ borderColor: tile.color, color: tile.color }}
                         >
                             <p className="text-4xl font-bold leading-none tabular-nums">{tile.value}</p>
                             <p className="text-sm font-medium leading-snug">{tile.label}</p>

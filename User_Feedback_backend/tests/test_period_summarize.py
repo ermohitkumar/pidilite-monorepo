@@ -345,18 +345,43 @@ def test_rollup_from_rows_counts_site_visits_users_and_topics():
     assert findings[0]["sentiment"] == "Negative"
     assert findings[0]["points"][0]["sentiment"] == "Negative"
     text = format_findings(findings)
-    assert "Marine" in text
-    assert "SH" in text
     assert "leakage / packaging" in text.lower()
-    assert "(2 users)" in text
+    assert "(2) " in text
+    assert "(1) " in text
+    assert "Marine" not in text
+    shared_text = format_findings([
+        {
+            "product": "Fevicol X-Per",
+            "points": [{
+                "theme": "Weak Ultimate Bond / Delamination",
+                "user_count": 1,
+                "detail": "did not stick to the board",
+            }],
+        },
+        {
+            "product": "Fevicol SH",
+            "points": [{
+                "theme": "Weak Ultimate Bond / Delamination",
+                "user_count": 1,
+                "detail": "still came off",
+            }],
+        },
+    ])
+    assert shared_text.count("\n") == 0
+    assert shared_text.startswith("(2) ")
+    assert "Fevicol X-Per:" in shared_text
+    assert "Fevicol SH:" in shared_text
+    ordered = format_findings([
+        {"points": [{"theme": "Others", "user_count": 7, "detail": "the result is good"}]},
+        {"points": [{"theme": "Bubble forming", "user_count": 1, "detail": "no bubbles"}]},
+    ])
+    assert ordered.split("\n")[-1].startswith("(7) Others")
+    assert ordered.split("\n")[0].startswith("(1) Bubble forming")
     assert "Data:" not in text
     assert "users reported similar observations" not in text
     assert "…" not in text
-    marine_block, sh_block = text.split("\n\n")
-    assert marine_block.startswith("Marine")
-    assert "•" in marine_block
-    assert sh_block.startswith("SH")
-    assert "•" in sh_block
+    assert "•" not in text
+    assert text.split("\n")[0].startswith("(2) ")
     mixed = findings_from_rows([
         {
             "job_id": "a",
@@ -382,11 +407,12 @@ def test_rollup_from_rows_counts_site_visits_users_and_topics():
     assert themes["setting time"] == 1
     mixed_text = format_findings(mixed)
     assert "Bubbling issues" in mixed_text
-    assert "(2 users)" in mixed_text
+    assert "(2) " in mixed_text
     assert "Setting time" in mixed_text
-    assert "(1 user)" in mixed_text
+    assert "(1) " in mixed_text
     assert "acrylic" in mixed_text.lower()
-    assert mixed_text.split("\n")[0] == "Nail Free"
+    assert mixed_text.split("\n")[0].startswith("(2) ")
+    assert "Nail Free" not in mixed_text.split("\n")[0]
     tagged = findings_from_rows([
         {
             "job_id": "d",
@@ -413,7 +439,7 @@ def test_rollup_from_rows_counts_site_visits_users_and_topics():
     tagged_text = format_findings(tagged)
     assert "performance improvements" not in tagged_text.lower()
     assert "Grip / adhesion" in tagged_text
-    assert "(2 users)" in tagged_text
+    assert "(2) " in tagged_text
     assert "acrylic" in tagged_text.lower()
     assert "bending" in tagged_text.lower()
     praise = findings_from_rows([
@@ -461,7 +487,8 @@ def test_rollup_from_rows_counts_site_visits_users_and_topics():
     assert sum(praise_themes.values()) == 6
     assert len(praise[0]["points"]) <= 3
     praise_text = format_findings(praise)
-    assert praise_text.count("•") <= 3
+    assert "•" not in praise_text
+    assert praise_text.count("\n") + 1 <= 3
 
 
 def test_combine_child_rollups_merges_topics_and_sentiment():

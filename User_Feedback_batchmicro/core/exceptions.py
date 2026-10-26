@@ -112,13 +112,3 @@ class STTUnavailableError(STTError):
 
     def __init__(self, message: str):
         super().__init__(message, retryable=True)
-
-
-class STTGeminiTransientError(STTError):
-    """
-    Transient Gemini Flash STT failure (429, 5xx, timeout, empty, MAX_TOKENS).
-    Cloud Tasks retries up to 3 times, then the worker falls back to Speech v2.
-    """
-
-    def __init__(self, message: str):
-        super().__init__(message, retryable=True)

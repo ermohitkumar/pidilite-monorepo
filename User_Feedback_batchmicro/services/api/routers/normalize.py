@@ -87,7 +87,7 @@ def _is_competition_insight(db: Session, feedback_data: dict) -> bool:
         return False
     tags = db.query(FeedbackTag).filter(FeedbackTag.tag_id.in_(tag_ids)).all()
     for tag in tags:
-        blob = f"{tag.tag_name or ''} {tag.category or ''} {tag.sub_tag_name or ''}".lower()
+        blob = f"{tag.tag_name or ''} {tag.category or ''} {tag.group_type or ''} {tag.sub_tag_name or ''}".lower()
         if "competit" in blob:
             return True
     return False
@@ -125,7 +125,10 @@ def _build_tags_context(db: Session) -> str:
             groups[group] = []
         groups[group].append(tag)
 
-    lines = []
+    lines = [
+        "Each line is one theme. The bracket is the Feedback Category. Category is the Feedback Tag. Use the tag_id of the theme. Counts are aggregated on the theme.",
+        "",
+    ]
     for group, tags in groups.items():
         lines.append(f"[{group}]:")
         for t in tags:
@@ -263,14 +266,32 @@ def _process_job(job_id: str, db: Session) -> dict:
                 continue
             seen_keys.add(dedupe_key)
 
+            raw_tag_ids = feedback_data.get("tag_ids", [])
+            resolved_tags = []
+            for tid in raw_tag_ids:
+                db_tag = db.query(FeedbackTag).filter(FeedbackTag.tag_id == tid, FeedbackTag.is_active.is_(True)).first()
+                if not db_tag:
+                    logger.warning("Job %s: LLM output unknown tag_id=%s, skipping", job_id, tid)
+                    continue
+                resolved_tags.append(db_tag)
+            if not resolved_tags:
+                logger.info("Job %s: insight has no theme, skipping", job_id)
+                continue
+            theme_tag = resolved_tags[0]
+            others_info = (feedback_data.get("others_info") or "").strip() or None
+            if (theme_tag.tag_name or "").strip().lower() != "others":
+                others_info = None
+
             fb = Feedback(
                 job_id=job_id,
                 product_name=display_name,
                 product_id=product_id,
                 group_type=group_type,
-                category_type=feedback_data.get("category_type"),
+                category_type=feedback_data.get("category_type") or theme_tag.category,
                 verbatim_quote=quote,
                 ai_summary=summary,
+                theme=theme_tag.tag_name,
+                others_info=others_info,
                 sentiment_label=_normalize_sentiment(
                     feedback_data.get("sentiment") or feedback_data.get("sentiment_label")
                 ),
@@ -278,18 +299,8 @@ def _process_job(job_id: str, db: Session) -> dict:
             )
             db.add(fb)
             saved_count += 1
-            
-            # 3a. Handle Many-to-Many Tags via tag_id (integers from taxonomy)
-            #     Look up existing FeedbackTag rows by tag_id — never create new ones.
-            raw_tag_ids = feedback_data.get("tag_ids", [])
-            
-            for tid in raw_tag_ids:
-                db_tag = db.query(FeedbackTag).filter(FeedbackTag.tag_id == tid).first()
-                if not db_tag:
-                    logger.warning("Job %s: LLM output unknown tag_id=%s, skipping", job_id, tid)
-                    continue
-                
-                # Prevent duplicate link rows on the same feedback
+
+            for db_tag in resolved_tags:
                 if db_tag not in fb.tags:
                     fb.tags.append(db_tag)
 

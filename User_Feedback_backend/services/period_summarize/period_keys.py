@@ -23,7 +23,7 @@ _TOKEN_TO_LABEL = {
 }
 
 GEO_GRAINS = ("bde", "rfmm", "zone", "division")
-CUBE_GRAINS = ("bde_pt", "rfmm_pt", "zone_pt", "div_pt")
+CUBE_GRAINS = ("bde_pt", "rfmm_pt", "zone_pt", "div_pt", "all_pt")
 PRODUCT_SLICE_GRAINS = ("bde_p", "rfmm_p", "zone_p", "div_p")
 TAG_SLICE_GRAINS = ("bde_t", "rfmm_t", "zone_t", "div_t")
 GRAINS = (
@@ -48,12 +48,16 @@ CHILD_GRAIN = {
     "rfmm_t": "bde_t",
     "zone_t": "rfmm_t",
     "div_t": "zone_t",
+    # Presented summaries: cluster leaves roll to zone, then to all.
+    "tag": "zone_t",
+    "product": "zone_p",
+    "all_pt": "zone_pt",
 }
 PARENT_GRAIN = {child: parent for parent, child in CHILD_GRAIN.items()}
 HIERARCHY_ORDER = GEO_GRAINS
-LEAF_GRAINS = ("bde", "product", "tag", "bde_pt", "bde_p", "bde_t")
+LEAF_GRAINS = ("bde", "product", "tag", "bde_pt", "bde_p", "bde_t", "rfmm_pt", "rfmm_p", "rfmm_t", "all_pt")
 TIME_ROLLUP_GRAINS = GRAINS
-INSIGHT_GRAINS = {"bde", "product", "tag", "bde_pt", "bde_p", "bde_t"}
+INSIGHT_GRAINS = {"bde", "product", "tag", "bde_pt", "bde_p", "bde_t", "rfmm_pt", "rfmm_p", "rfmm_t", "all_pt"}
 MAX_MONTH_CELLS = 4000
 
 _GEO_FAMILY = {
@@ -117,7 +121,7 @@ def matches_group(grain_key: Optional[str], token: Optional[str]) -> bool:
 
 def slice_grains_for_geo(geo_grain: Optional[str]) -> dict[str, str]:
     if not geo_grain:
-        return {"product": "product", "tag": "tag", "cube": "product"}
+        return {"product": "product", "tag": "tag", "cube": "all_pt"}
     product, tag, cube = _GEO_FAMILY[geo_grain]
     return {"product": product, "tag": tag, "cube": cube}
 
@@ -157,12 +161,25 @@ def parse_insight_key(grain: str, grain_key: str) -> dict[str, Optional[str]]:
         product = KEY_SEP.join(parts[2:]) if token and len(parts) >= 3 else KEY_SEP.join(parts[1:])
         return {"geo_key": geo, "group_type": group, "product_name": product or None, "tag_id": None}
     if grain.endswith("_t"):
-        tag_id = parts[-1] if len(parts) >= 3 else None
+        if token and len(parts) >= 3:
+            tag_id = parts[-1]
+        elif not token and len(parts) >= 2:
+            tag_id = parts[-1]
+        else:
+            tag_id = None
         return {"geo_key": geo, "group_type": group, "product_name": None, "tag_id": tag_id}
     if grain.endswith("_pt"):
-        tag_id = parts[-1] if len(parts) >= 4 else None
-        product = KEY_SEP.join(parts[2:-1]) if token and len(parts) >= 4 else None
-        return {"geo_key": geo, "group_type": group, "product_name": product, "tag_id": tag_id}
+        if token and len(parts) >= 4:
+            tag_id = parts[-1]
+            product = KEY_SEP.join(parts[2:-1]) or None
+        elif not token and len(parts) >= 3:
+            tag_id = parts[-1]
+            product = KEY_SEP.join(parts[1:-1]) or None
+        else:
+            tag_id = None
+            product = None
+        geo_key = None if grain == "all_pt" else geo
+        return {"geo_key": geo_key, "group_type": group, "product_name": product, "tag_id": tag_id}
     raise ValueError(f"{grain} is not an insight grain")
 
 

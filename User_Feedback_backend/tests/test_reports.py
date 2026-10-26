@@ -38,6 +38,25 @@ def test_audio_locator_rejects_unknown_job(client: TestClient):
     assert resp.status_code == 404
 
 
+def test_audio_locator_rejects_non_admin(client: TestClient, db_session):
+    from unittest.mock import patch
+
+    from db.models import User
+
+    user = db_session.query(User).filter(User.email == "testadmin@pidilite.com").one()
+    user.role = "user"
+    db_session.commit()
+    with patch(
+        "core.dependencies.jwt.decode",
+        return_value={"role": "user", "user_id": str(user.user_id)},
+    ):
+        resp = client.get(
+            "/api/v1/reports/audio-locator",
+            params={"job_id": "11111111-1111-1111-1111-111111111111"},
+        )
+    assert resp.status_code == 403
+
+
 def test_audio_locator_rejects_bucket_outside_allowlist(client: TestClient, create_test_job):
     job = create_test_job(gcs_input_uri="gs://someone-else-bucket/secret.mp3")
     resp = client.get("/api/v1/reports/audio-locator", params={"job_id": job.id})
@@ -249,6 +268,152 @@ def test_report_summary_attaches_nationwide_tag_narrative(client: TestClient, db
     assert unfiltered_tags[tag_name]["ai_summary"] == "All-India performance narrative for August."
     assert geo_tags[tag_name]["ai_summary"] is None
     assert unfiltered_tags[tag_name]["summary_status"] == "ok"
+
+
+def test_report_summary_uses_cluster_zone_and_product_rollups(client: TestClient, db_session):
+    import importlib.util
+    from pathlib import Path
+
+    helper_path = Path(__file__).with_name("test_report_repository.py")
+    spec = importlib.util.spec_from_file_location("report_repo_test_helpers_rollups", helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module._seed_fact_view(db_session)
+    tag_name = "Existing Product - Performance improvements"
+    db_session.add(_period_row(
+        id="11111111-aaaa-bbbb-cccc-dddddddddd01",
+        grain="tag",
+        grain_key="6",
+        grain_label=tag_name,
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="All-India tag narrative.",
+        source_kind="child_summaries",
+    ))
+    db_session.add(_period_row(
+        id="11111111-aaaa-bbbb-cccc-dddddddddd02",
+        grain="zone_t",
+        grain_key="West::PDT::6",
+        grain_label=tag_name,
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="West zone tag narrative.",
+        source_kind="child_summaries",
+    ))
+    db_session.add(_period_row(
+        id="11111111-aaaa-bbbb-cccc-dddddddddd03",
+        grain="rfmm_t",
+        grain_key="Mumbai::PDT::6",
+        grain_label=tag_name,
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="Mumbai cluster tag narrative.",
+        source_kind="insights",
+    ))
+    db_session.add(_period_row(
+        id="11111111-aaaa-bbbb-cccc-dddddddddd04",
+        grain="all_pt",
+        grain_key="ALL::PDT::Marine::6",
+        grain_label=f"Marine × {tag_name}",
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="All-India Marine narrative.",
+        source_kind="child_summaries",
+    ))
+    db_session.add(_period_row(
+        id="11111111-aaaa-bbbb-cccc-dddddddddd05",
+        grain="zone_pt",
+        grain_key="West::PDT::Marine::6",
+        grain_label=f"Marine × {tag_name}",
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="West Marine narrative.",
+        source_kind="child_summaries",
+    ))
+    db_session.commit()
+    params = {"start_date": "2026-08-01", "end_date": "2026-08-31"}
+
+    def narrative(**extra):
+        resp = client.get("/api/v1/reports/summary", params={**params, **extra})
+        assert resp.status_code == 200
+        tags = {row["feedback_tag"]: row for row in resp.json()["data"]["tags"]}
+        return tags[tag_name]["ai_summary"]
+
+    assert narrative() == "All-India tag narrative."
+    assert narrative(zone="West") == "West zone tag narrative."
+    assert narrative(product_name="Marine") == "All-India Marine narrative."
+    assert narrative(zone="West", product_name="Marine") == "West Marine narrative."
+    from services.api.routers.reports import _attach_tag_ai_summaries
+
+    clustered = _attach_tag_ai_summaries(
+        db_session,
+        [{"feedback_tag": tag_name}],
+        "month",
+        "2026-08",
+        cluster="Mumbai",
+    )
+    assert clustered[0]["ai_summary"] == "Mumbai cluster tag narrative."
+    east = client.get("/api/v1/reports/summary", params={**params, "zone": "East"})
+    assert east.status_code == 200
+    assert tag_name not in {row["feedback_tag"] for row in east.json()["data"]["tags"]}
+
+
+def test_product_filter_uses_stored_product_tag_summary(client: TestClient, db_session):
+    import importlib.util
+    from pathlib import Path
+
+    helper_path = Path(__file__).with_name("test_report_repository.py")
+    spec = importlib.util.spec_from_file_location("report_repo_test_helpers_product_tag", helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module._seed_fact_view(db_session)
+    tag_name = "Existing Product - Performance improvements"
+    db_session.add(_period_row(
+        id="22222222-aaaa-bbbb-cccc-dddddddddd01",
+        grain="tag",
+        grain_key="6",
+        grain_label=tag_name,
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="All-India tag narrative.",
+        source_kind="child_summaries",
+    ))
+    db_session.add(_period_row(
+        id="22222222-aaaa-bbbb-cccc-dddddddddd02",
+        grain="bde_pt",
+        grain_key="BDDEL02::PDT::Marine::6",
+        grain_label=f"Marine × {tag_name}",
+        period_key="2026-08",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        summary_text="Marine bond did not hold.",
+        source_kind="insights",
+        highlights_json={"sentiment": "Negative"},
+    ))
+    db_session.commit()
+    params = {"start_date": "2026-08-01", "end_date": "2026-08-31"}
+    plain = client.get("/api/v1/reports/summary", params=params)
+    product = client.get("/api/v1/reports/summary", params={**params, "product_name": "Marine"})
+    other = client.get("/api/v1/reports/summary", params={**params, "product_name": "SH"})
+    assert plain.status_code == 200
+    assert product.status_code == 200
+    assert other.status_code == 200
+
+    def summary_for(resp):
+        tags = {row["feedback_tag"]: row for row in resp.json()["data"]["tags"]}
+        return tags[tag_name]
+
+    assert summary_for(plain)["ai_summary"] == "All-India tag narrative."
+    marine = summary_for(product)
+    assert marine["ai_summary"] == "Marine bond did not hold."
+    assert marine["sentiment"] == "Negative"
+    assert summary_for(other)["ai_summary"] is None
 
 
 def test_period_summaries_includes_nationwide_tags(client: TestClient, db_session):
@@ -571,6 +736,6 @@ def test_compliance_counts_visited_and_recorded_sites(
     assert row["division"] == "FV-RETAIL"
     assert row["fme_code"] == "BDDEL03"
     assert row["sites_visited"] == 2
-    assert row["sites_recorded"] == 1
-    assert row["conversation_rate"] == 50.0
+    assert row["sites_recorded"] == 2
+    assert row["conversation_rate"] == 100.0
     assert row["time_period"] == "2026-07"

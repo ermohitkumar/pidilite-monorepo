@@ -18,7 +18,7 @@ import {
 import { MdOutlineAudioFile } from "react-icons/md";
 
 import { useAppStore } from "@/lib/store/useAppStore";
-import { hasAccess, ResourceType } from "@/lib/auth/permissions";
+import { formatRoleLabel, hasAccess, ResourceType } from "@/lib/auth/permissions";
 
 type SidebarItem = {
   title: string;
@@ -46,7 +46,7 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
       },
       {
         title: "Feedback",
-        href: "/reports/insights",
+        href: "/reports/feedback",
         icon: LuTable,
         resource: "reports",
       },
@@ -75,7 +75,7 @@ const sidebarSections: { title: string; items: SidebarItem[] }[] = [
         resource: "library",
       },
       {
-        title: "Users",
+        title: "Admin",
         href: "/users",
         icon: LuUsers,
         requiredRole: "super_admin",
@@ -89,12 +89,7 @@ export default function SideBar() {
   const [isExpanded, setIsExpanded] = useState(true);
   const user = useAppStore((state) => state.user);
   const userName = user?.full_name || user?.username || user?.email;
-  const userRole =
-    user?.role === "super_admin"
-      ? "Super Admin"
-      : user?.role === "admin"
-        ? "Admin"
-        : "User";
+  const userRole = formatRoleLabel(user?.role);
 
   // Don't render the sidebar on auth pages
   if (

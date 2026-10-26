@@ -36,6 +36,8 @@ export function ReportDrillView({
     tagHighlights,
     nationwideCaption,
     periodProducts = [],
+    periodTags = [],
+    verbatim = false,
 }: Readonly<{
     drill: DrillScope;
     filters: ReportFilters;
@@ -46,6 +48,8 @@ export function ReportDrillView({
     tagHighlights?: PeriodSummaryRecord["highlights"];
     nationwideCaption?: boolean;
     periodProducts?: PeriodSummaryRecord[];
+    periodTags?: PeriodSummaryRecord[];
+    verbatim?: boolean;
 }>) {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
@@ -55,7 +59,7 @@ export function ReportDrillView({
     const drillFilters = useMemo(() => filtersForDrill(filters, drill), [filters, drill]);
     // Product breakdown is only meaningful for PDT GROUP. User/Dealer tags are not product-scoped.
     const isProductGroup = drill.group === "PDT GROUP";
-    const wantProducts = isProductGroup && !drill.product_name;
+    const wantProducts = isProductGroup && !drill.product_name && !verbatim;
     const productsQuery = useReportProducts(drillFilters, wantProducts);
     const productItems = productsQuery.data?.data?.items || [];
     const showProductBreakdown = wantProducts && productItems.length > 0;
@@ -78,8 +82,8 @@ export function ReportDrillView({
     }, [drill, filters, pageSize, sortBy, sortDir]);
 
     const productRows = useMemo(
-        () => buildProductRowsFromCounts(drill, productItems, periodProducts),
-        [drill, productItems, periodProducts],
+        () => buildProductRowsFromCounts(drill, productItems, periodProducts, periodTags),
+        [drill, productItems, periodProducts, periodTags],
     );
     const detailItems = detailsQuery.data?.data?.items || [];
     const detailRows = useMemo(
@@ -93,10 +97,9 @@ export function ReportDrillView({
     const includeProduct =
         isProductGroup &&
         (Boolean(drill.product_name) || detailRows.some((row) => row.product_name));
-    const showHeaderNarratives = !drill.product_name;
+    const showHeaderNarratives = Boolean(tagNarrative) && (verbatim || !drill.product_name);
     const crumbs = drillPath(drill);
     const context = [
-        { label: COLUMN_LABELS.feedback_group, value: drill.group },
         drill.product_name ? { label: COLUMN_LABELS.product_name, value: drill.product_name } : null,
         drill.feedback_category
             ? { label: COLUMN_LABELS.feedback_category, value: drill.feedback_category }
@@ -105,7 +108,7 @@ export function ReportDrillView({
     ].filter((chip): chip is { label: string; value: string } => Boolean(chip));
 
     const handleBack = () => {
-        if (!drill.product_name) {
+        if (verbatim || !drill.product_name) {
             onBack();
             return;
         }
@@ -134,7 +137,7 @@ export function ReportDrillView({
                     className="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline"
                 >
                     <LuArrowLeft className="h-4 w-4" />
-                    {drill.product_name ? "Back to product breakdown" : "Back to tag matrix"}
+                    {verbatim || !drill.product_name ? "Back to tag matrix" : "Back to product breakdown"}
                 </button>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-slate-500">
                     {crumbs.map((crumb, index) => (
@@ -148,14 +151,14 @@ export function ReportDrillView({
                 </div>
                 <h2 className="mt-2 text-xl font-bold text-slate-900">{drillTitle(drill)}</h2>
                 {showHeaderNarratives && tagNarrative ? (
-                    <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+                    <div className={`mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 ${verbatim ? "max-h-48 overflow-y-auto" : ""}`}>
                         <p className="mb-1 text-[13px] font-semibold uppercase tracking-wider text-slate-500">
-                            Tag summary
+                            Feedback summary
                         </p>
                         <FormattedSummary
                             text={tagNarrative}
                             highlights={tagHighlights}
-                            heading={drill.feedback_tag}
+                            heading={drill.feedback_tag || drill.product_name}
                         />
                     </div>
                 ) : null}
@@ -203,7 +206,7 @@ export function ReportDrillView({
             {!loading && showDetail ? (
             <section>
                 <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Full detail
+                    {verbatim ? "Verbatim" : "Full detail"}
                 </h3>
                 {detailsQuery.isError ? (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-10 text-center text-sm text-red-700">
@@ -216,7 +219,7 @@ export function ReportDrillView({
                 ) : (
                     <ReportTable
                         key={`detail-${drill.level}-${drill.product_name || ""}-${drill.feedback_tag || ""}`}
-                        columns={columnsForDetail(drill, includeProduct)}
+                        columns={columnsForDetail(drill, includeProduct, verbatim)}
                         rows={detailRows}
                         context={context}
                         itemLabel="feedback items"

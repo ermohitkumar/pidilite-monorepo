@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from core.response import make_response
 from core.exceptions import APIException
 from core.security import verify_password, login_user, logout_user
-from core.config import settings
 from db.session import get_db
 from db.models import User
 from schemas.schemas import LoginRequest
@@ -19,16 +18,10 @@ router = APIRouter(tags=["Authentication"])
 
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    """Authenticates the user using email and sets a secure session cookie.
-    Only available in development. Production must use SSO via /auth/verify."""
+    """Authenticates an admin-created account with email and password.
 
-    # ── ENVIRONMENT GUARD: Form login is disabled in production ──
-    if settings.is_production:
-        raise APIException(
-            status_code=403,
-            message="Form login is disabled in production. Please use SSO.",
-            error="Forbidden"
-        )
+    Microsoft sign-in remains available for accounts that have no password.
+    """
 
     logger.info("Login attempt for email='%s'", payload.email)
 
@@ -71,7 +64,8 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         "user_id": str(user.user_id),
         "username": user.username,
         "email": user.email,
-        "role": user.role
+        "role": user.role,
+        "allowed_resources": user.allowed_resources or [],
     }
     login_user(request, user_data)
 

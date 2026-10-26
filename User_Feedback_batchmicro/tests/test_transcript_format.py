@@ -162,22 +162,33 @@ def test_format_single_speaker_tag_falls_back_to_plain_transcript():
     assert "Speaker 1:" not in text
 
 
-def test_format_gemini_flash_json_keeps_speaker_n():
+def test_format_chirp3_speaker_label_is_one_based():
     raw = {
-        "provider": "gemini_flash",
-        "model": "gemini-2.5-flash",
-        "transcript": (
-            "Speaker 1: How is Fevicol SH?\n"
-            "Speaker 2: I applied it yesterday.\n"
-            "Speaker 3: Packets are leaking."
-        ),
-        "detected_languages": [],
+        "results": [
+            {
+                "alternatives": [
+                    {
+                        "transcript": "hello there",
+                        "words": [
+                            {
+                                "word": "hello",
+                                "startOffset": "0s",
+                                "endOffset": "0.400s",
+                                "speakerLabel": "0",
+                            },
+                            {
+                                "word": "there",
+                                "startOffset": "0.500s",
+                                "endOffset": "0.900s",
+                                "speakerLabel": "1",
+                            },
+                        ],
+                    }
+                ]
+            }
+        ]
     }
-    text = format_stt_results(raw)
-    assert "Speaker 1:" in text
-    assert "Speaker 2:" in text
-    assert "Speaker 3: Packets are leaking." in text
-    assert "results" not in raw or format_stt_results({"provider": "gemini_flash"}) == ""
+    assert format_stt_results(raw) == "Speaker 1: hello\nSpeaker 2: there"
 
 
 def test_label_only_transcript_fails_min_words():

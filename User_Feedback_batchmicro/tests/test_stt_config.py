@@ -36,11 +36,11 @@ def test_alternative_languages_exclude_primary():
     assert len(alts) <= 3
 
 
-def test_v1_models_map_to_telephony():
-    assert resolve_v2_model("latest_long") == "telephony"
-    assert resolve_v2_model(None) == "telephony"
-    assert resolve_v2_model("telephony") == "telephony"
-    assert resolve_v2_model("chirp_2") == "chirp_2"
+def test_legacy_models_map_to_chirp3():
+    assert resolve_v2_model("latest_long") == "chirp_3"
+    assert resolve_v2_model(None) == "chirp_3"
+    assert resolve_v2_model("telephony") == "chirp_3"
+    assert resolve_v2_model("chirp_2") == "chirp_3"
 
 
 def test_webm_octet_stream_resolves_to_audio_webm():

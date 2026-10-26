@@ -6,12 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.permissions import Permissions
-from core.dependencies import RoleChecker
+from core.dependencies import RoleChecker, get_current_user
 from core.response import make_response
 from core.exceptions import APIException
+from core.roles import ensure_system_roles
 from core.security import hash_password
 from db.session import get_db
-from db.models import User
+from db.models import Role, User
 from schemas.schemas import UserCreate, UserUpdate, UserResponse, UserListResponse, PermissionsListResponse
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,25 @@ DbSession = Annotated[Session, Depends(get_db)]
 _USER_NOT_FOUND_MSG = "User not found"
 
 router = APIRouter(prefix="/users", tags=["User Management"])
+
+
+def _require_role(db: Session, slug: str) -> Role:
+    """Return a role created in the admin panel, seeding the built-in ones first."""
+    ensure_system_roles(db)
+    role = db.query(Role).filter(Role.slug == slug).first()
+    if not role:
+        raise APIException(
+            status_code=400,
+            message="Unknown role. Create it in the admin panel before assigning it.",
+            error="InvalidRole",
+        )
+    return role
+
+
+def _permissions_for(role: Role, explicit: list | None) -> list:
+    if explicit:
+        return explicit
+    return list(role.permissions or [])
 
 
 @router.get("/permissions", response_model=PermissionsListResponse)
@@ -59,14 +79,21 @@ def create_user(
         raise APIException(
             status_code=409, message="Email already registered", error="Conflict")
 
+    if payload.username:
+        taken = db.query(User).filter(User.username == payload.username).first()
+        if taken:
+            raise APIException(
+                status_code=409, message="Username already registered", error="Conflict")
+
+    role = _require_role(db, payload.role)
     new_user = User(
         email=payload.email,
         username=payload.username,
         full_name=payload.full_name,
-        role=payload.role,
+        role=role.slug,
         password_hash=hash_password(payload.password) if payload.password else None,
         is_active=True,
-        allowed_resources=payload.allowed_resources  # <-- Dynamic Permissions
+        allowed_resources=_permissions_for(role, payload.allowed_resources),
     )
     db.add(new_user)
     db.commit()
@@ -107,8 +134,7 @@ def list_users(db: DbSession, request_user: Annotated[dict, Depends(RoleChecker(
 def get_user_profile(
     user_id: str,
     db: DbSession,
-    token_payload: Annotated[dict, Depends(
-        RoleChecker(Permissions.VIEW_PROFILE))]
+    token_payload: Annotated[dict, Depends(get_current_user)]
 ):
     """Get a user's profile. Admins/Users can only see their own; Super Admins can see anyone."""
 
@@ -154,14 +180,19 @@ def update_user(
             status_code=404, message=_USER_NOT_FOUND_MSG, error="NotFound")
 
     # ── 1. ROLE ESCALATION GUARD (Update) ──
-    if payload.role is not None and payload.role != user.role:
-        if request_user.get("role") != "super_admin":
-            raise APIException(
-                status_code=403,
-                message="Permission Denied: Only Super Admins can change user roles.",
-                error="Forbidden"
-            )
-        user.role = payload.role
+    if payload.role is not None:
+        role = _require_role(db, payload.role)
+        if payload.role != user.role:
+            if request_user.get("role") != "super_admin":
+                raise APIException(
+                    status_code=403,
+                    message="Permission Denied: Only Super Admins can change user roles.",
+                    error="Forbidden"
+                )
+            user.role = role.slug
+        # The role is the source of access unless the caller sends an override.
+        if payload.allowed_resources is None:
+            user.allowed_resources = list(role.permissions or [])
 
     # ── 2. DYNAMIC PERMISSIONS (allowed_resources) ──
     if payload.allowed_resources is not None:

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { FiDownload, FiFilter } from "react-icons/fi";
+import { FiDownload } from "react-icons/fi";
 import { LuLoader } from "react-icons/lu";
 
 import { ConversationThread } from "@/components/reports/ConversationThread";
@@ -12,123 +12,47 @@ import { FormattedSummary } from "@/components/reports/FormattedSummary";
 import { ReportDrillView } from "@/components/reports/ReportDrillView";
 import { ReportModal } from "@/components/reports/ReportModal";
 import { exportMatrixCsv, ReportTable } from "@/components/reports/ReportTable";
+import { ChoiceRow, ScopeFilterBar } from "@/components/reports/SummariesClient";
 import { Button } from "@/components/ui/button";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { Select } from "@/components/ui/Select";
-import { useReportConversation, useReportFilterOptions, useReportSummary, usePeriodSummaries } from "@/lib/hooks/reports";
-import { buildTagMatrixFromSummary, columnsForOverview, tagLabelsMatch } from "@/lib/reports/build";
+import { useReportConversation, useReportFilterOptions, useReportProducts, useReportSummary, usePeriodSummaries } from "@/lib/hooks/reports";
+import {
+    buildCategoryTagRows,
+    categoryForTagDrill,
+    columnsForSummaryTags,
+    groupForCategory,
+    levelOneCategories,
+    tagLabelsMatch,
+} from "@/lib/reports/build";
 import { isFullConversationTitle, parseConversationTurns } from "@/lib/reports/conversation";
 import {
     datesForPeriod,
     defaultPeriod,
     filtersFromSearchParams,
     periodFromDateRange,
-    restrictToAvailable,
     summariesHref,
     type PeriodKind,
     type PeriodState,
 } from "@/lib/reports/period";
 import {
     COLUMN_LABELS,
-    GROUP_TABS,
-    displayGroupLabel,
+    NO_PRODUCT_LABEL,
     type DrillScope,
     type FeedbackGroup,
-    type FilterOptions,
     type MatrixColumn,
     type MatrixRow,
     type ReportFilters,
 } from "@/lib/reports/types";
 
-const PERIOD_TABS: { id: PeriodKind; label: string }[] = [
-    { id: "month", label: "Monthly" },
-    { id: "quarter", label: "Quarterly" },
-    { id: "year", label: "Year" },
-];
-
-const QUARTER_OPTIONS = [
-    { label: "Q1 (Jan–Mar)", value: "1" },
-    { label: "Q2 (Apr–Jun)", value: "2" },
-    { label: "Q3 (Jul–Sep)", value: "3" },
-    { label: "Q4 (Oct–Dec)", value: "4" },
-];
-
-const EMPTY_FILTERS: FilterOptions = {
-    divisions: [],
-    zones: [],
-    clusters: [],
-    rfmm_clusters: [],
-    states: [],
-    products: [],
-    data_sources: [],
-    fme_codes: [],
-    user_types: [],
-};
-
-function withAll(values: string[]): { label: string; value: string }[] {
-    return [{ label: "All", value: "ALL" }, ...values.map((value) => ({ label: value, value }))];
-}
-
-function OptionalSelect({
-    label,
-    value,
-    onChange,
-    options,
-    selectKey,
-}: {
-    label: string;
-    value?: string;
-    onChange: (value: string) => void;
-    options: string[];
-    selectKey?: string;
-}) {
-    if (!options.length) return null;
-    return (
-        <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
-            {label}
-            <Select
-                key={selectKey}
-                className="mt-1"
-                value={value || "ALL"}
-                onChange={onChange}
-                options={withAll(options)}
-            />
-        </div>
-    );
-}
-
-function applySelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
-    const next = { ...prev };
-    if (!value || value === "ALL") delete next[key];
-    else (next as Record<string, unknown>)[key] = value;
-    return next;
-}
-
-function applyLinkedSelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
-    const next = applySelect(prev, key, value);
-    if (key === "division") {
-        delete next.zone;
-        delete next.cluster;
-        delete next.fme_code;
-    } else if (key === "zone") {
-        delete next.cluster;
-        delete next.fme_code;
-    } else if (key === "cluster") {
-        delete next.fme_code;
-    }
-    return next;
-}
-
-function sanitizeFilters(draft: ReportFilters, search: string, dates: Pick<ReportFilters, "start_date" | "end_date">): ReportFilters {
-    const next: ReportFilters = { ...draft, ...dates };
-    if (search.trim()) next.search = search.trim();
-    else delete next.search;
-    (Object.keys(next) as (keyof ReportFilters)[]).forEach((key) => {
-        const value = next[key];
-        if (value === undefined || value === null || value === "" || value === "ALL") {
-            delete next[key];
-        }
-    });
+function scopeFilters(
+    product: string | undefined,
+    zone: string | undefined,
+    cluster: string | undefined,
+    dates: Pick<ReportFilters, "start_date" | "end_date">,
+): ReportFilters {
+    const next: ReportFilters = { ...dates };
+    if (product && product !== "ALL") next.product_name = product;
+    if (zone && zone !== "ALL") next.zone = zone;
+    if (cluster && cluster !== "ALL") next.cluster = cluster;
     return next;
 }
 
@@ -148,27 +72,22 @@ export default function ReportsClient() {
         delete next.feedback_group;
         return next;
     }, [fromUrl, initialPeriod]);
-    const urlGroup = fromUrl.feedback_group;
-    const [group, setGroup] = useState<FeedbackGroup>(
-        urlGroup === "USER GROUP" || urlGroup === "DEALER GROUP" || urlGroup === "PDT GROUP"
-            ? urlGroup
-            : "PDT GROUP",
-    );
     const [period, setPeriod] = useState<PeriodState>(initialPeriod);
     const [filters, setFilters] = useState<ReportFilters>(initialFilters);
     const [draft, setDraft] = useState<ReportFilters>(initialFilters);
-    const [search, setSearch] = useState(fromUrl.search || "");
+    const openVerbatim = searchParams.get("verbatim") === "1";
     const [drill, setDrill] = useState<DrillScope | null>(() => {
-        if (!fromUrl.feedback_tag) return null;
+        if (!fromUrl.feedback_tag && !(openVerbatim && fromUrl.product_name)) return null;
+        const urlGroup = fromUrl.feedback_group;
         const drillGroup: FeedbackGroup =
             urlGroup === "USER GROUP" || urlGroup === "DEALER GROUP" || urlGroup === "PDT GROUP"
                 ? urlGroup
-                : "PDT GROUP";
+                : groupForCategory(fromUrl.feedback_category, fromUrl.feedback_tag);
         return {
             group: drillGroup,
-            level: "tag",
+            level: fromUrl.feedback_tag ? "tag" : "product",
             feedback_tag: fromUrl.feedback_tag,
-            feedback_category: fromUrl.feedback_category,
+            feedback_category: categoryForTagDrill(fromUrl.feedback_category, fromUrl.feedback_tag),
             product_name: fromUrl.product_name,
         };
     });
@@ -179,12 +98,9 @@ export default function ReportsClient() {
         feedbackId?: string;
         jobId?: string;
     } | null>(null);
-    const [showFilters, setShowFilters] = useState(true);
+    const [category, setCategory] = useState("ALL");
 
-    const appliedFilters = useMemo(
-        () => ({ ...filters, feedback_group: group }),
-        [filters, group],
-    );
+    const appliedFilters = filters;
     const summariesBackHref = useMemo(() => {
         const { feedback_group: _feedbackGroup, ...next } = appliedFilters;
         return summariesHref(next);
@@ -197,94 +113,100 @@ export default function ReportsClient() {
         cluster: appliedFilters.cluster,
         fme_code: appliedFilters.fme_code,
         product_name: appliedFilters.product_name,
-        feedback_group: group,
         start_date: appliedFilters.start_date,
         end_date: appliedFilters.end_date,
     });
     const conversationQuery = useReportConversation(textModal?.feedbackId, textModal?.jobId);
-    const filterQuery = useReportFilterOptions({
-        division: draft.division,
-        zone: draft.zone,
-        cluster: draft.cluster,
-    });
+    const filterQuery = useReportFilterOptions({ zone: draft.zone });
+    const productsQuery = useReportProducts({});
 
     const linkedOptions = filterQuery.data?.data;
-    const summaryOptions = data?.data?.filter_options;
-    const geoScoped = Boolean(draft.division || draft.zone || draft.cluster);
-    const filterOptions: FilterOptions = {
-        ...EMPTY_FILTERS,
-        ...summaryOptions,
-        ...linkedOptions,
-    };
-    if (geoScoped) {
-        filterOptions.clusters = linkedOptions?.rfmm_clusters ?? linkedOptions?.clusters ?? [];
-        filterOptions.rfmm_clusters = filterOptions.clusters;
-        filterOptions.fme_codes = linkedOptions?.fme_codes ?? [];
-    }
     const source = data?.data?.source;
-    const available = periodListQuery.data?.data?.available_filters;
-    const rfmmLive = filterOptions.rfmm_clusters?.length
-        ? filterOptions.rfmm_clusters
-        : filterOptions.clusters;
-    const divisionOptions = restrictToAvailable(filterOptions.divisions, available?.divisions);
-    const zoneOptions = restrictToAvailable(filterOptions.zones, available?.zones);
-    const rfmmOptions = restrictToAvailable(rfmmLive, available?.rfmm_clusters);
-    const fmeOptions = restrictToAvailable(filterOptions.fme_codes || [], available?.fme_codes);
-    // Keep every catalog product. Stored product summaries cover only a subset,
-    // so intersecting with available_filters.products hid HEATX, MARINE, etc.
-    const productOptions = filterOptions.products || [];
-    const userTypeOptions = filterOptions.user_types || [];
+    const zoneOptions = linkedOptions?.zones || [];
+    const rfmmOptions = linkedOptions?.rfmm_clusters?.length
+        ? linkedOptions.rfmm_clusters
+        : linkedOptions?.clusters || [];
+    const productNames = (productsQuery.data?.data?.items || [])
+        .filter((item) => item.product_name && item.product_name !== NO_PRODUCT_LABEL && (item.feedback_count || 0) > 0)
+        .map((item) => item.product_name || "")
+        .filter(Boolean);
+    if (draft.product_name && !productNames.includes(draft.product_name)) productNames.unshift(draft.product_name);
+    const productChoices = [
+        { id: "ALL", label: "All" },
+        ...productNames.map((name) => ({ id: name, label: name })),
+    ];
+    const categoryOptions = [
+        { id: "ALL", label: "All" },
+        ...levelOneCategories().map((label) => ({ id: label, label })),
+    ];
 
     const rows = useMemo(
         () =>
-            buildTagMatrixFromSummary(
-                group,
-                data?.data?.tags || [],
-                data?.data?.categories || [],
-                {
-                    showSubTags: false,
-                    categoryTotals: group !== "PDT GROUP",
-                    search: appliedFilters.search,
-                    periodTags: periodListQuery.data?.data?.tags || [],
-                },
-            ),
-        [data?.data?.tags, data?.data?.categories, group, appliedFilters.search, periodListQuery.data?.data?.tags],
+            buildCategoryTagRows(data?.data?.tags || [], {
+                category: category === "ALL" ? undefined : category,
+                periodTags: periodListQuery.data?.data?.tags || [],
+            }),
+        [category, data?.data?.tags, periodListQuery.data?.data?.tags],
     );
 
-    const columns = columnsForOverview();
+    const columns = columnsForSummaryTags();
     const selectedTagNarrative = useMemo(() => {
-        if (!drill?.feedback_tag) return undefined;
-        const tagName = drill.feedback_tag;
-        const match = (data?.data?.tags || []).find((row) => tagLabelsMatch(row.feedback_tag, tagName));
-        if (match?.summary_status === "error") return "Updating…";
-        const fromCounts = (match?.ai_summary || "").trim();
-        if (fromCounts) return fromCounts;
-        const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
-            tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+        if (drill?.feedback_tag) {
+            const tagName = drill.feedback_tag;
+            const match = (data?.data?.tags || []).find((row) => tagLabelsMatch(row.feedback_tag, tagName));
+            if (match?.summary_status === "error") return "Updating…";
+            const fromCounts = (match?.ai_summary || "").trim();
+            if (fromCounts) return fromCounts;
+            const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
+                tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+            );
+            if (periodMatch?.status === "error") return "Updating…";
+            return (periodMatch?.summary_text || "").trim() || undefined;
+        }
+        if (!drill?.product_name) return undefined;
+        const productName = drill.product_name;
+        const periodMatch = (periodListQuery.data?.data?.products || []).find((row) =>
+            tagLabelsMatch(row.grain_label || row.grain_key, productName),
         );
         if (periodMatch?.status === "error") return "Updating…";
         return (periodMatch?.summary_text || "").trim() || undefined;
-    }, [drill?.feedback_tag, data?.data?.tags, periodListQuery.data?.data?.tags]);
+    }, [drill?.feedback_tag, drill?.product_name, data?.data?.tags, periodListQuery.data?.data?.tags, periodListQuery.data?.data?.products]);
     const selectedTagHighlights = useMemo(() => {
-        if (!drill?.feedback_tag) return undefined;
-        const tagName = drill.feedback_tag;
-        const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
-            tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+        if (drill?.feedback_tag) {
+            const tagName = drill.feedback_tag;
+            const periodMatch = (periodListQuery.data?.data?.tags || []).find((row) =>
+                tagLabelsMatch(row.grain_label || row.grain_key, tagName),
+            );
+            return periodMatch?.highlights;
+        }
+        if (!drill?.product_name) return undefined;
+        const productName = drill.product_name;
+        const periodMatch = (periodListQuery.data?.data?.products || []).find((row) =>
+            tagLabelsMatch(row.grain_label || row.grain_key, productName),
         );
         return periodMatch?.highlights;
-    }, [drill?.feedback_tag, periodListQuery.data?.data?.tags]);
+    }, [drill?.feedback_tag, drill?.product_name, periodListQuery.data?.data?.tags, periodListQuery.data?.data?.products]);
 
     const applyFilters = () => {
-        setFilters(sanitizeFilters(draft, search, datesForPeriod(period)));
+        setFilters(scopeFilters(draft.product_name, draft.zone, draft.cluster, datesForPeriod(period)));
         setDrill(null);
     };
     const clearFilters = () => {
-        const next = defaultPeriod("month");
+        const next = defaultPeriod("all");
         const dates = datesForPeriod(next);
         setDraft({});
         setFilters(dates);
-        setSearch("");
         setPeriod(next);
+        setCategory("ALL");
+        setDrill(null);
+    };
+    const selectProduct = (next: string) => {
+        const product = next === "ALL" ? undefined : next;
+        setDraft((prev) => ({ ...prev, product_name: product }));
+        setFilters((prev) => scopeFilters(product, prev.zone, prev.cluster, {
+            start_date: prev.start_date,
+            end_date: prev.end_date,
+        }));
         setDrill(null);
     };
     const selectPeriod = (kind: PeriodKind) => {
@@ -296,11 +218,6 @@ export default function ReportsClient() {
         const next = { ...period, ...patch };
         setPeriod(next);
         setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
-    };
-
-    const switchGroup = (next: FeedbackGroup) => {
-        setGroup(next);
-        setDrill(null);
     };
 
     const openCell = (column: MatrixColumn, row: MatrixRow) => {
@@ -346,149 +263,63 @@ export default function ReportsClient() {
                     </Link>
                     <h1 className="mt-1 text-2xl font-bold text-slate-900">Feedback</h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        Counts follow your current filters. Click a count to drill into site visits
-                        {group === "PDT GROUP" ? " (and products for Product Group)" : ""}.
+                        Counts follow your current filters. Click a count to drill into site visits.
                     </p>
                 </div>
                 <Button
                     variant="secondary"
-                    onClick={() =>
-                        exportMatrixCsv(`${group.replace(" ", "-").toLowerCase()}-tag-matrix.csv`, columns, rows)
-                    }
+                    onClick={() => exportMatrixCsv("feedback-tag-matrix.csv", columns, rows)}
                 >
                     <FiDownload className="mr-2 h-4 w-4" />
                     Export CSV
                 </Button>
             </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-                {GROUP_TABS.map((tab) => (
-                    <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => switchGroup(tab.id)}
-                        className={`rounded-lg px-4 py-2 text-sm font-medium border transition-colors ${
-                            group === tab.id
-                                ? "bg-brand-subtle text-brand border-transparent"
-                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                        }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
             {!drill ? (
-                <div className="mb-5 rounded-lg border border-slate-200 bg-white p-4">
-                    <button
-                        type="button"
-                        onClick={() => setShowFilters((open) => !open)}
-                        className="flex w-full items-center justify-between text-sm font-semibold text-slate-700"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <FiFilter className="text-slate-400" />
-                            Filters
-                        </span>
-                        <span className="text-xs font-medium text-brand">{showFilters ? "Hide" : "Show"}</span>
-                    </button>
-                    {showFilters ? (
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <OptionalSelect
-                            label="Division"
-                            value={draft.division}
-                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "division", value))}
-                            options={divisionOptions}
-                        />
-                        <OptionalSelect
-                            label="Zone"
-                            value={draft.zone}
-                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "zone", value))}
-                            options={zoneOptions}
-                        />
-                        <OptionalSelect
-                            label="RFMM Cluster"
-                            value={draft.cluster}
-                            onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
-                            options={rfmmOptions}
-                            selectKey={`rfmm-${draft.division || "all"}-${draft.zone || "all"}`}
-                        />
-                        <OptionalSelect
-                            label="FME / BDE"
-                            value={draft.fme_code}
-                            onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
-                            options={fmeOptions}
-                            selectKey={`fme-${draft.division || "all"}-${draft.zone || "all"}-${draft.cluster || "all"}`}
-                        />
-                        <OptionalSelect
-                            label="Product"
-                            value={draft.product_name}
-                            onChange={(value) => setDraft((prev) => applySelect(prev, "product_name", value))}
-                            options={productOptions}
-                        />
-                        <OptionalSelect
-                            label="User type"
-                            value={draft.user_type}
-                            onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
-                            options={userTypeOptions}
-                        />
-                        <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
-                            Time period
-                            <Select
-                                className="mt-1"
-                                value={period.kind}
-                                onChange={(value) => selectPeriod(value as PeriodKind)}
-                                options={PERIOD_TABS.map((tab) => ({ label: tab.label, value: tab.id }))}
-                            />
-                        </label>
-                        {period.kind === "month" ? (
-                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
-                                Month
-                                <input
-                                    type="month"
-                                    value={period.month || ""}
-                                    onChange={(e) => updatePeriod({ month: e.target.value })}
-                                    className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
-                                />
-                            </label>
-                        ) : null}
-                        {period.kind === "quarter" || period.kind === "year" ? (
-                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
-                                Year
-                                <input
-                                    type="number"
-                                    min="2000"
-                                    max="2100"
-                                    value={period.year || ""}
-                                    onChange={(e) => updatePeriod({ year: e.target.value })}
-                                    className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
-                                />
-                            </label>
-                        ) : null}
-                        {period.kind === "quarter" ? (
-                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
-                                Quarter
-                                <Select
-                                    className="mt-1"
-                                    value={period.quarter || "1"}
-                                    onChange={(value) => updatePeriod({ quarter: value })}
-                                    options={QUARTER_OPTIONS}
-                                />
-                            </label>
-                        ) : null}
-                        <div>
-                            <div className="mb-1 text-[12px] font-bold uppercase tracking-wider text-slate-600">
-                                Search
-                            </div>
-                            <SearchInput value={search} onChange={setSearch} placeholder="Tag, product, file..." />
-                        </div>
-                        <div className="flex items-end gap-2">
-                            <Button type="button" variant="secondary" onClick={clearFilters}>
-                                Clear
-                            </Button>
-                            <Button type="button" onClick={applyFilters}>Apply filters</Button>
-                        </div>
-                    </div>
-                    ) : null}
+                <div className="mb-5 space-y-6">
+                    <ChoiceRow
+                        label="Feedback category"
+                        value={categoryOptions.some((option) => option.id === category) ? category : "ALL"}
+                        options={categoryOptions}
+                        onChange={(next) => {
+                            setCategory(next);
+                            setDrill(null);
+                        }}
+                    />
+                    <ChoiceRow
+                        label="Product"
+                        value={filters.product_name || "ALL"}
+                        options={productChoices}
+                        onChange={selectProduct}
+                    />
+                    <ScopeFilterBar
+                        showProduct={false}
+                        product={draft.product_name || "ALL"}
+                        productOptions={productNames}
+                        zone={draft.zone || ""}
+                        zones={zoneOptions}
+                        cluster={draft.cluster || ""}
+                        clusters={rfmmOptions}
+                        period={period}
+                        onProduct={selectProduct}
+                        onZone={(value) =>
+                            setDraft((prev) => ({
+                                ...prev,
+                                zone: !value || value === "ALL" ? undefined : value,
+                                cluster: undefined,
+                            }))
+                        }
+                        onCluster={(value) =>
+                            setDraft((prev) => ({
+                                ...prev,
+                                cluster: !value || value === "ALL" ? undefined : value,
+                            }))
+                        }
+                        onPeriodKind={selectPeriod}
+                        onPeriodPatch={updatePeriod}
+                        onApply={applyFilters}
+                        onClear={clearFilters}
+                    />
                 </div>
             ) : null}
 
@@ -517,14 +348,15 @@ export default function ReportsClient() {
                     tagNarrative={selectedTagNarrative}
                     tagHighlights={selectedTagHighlights}
                     periodProducts={periodListQuery.data?.data?.products || []}
+                    periodTags={periodListQuery.data?.data?.product_tags || periodListQuery.data?.data?.tags || []}
+                    verbatim={openVerbatim}
                 />
             ) : (
                 <>
                     <ReportTable
-                        key={group}
                         columns={columns}
                         rows={rows}
-                        context={[{ label: "FEEDBACK GROUP", value: displayGroupLabel(group) }]}
+                        pinnedColumns={columns}
                         itemLabel="tags"
                         onCountClick={(row) => {
                             if (row.drill) setDrill(row.drill);

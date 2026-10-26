@@ -429,7 +429,8 @@ def _prompt_for(
         )
 
     header = TIGHTER_PROMPT if tighter else (
-        "Summarize these compact site-visit feedback lines as numbered findings. "
+        "Summarize these compact site-visit feedback lines by theme as numbered findings. "
+        "Count mentions per theme. When a line has others:, include that note for the Others theme. "
         "Each finding needs a title, a Data line with unique mention counts and regions, "
         "and complete verbatim quotes. Do not truncate. "
         "Return JSON with summary and findings."

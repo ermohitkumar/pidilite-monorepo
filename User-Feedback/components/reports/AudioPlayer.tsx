@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LuPause, LuPlay, LuRotateCcw, LuRotateCw } from "react-icons/lu";
 
 import { ReportModal } from "@/components/reports/ReportModal";
+import { canPlayAudio } from "@/lib/auth/permissions";
+import { useAppStore } from "@/lib/store/useAppStore";
 
 function formatTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
@@ -433,6 +435,9 @@ export function AudioPlayer({
     durationSeconds?: number | null;
     onDurationResolved?: (seconds: number) => void;
 }>) {
+    const user = useAppStore((state) => state.user);
+    const isUserLoaded = useAppStore((state) => state.isUserLoaded);
+    const allowed = isUserLoaded && canPlayAudio(user);
     const [open, setOpen] = useState(false);
     const [playableSeconds, setPlayableSeconds] = useState(0);
     const probeRef = useRef<HTMLAudioElement | null>(null);
@@ -448,7 +453,7 @@ export function AudioPlayer({
     );
 
     useEffect(() => {
-        if (!jobId) return;
+        if (!allowed || !jobId) return;
         const node = probeRef.current;
         if (!node) return;
 
@@ -458,11 +463,12 @@ export function AudioPlayer({
         return () => {
             stop();
         };
-    }, [handleResolved, jobId]);
+    }, [allowed, handleResolved, jobId]);
 
     if (!jobId) {
         return <span className="text-text-subtle">—</span>;
     }
+    if (!allowed) return null;
 
     const src = `/bff/reports/audio/${encodeURIComponent(jobId)}`;
     const knownDb =

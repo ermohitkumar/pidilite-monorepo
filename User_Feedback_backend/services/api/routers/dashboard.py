@@ -80,11 +80,39 @@ def _order(column, sort_dir: Optional[str]):
 
 
 def _apply_job_sort(query, sort_by: Optional[str], sort_dir: Optional[str], *, joined_files: bool):
-    column = _JOB_SORT.get(sort_by or "created_at", Job.created_at)
+    if not sort_by:
+        if not joined_files:
+            query = query.outerjoin(FileDetails)
+        return query.order_by(desc(_visit_day_text()), desc(Job.id))
+    column = _JOB_SORT.get(sort_by, Job.created_at)
     needs_files = column is FileDetails.file_name or column is FileDetails.audio_duration_seconds
     if needs_files and not joined_files:
         query = query.outerjoin(FileDetails)
     return query.order_by(_order(column, sort_dir), desc(Job.id))
+
+
+def _day_text(column):
+    """First 10 characters of an ISO timestamp, so varchar and timestamptz compare the same way."""
+    return func.substr(cast(column, String), 1, 10)
+
+
+def _visit_day_text():
+    """Visit day from the filename, otherwise the day the job was ingested."""
+    return func.coalesce(_day_text(FileDetails.call_date), _day_text(Job.created_at))
+
+
+def _apply_visit_on(query, start_date: Optional[date], end_date: Optional[date], *, joined_files: bool):
+    if start_date is None and end_date is None:
+        return query, joined_files
+    if not joined_files:
+        query = query.outerjoin(FileDetails)
+        joined_files = True
+    visit_day = _visit_day_text()
+    if start_date is not None:
+        query = query.filter(visit_day >= start_date.isoformat())
+    if end_date is not None:
+        query = query.filter(visit_day <= end_date.isoformat())
+    return query, joined_files
 
 
 def _apply_created_on(query, column, start_date: Optional[date], end_date: Optional[date]):
@@ -469,8 +497,10 @@ def list_jobs(
 ):
     try:
         query = db.query(Job)
-        query = _apply_created_on(query, Job.created_at, start_date, end_date)
         joined_files = False
+        query, joined_files = _apply_visit_on(
+            query, start_date, end_date, joined_files=joined_files,
+        )
         if search:
             safe_search = _escape_like(search)
             query = query.outerjoin(FileDetails).outerjoin(Batch).filter(or_(

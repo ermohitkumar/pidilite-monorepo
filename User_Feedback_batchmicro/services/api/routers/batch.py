@@ -34,7 +34,7 @@ def _enqueue_stt_task(job_id: str, gcs_input_uri: str) -> str | None:
             "gcs_output_uri_prefix": gcs_output_prefix,
             # Field visits are typically Hindi/Hinglish; en-IN hurts ASR.
             "language_code": "hi-IN",
-            "model": "telephony",
+            "model": "chirp_3",
         },
     )
 

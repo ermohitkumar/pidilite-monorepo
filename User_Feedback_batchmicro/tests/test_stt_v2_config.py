@@ -1,20 +1,22 @@
-"""STT v2 telephony config used by the pipeline."""
+"""STT v2 Chirp 3 config used by the pipeline."""
 from services.shared.stt_client import build_recognition_config
 from services.shared.stt_config import STT_V2_MODEL
 
 
-def test_build_config_uses_telephony_and_auto_decode():
+def test_build_config_uses_chirp3_diarization_without_timestamps():
     cfg = build_recognition_config("hi-IN", "latest_long")
-    assert cfg.model == STT_V2_MODEL
+    assert cfg.model == STT_V2_MODEL == "chirp_3"
     assert list(cfg.language_codes) == ["hi-IN"]
     assert cfg.auto_decoding_config is not None
     assert cfg.features.enable_automatic_punctuation is True
-    assert not cfg.features.diarization_config.min_speaker_count
+    assert cfg.features.enable_word_time_offsets is False
+    assert cfg.features.enable_word_confidence is False
+    assert cfg.features._pb.HasField("diarization_config")
 
 
-def test_build_config_keeps_explicit_v2_model():
+def test_build_config_ignores_legacy_telephony_model():
     cfg = build_recognition_config("en-IN", "telephony")
-    assert cfg.model == "telephony"
+    assert cfg.model == "chirp_3"
     assert list(cfg.language_codes) == ["en-IN"]
 
 

@@ -10,26 +10,10 @@ import "./globals.css";
 
 const chillax = localFont({
   src: [
-    {
-      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Regular.otf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
-      weight: "600",
-      style: "normal",
-    },
-    {
-      path: "../docs/Samvad logo_Folder/Fonts/Chillax-Medium.otf",
-      weight: "700",
-      style: "normal",
-    },
+    { path: "./fonts/Chillax-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Chillax-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Chillax-Semibold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Chillax-Bold.woff2", weight: "700", style: "normal" },
   ],
   variable: "--font-chillax",
   display: "swap",

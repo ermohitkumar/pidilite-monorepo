@@ -1,26 +1,16 @@
 """Cloud STT helpers.
 
-Production uses Speech-to-Text v2 `telephony` in asia-south1 (org policy
-blocks global/us; Chirp is not in this region). v1 encoding/rate maps are
-kept for scripts that still call the v1 API.
+Production uses Speech-to-Text v2 `chirp_3` in the `us` multi-region
+(Chirp 3 is not offered in asia-south1). v1 encoding/rate maps are kept
+for scripts that still call the v1 API.
 """
 
 from __future__ import annotations
 
 from core.config import settings
 
-# v2 model that works in asia-south1 for hi-IN. latest_long is v1-only here.
-STT_V2_MODEL = "telephony"
-_V1_MODEL_ALIASES = {
-    "latest_long",
-    "latest_short",
-    "default",
-    "video",
-    "command_and_search",
-    "phone_call",
-    "long",
-    "short",
-}
+# Chirp 3 model id. Request payloads may still say telephony or latest_long.
+STT_V2_MODEL = "chirp_3"
 
 # Primary + up to 3 alternatives. Hinglish field visits mix hi/en; Pidilite
 # coverage is heavy in Maharashtra and Gujarat.
@@ -128,12 +118,11 @@ def alternative_language_codes(primary: str) -> list[str]:
 
 
 def stt_location() -> str:
-    return (settings.GCP_LOCATION or "asia-south1").strip() or "asia-south1"
+    """Chirp 3 region. Independent of GCP_LOCATION (Cloud Tasks / Vertex)."""
+    return settings.stt_location
 
 
 def resolve_v2_model(model: str | None) -> str:
-    """Map leftover v1 model names onto v2 telephony."""
-    name = (model or "").strip()
-    if not name or name in _V1_MODEL_ALIASES:
-        return STT_V2_MODEL
-    return name
+    """Always Chirp 3. Legacy task payloads still say telephony or latest_long."""
+    del model
+    return settings.stt_model or STT_V2_MODEL

@@ -1,9 +1,9 @@
 """
-/files/transcription — STT Transcription submission endpoint.
+/files/transcription — Chirp 3 transcription submission endpoint.
 
-Called by Cloud Tasks. Submits a single audio file to Google Cloud
-Speech-to-Text for asynchronous transcription. Saves the returned
-stt_operation_name and updates job status to STT_SUBMITTED.
+Called by Cloud Tasks. Submits a single audio file to Speech-to-Text v2
+BatchRecognize (chirp_3, speaker diarization, no word timestamps). Saves the
+returned operation name and updates job status to STT_SUBMITTED.
 
 Error handling maps every documented Cloud STT error to a specific
 exception class — retryable errors stay as ERROR for the checker,
@@ -14,7 +14,6 @@ import logging
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from core.config import settings
 from core.response import make_response
 from core.exceptions import (
     STTError,
@@ -33,8 +32,6 @@ from repositories import batch_repository
 from core.enums import JobStatus
 from db.models import FailedJob
 from schemas.schemas import STTSubmitRequest, STTSubmitResponseData
-from services.shared.cloud_tasks import enqueue_gemini_stt_task
-from services.shared.gemini_stt import gemini_flash_operation_name
 from services.shared.stt_client import (
     _HAS_SPEECH,
     reset_speech_client,
@@ -73,12 +70,12 @@ def _submit_to_stt(
     gcs_uri: str,
     gcs_output_uri_prefix: str | None = None,
     language_code: str = "hi-IN",
-    model: str = "telephony",
+    model: str = "chirp_3",
     source_hint: str | None = None,
 ) -> str:
     """
-    Submit an async BatchRecognize LRO to Cloud Speech-to-Text v2 telephony.
-    Returns the operation name (e.g. projects/.../locations/asia-south1/operations/...).
+    Submit an async BatchRecognize LRO to Cloud Speech-to-Text v2 Chirp 3.
+    Returns the operation name (e.g. projects/.../locations/us/operations/...).
     Raises a specific STTError subclass for each documented error.
     """
     if not _HAS_SPEECH:
@@ -146,13 +143,13 @@ def _reraise_stt_error(exc: Exception) -> None:
 
 # ── POST /files/transcription ─────────────────────────────────────────────────
 
-@router.post("/transcription", summary="Submit file to Vertex AI for transcription", status_code=status.HTTP_200_OK)
+@router.post("/transcription", summary="Submit file to Chirp 3 for transcription", status_code=status.HTTP_200_OK)
 def submit_stt(
     payload: STTSubmitRequest,
     db: Session = Depends(get_db),
 ):
     """
-    Called by Cloud Tasks. Submits the audio file to Cloud STT and stores
+    Called by Cloud Tasks. Submits the audio file to Chirp 3 and stores
     the LRO operation name. Updates job status to STT_SUBMITTED.
     """
     job = batch_repository.get_job(db, payload.job_id)
@@ -227,53 +224,6 @@ def submit_stt(
             if probed:
                 file_details.audio_duration_seconds = probed
 
-
-    if settings.stt_provider == "gemini_flash":
-        try:
-            enqueue_gemini_stt_task({
-                "job_id": payload.job_id,
-                "gcs_input_uri": payload.gcs_input_uri,
-                "gcs_output_uri_prefix": payload.gcs_output_uri_prefix,
-                "batch_id": payload.batch_id,
-                "language_code": payload.language_code,
-                "model": payload.model,
-            })
-        except Exception as exc:
-            logger.exception("Failed to enqueue Gemini Flash STT for job %s", payload.job_id)
-            error_msg = f"[Unexpected] {type(exc).__name__}: {exc}"
-            file_name = job.file_details.file_name if job.file_details else None
-            db.add(FailedJob(job_id=job.id, file_name=file_name, error_message=error_msg, pipeline_stage="STT"))
-            batch_repository.update_job_status(
-                db, payload.job_id,
-                status=JobStatus.ERROR,
-                error_message=error_msg,
-                increment_retry=True,
-            )
-            db.commit()
-            return make_response(
-                success=False,
-                message="Gemini Flash STT enqueue failed",
-                data=STTSubmitResponseData(
-                    job_id=payload.job_id,
-                    status=JobStatus.ERROR.value,
-                ).model_dump(),
-                error=error_msg,
-            )
-        operation_name = gemini_flash_operation_name(payload.job_id)
-        batch_repository.update_job_status(
-            db, payload.job_id,
-            status=JobStatus.STT_SUBMITTED,
-            stt_operation_name=operation_name,
-        )
-        return make_response(
-            success=True,
-            message="Gemini Flash STT enqueued",
-            data=STTSubmitResponseData(
-                job_id=payload.job_id,
-                status=JobStatus.STT_SUBMITTED.value,
-                stt_operation_name=operation_name,
-            ).model_dump(),
-        )
 
     try:
         source_hint = file_details.file_extension if file_details else None

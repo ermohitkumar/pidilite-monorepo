@@ -1,4 +1,8 @@
-"""Ordered period-summary job: mixed geo, nationwide, cube/slices, then time rollups."""
+"""Ordered period-summary job.
+
+The leaf is a cluster × product × level-3 tag summary. Product and tag
+summaries are aggregated from that leaf, then rolled cluster → zone → all.
+"""
 from __future__ import annotations
 
 import logging
@@ -20,11 +24,13 @@ from services.period_summarize.period_keys import (
     current_month_key,
     display_key,
     group_token,
+    GROUP_TOKENS,
     is_last_month_of_quarter,
     is_last_month_of_year,
     mixed_key,
     quarter_key_from_month,
     scoped_key,
+    split_key,
     utc_today,
     with_geo,
     year_key_from_month,
@@ -461,23 +467,32 @@ def _summarize_from_children(
     child_period_keys: list[str] | None = None,
     budget: Optional[CellBudget] = None,
     now: Optional[datetime] = None,
+    children_override: Optional[list[dict[str, Any]]] = None,
+    grain_label: Optional[str] = None,
 ) -> dict[str, Any]:
     from services.period_summarize import incremental as inc
 
     checked_at = now or datetime.now(timezone.utc)
     try:
-        children = combine.children_for(
-            db,
-            grain=grain,
-            grain_key=grain_key,
-            period_type=period_type,
-            period_key=period_key,
-            child_period_type=child_period_type,
-            child_period_keys=child_period_keys,
+        children = (
+            children_override
+            if children_override is not None
+            else combine.children_for(
+                db,
+                grain=grain,
+                grain_key=grain_key,
+                period_type=period_type,
+                period_key=period_key,
+                child_period_type=child_period_type,
+                child_period_keys=child_period_keys,
+            )
         )
     except Exception as exc:
         logger.exception("period children failed grain=%s key=%s", grain, grain_key)
         return {"grain": grain, "grain_key": grain_key, "status": "error", "skipped": False, "error": str(exc)}
+
+    if children_override is not None and not children:
+        return {"grain": grain, "grain_key": grain_key, "status": "skipped", "skipped": True}
 
     current = store.get_current(db, grain, grain_key, period_type, period_key)
     previous_child_ids = list((current.highlights_json or {}).get("considered_child_ids") or []) if current else []
@@ -507,7 +522,7 @@ def _summarize_from_children(
             db,
             grain=grain,
             grain_key=grain_key,
-            grain_label=current.grain_label or display_key(grain_key) or grain_key,
+            grain_label=grain_label or current.grain_label or display_key(grain_key) or grain_key,
             parent_key=parent_key,
             period_type=period_type,
             period_key=period_key,
@@ -542,7 +557,7 @@ def _summarize_from_children(
         if child.get("id") and str(child.get("id")) not in set(considered_ids)
     ]
     highlights["as_of"] = inc.as_of_date(checked_at).isoformat()
-    grain_label = _label_for_child_grain(grain, grain_key, children)
+    grain_label = grain_label or _label_for_child_grain(grain, grain_key, children)
     previous_summary = current.summary_text if (current and not force and changed_children) else None
     return _write_node(
         db,
@@ -592,8 +607,11 @@ def _rollup_family(
             continue
         seen.add(parent)
         geo = display_key(parent)
-        grand_geo = _lookup_parent_geo(parent_grain, geo, nodes)
-        parent_of_parent = with_geo(grand_geo, parent) if grand_geo else None
+        if parent_grain in {"zone_t", "zone_p", "zone_pt"}:
+            parent_of_parent = _nation_key(parent_grain, parent)
+        else:
+            grand_geo = _lookup_parent_geo(parent_grain, geo, nodes)
+            parent_of_parent = with_geo(grand_geo, parent) if grand_geo else None
         results.append(
             _summarize_from_children(
                 db,
@@ -720,6 +738,95 @@ def _run_nationwide(
     return results
 
 
+def _nation_key(zone_grain: str, zone_key: str) -> Optional[str]:
+    """Zone slice key → the all-level key that slice rolls up into."""
+    parts = split_key(zone_key)
+    if len(parts) < 2:
+        return None
+    token = parts[1] if parts[1] in GROUP_TOKENS else None
+    if zone_grain == "zone_t":
+        tag_id = parts[-1]
+        return scoped_key(tag_id, token) if token else tag_id
+    if zone_grain == "zone_p":
+        product = "::".join(parts[2:]) if token else "::".join(parts[1:])
+        if not product:
+            return None
+        return scoped_key(product, token) if token else product
+    if zone_grain == "zone_pt":
+        if token:
+            if len(parts) < 4:
+                return None
+            product = "::".join(parts[2:-1])
+            tag_id = parts[-1]
+            return scoped_key("ALL", token, product, tag_id)
+        if len(parts) < 3:
+            return None
+        product = "::".join(parts[1:-1])
+        tag_id = parts[-1]
+        return scoped_key("ALL", product, tag_id)
+    return None
+
+
+def _stored_children(
+    db: Session,
+    *,
+    grain: str,
+    grain_keys: list[str],
+    period_key: str,
+) -> list[dict[str, Any]]:
+    children: list[dict[str, Any]] = []
+    for grain_key in grain_keys:
+        row = store.get_current(db, grain, grain_key, "month", period_key)
+        if not store.is_visible_summary(row):
+            continue
+        payload = store.serialize_row(row)
+        if payload:
+            children.append(payload)
+    return children
+
+
+def _aggregate_slices(
+    db: Session,
+    *,
+    grain: str,
+    slices: dict[str, dict[str, Any]],
+    source_grain: str,
+    period_key: str,
+    start: date,
+    end: date,
+    force: bool,
+    summarize: SummarizeFn,
+    budget: CellBudget,
+    parent_for,
+) -> list[dict[str, Any]]:
+    """Build one summary per product or level-3 tag from stored cube rows."""
+    results: list[dict[str, Any]] = []
+    for grain_key, spec in slices.items():
+        children = _stored_children(
+            db, grain=source_grain, grain_keys=list(spec["children"]), period_key=period_key,
+        )
+        if not children:
+            continue
+        results.append(
+            _summarize_from_children(
+                db,
+                grain=grain,
+                grain_key=grain_key,
+                parent_key=parent_for(grain_key, spec),
+                period_type="month",
+                period_key=period_key,
+                start=start,
+                end=end,
+                force=force,
+                summarize=summarize,
+                budget=budget,
+                children_override=children,
+                grain_label=str(spec.get("label") or grain_key),
+            )
+        )
+    return results
+
+
 def _run_cube_and_slices(
     db: Session,
     *,
@@ -738,25 +845,31 @@ def _run_cube_and_slices(
     cube_seen: set[str] = set()
     product_seen: set[str] = set()
     tag_seen: set[str] = set()
+    product_slices: dict[str, dict[str, Any]] = {}
+    tag_slices: dict[str, dict[str, Any]] = {}
     for cell in cells:
-        bde = cell.get("bde_key")
-        if not bde:
+        # Presented summaries start at the cluster, from the audios in that cluster.
+        rfmm = cell.get("rfmm_key")
+        if not rfmm:
             continue
         tag_id = cell.get("tag_id")
         tag_name = cell.get("tag_name") or tag_id
         product = cell.get("product_name")
-        rfmm = cell.get("rfmm_key")
-        if tag_id:
-            tag_key = scoped_key(bde, token, tag_id) if token else scoped_key(bde, tag_id)
+        zone = cell.get("zone_key")
+        if product and tag_id:
+            # Product and tag narratives are aggregated from this cube after the loop.
+            pass
+        elif tag_id:
+            tag_key = scoped_key(rfmm, token, tag_id) if token else scoped_key(rfmm, tag_id)
             if tag_key not in tag_seen:
                 tag_seen.add(tag_key)
                 results.append(
                     _summarize_from_insights(
                         db,
-                        grain="bde_t",
+                        grain="rfmm_t",
                         grain_key=tag_key,
                         grain_label=str(tag_name or tag_id),
-                        parent_key=with_geo(rfmm, tag_key) if rfmm else None,
+                        parent_key=with_geo(zone, tag_key) if zone else None,
                         period_key=period_key,
                         start=start,
                         end=end,
@@ -766,17 +879,17 @@ def _run_cube_and_slices(
                         budget=budget,
                     )
                 )
-        if product:
-            product_key = scoped_key(bde, token, product) if token else scoped_key(bde, product)
+        elif product:
+            product_key = scoped_key(rfmm, token, product) if token else scoped_key(rfmm, product)
             if product_key not in product_seen:
                 product_seen.add(product_key)
                 results.append(
                     _summarize_from_insights(
                         db,
-                        grain="bde_p",
+                        grain="rfmm_p",
                         grain_key=product_key,
                         grain_label=product,
-                        parent_key=with_geo(rfmm, product_key) if rfmm else None,
+                        parent_key=with_geo(zone, product_key) if zone else None,
                         period_key=period_key,
                         start=start,
                         end=end,
@@ -787,16 +900,16 @@ def _run_cube_and_slices(
                     )
                 )
         if product and tag_id:
-            cube_key = scoped_key(bde, token, product, tag_id) if token else scoped_key(bde, product, tag_id)
+            cube_key = scoped_key(rfmm, token, product, tag_id) if token else scoped_key(rfmm, product, tag_id)
             if cube_key not in cube_seen:
                 cube_seen.add(cube_key)
                 results.append(
                     _summarize_from_insights(
                         db,
-                        grain="bde_pt",
+                        grain="rfmm_pt",
                         grain_key=cube_key,
                         grain_label=f"{product} × {tag_name}",
-                        parent_key=with_geo(rfmm, cube_key) if rfmm else None,
+                        parent_key=with_geo(zone, cube_key) if zone else None,
                         period_key=period_key,
                         start=start,
                         end=end,
@@ -806,16 +919,55 @@ def _run_cube_and_slices(
                         budget=budget,
                     )
                 )
+                product_key = scoped_key(rfmm, token, product) if token else scoped_key(rfmm, product)
+                tag_key = scoped_key(rfmm, token, tag_id) if token else scoped_key(rfmm, tag_id)
+                product_spec = product_slices.setdefault(
+                    product_key, {"label": product, "zone": zone, "children": []},
+                )
+                if cube_key not in product_spec["children"]:
+                    product_spec["children"].append(cube_key)
+                tag_spec = tag_slices.setdefault(
+                    tag_key, {"label": str(tag_name or tag_id), "zone": zone, "children": []},
+                )
+                if cube_key not in tag_spec["children"]:
+                    tag_spec["children"].append(cube_key)
+    results.extend(
+        _aggregate_slices(
+            db,
+            grain="rfmm_p",
+            slices=product_slices,
+            source_grain="rfmm_pt",
+            period_key=period_key,
+            start=start,
+            end=end,
+            force=force,
+            summarize=summarize,
+            budget=budget,
+            parent_for=lambda grain_key, spec: with_geo(spec.get("zone"), grain_key) if spec.get("zone") else None,
+        )
+    )
+    results.extend(
+        _aggregate_slices(
+            db,
+            grain="rfmm_t",
+            slices=tag_slices,
+            source_grain="rfmm_pt",
+            period_key=period_key,
+            start=start,
+            end=end,
+            force=force,
+            summarize=summarize,
+            budget=budget,
+            parent_for=lambda grain_key, spec: with_geo(spec.get("zone"), grain_key) if spec.get("zone") else None,
+        )
+    )
     for child_grain, parent_grain in (
-        ("bde_t", "rfmm_t"),
         ("rfmm_t", "zone_t"),
-        ("zone_t", "div_t"),
-        ("bde_p", "rfmm_p"),
+        ("zone_t", "tag"),
         ("rfmm_p", "zone_p"),
-        ("zone_p", "div_p"),
-        ("bde_pt", "rfmm_pt"),
+        ("zone_p", "product"),
         ("rfmm_pt", "zone_pt"),
-        ("zone_pt", "div_pt"),
+        ("zone_pt", "all_pt"),
     ):
         results.extend(
             _rollup_family(
@@ -831,6 +983,127 @@ def _run_cube_and_slices(
                 budget=budget,
             )
         )
+    results.extend(
+        _run_unclustered_slices(
+            db,
+            token=token,
+            cells=cells,
+            period_key=period_key,
+            start=start,
+            end=end,
+            force=force,
+            gather=gather,
+            summarize=summarize,
+            budget=budget,
+            already=results,
+        )
+    )
+    return results
+
+
+def _run_unclustered_slices(
+    db: Session,
+    *,
+    token: Optional[str],
+    cells: list[dict[str, Optional[str]]],
+    period_key: str,
+    start: date,
+    end: date,
+    force: bool,
+    gather: GatherFn,
+    summarize: SummarizeFn,
+    budget: CellBudget,
+    already: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Audios with no RFMM cluster still get an all-level product × tag summary."""
+    written = {(item.get("grain"), item.get("grain_key")) for item in already}
+    results: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    product_slices: dict[str, dict[str, Any]] = {}
+    tag_slices: dict[str, dict[str, Any]] = {}
+
+    def write(grain: str, grain_key: str, grain_label: str) -> None:
+        marker = (grain, grain_key)
+        if marker in written or marker in seen:
+            return
+        seen.add(marker)
+        results.append(
+            _summarize_from_insights(
+                db,
+                grain=grain,
+                grain_key=grain_key,
+                grain_label=grain_label,
+                parent_key=None,
+                period_key=period_key,
+                start=start,
+                end=end,
+                force=force,
+                gather=gather,
+                summarize=summarize,
+                budget=budget,
+            )
+        )
+
+    for cell in cells:
+        if cell.get("rfmm_key"):
+            continue
+        tag_id = cell.get("tag_id")
+        tag_name = str(cell.get("tag_name") or tag_id or "")
+        product = cell.get("product_name")
+        if product and tag_id:
+            cube_key = (
+                scoped_key("ALL", token, product, str(tag_id))
+                if token
+                else scoped_key("ALL", product, str(tag_id))
+            )
+            write("all_pt", cube_key, f"{product} × {tag_name}")
+            product_key = scoped_key(product, token) if token else product
+            tag_key = scoped_key(str(tag_id), token) if token else str(tag_id)
+            if ("product", product_key) not in written:
+                spec = product_slices.setdefault(product_key, {"label": product, "children": []})
+                if cube_key not in spec["children"]:
+                    spec["children"].append(cube_key)
+            if ("tag", tag_key) not in written:
+                spec = tag_slices.setdefault(tag_key, {"label": tag_name or str(tag_id), "children": []})
+                if cube_key not in spec["children"]:
+                    spec["children"].append(cube_key)
+            continue
+        if tag_id:
+            key = scoped_key(str(tag_id), token) if token else str(tag_id)
+            write("tag", key, tag_name or str(tag_id))
+        elif product:
+            key = scoped_key(product, token) if token else product
+            write("product", key, product)
+    results.extend(
+        _aggregate_slices(
+            db,
+            grain="product",
+            slices=product_slices,
+            source_grain="all_pt",
+            period_key=period_key,
+            start=start,
+            end=end,
+            force=force,
+            summarize=summarize,
+            budget=budget,
+            parent_for=lambda _grain_key, _spec: None,
+        )
+    )
+    results.extend(
+        _aggregate_slices(
+            db,
+            grain="tag",
+            slices=tag_slices,
+            source_grain="all_pt",
+            period_key=period_key,
+            start=start,
+            end=end,
+            force=force,
+            summarize=summarize,
+            budget=budget,
+            parent_for=lambda _grain_key, _spec: None,
+        )
+    )
     return results
 
 
@@ -863,6 +1136,7 @@ def run_month(
         groups = _call_list(list_groups, db, start, end) or [None]
     except Exception:
         logger.exception("list_groups failed for %s", period_key)
+        db.rollback()
         groups = [None]
     if not groups:
         groups = [None]
@@ -873,42 +1147,19 @@ def run_month(
             nodes = _call_list(list_nodes, db, start, end, group)
         except Exception:
             logger.exception("list_nodes failed group=%s", group)
+            db.rollback()
             nodes = []
-        try:
-            products = _call_list(list_products, db, start, end, group)
-        except Exception:
-            logger.exception("list_products failed group=%s", group)
-            products = []
-        try:
-            tags = _call_list(list_tags, db, start, end, group)
-        except Exception:
-            logger.exception("list_tags failed group=%s", group)
-            tags = []
         try:
             cells = _call_list(list_cube, db, start, end, group)
         except Exception:
             logger.exception("list_cube failed group=%s", group)
+            db.rollback()
             cells = []
         results.extend(
             _run_mixed_geo(
                 db,
                 nodes=nodes,
                 token=token,
-                period_key=period_key,
-                start=start,
-                end=end,
-                force=force,
-                gather=gather,
-                summarize=summarize,
-                budget=budget,
-            )
-        )
-        results.extend(
-            _run_nationwide(
-                db,
-                token=token,
-                products=products,
-                tags=tags,
                 period_key=period_key,
                 start=start,
                 end=end,

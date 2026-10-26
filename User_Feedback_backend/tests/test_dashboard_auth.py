@@ -90,17 +90,18 @@ class TestAuthLogin:
         finally:
             settings.ENVIRONMENT = _orig
 
-    def test_login_blocked_in_production(self, client, create_test_user):
-        """In production, form login must be blocked — only SSO is allowed."""
+    def test_login_succeeds_in_production(self, client, create_test_user):
+        """Form login accepts accounts created in the admin panel in every environment."""
         create_test_user(username="admin", email="admin@test.com",
-                         password="secret123", role="admin")
+                         password="StrongPassword1", role="admin")
         resp = client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com", "password": "ValidLength12"
+            "email": "admin@test.com", "password": "StrongPassword1"
         })
         body = resp.json()
-        assert resp.status_code == 403
-        assert body["success"] is False
-        assert body["error"] == "Forbidden"
+        assert resp.status_code == 200
+        assert body["success"] is True
+        assert body["data"]["user"]["role"] == "admin"
+        assert "allowed_resources" in body["data"]["user"]
 
     def test_login_empty_payload(self, client):
         resp = client.post("/api/v1/auth/login", json={})

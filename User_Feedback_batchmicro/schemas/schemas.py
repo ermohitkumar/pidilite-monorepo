@@ -73,34 +73,13 @@ class STTSubmitRequest(BaseModel):
     gcs_output_uri_prefix: Optional[str] = None
     batch_id: Optional[str] = None
     language_code: str = "hi-IN"
-    model: str = "telephony"
+    model: str = "chirp_3"
 
 
 class STTSubmitResponseData(BaseModel):
     job_id: str
     status: str
     stt_operation_name: Optional[str] = None
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ENDPOINT 3b — POST /api/v1/files/gemini-stt
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class GeminiSTTRequest(BaseModel):
-    job_id: str
-    gcs_input_uri: str
-    gcs_output_uri_prefix: Optional[str] = None
-    batch_id: Optional[str] = None
-    language_code: str = "hi-IN"
-    model: str = "telephony"
-
-
-class GeminiSTTResponseData(BaseModel):
-    job_id: str
-    status: str
-    stt_operation_name: Optional[str] = None
-    gcs_stt_output_uri: Optional[str] = None
-    fallback: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

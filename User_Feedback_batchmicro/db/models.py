@@ -205,6 +205,8 @@ class Feedback(Base):
     
     verbatim_quote = Column(Text, nullable=True)
     ai_summary = Column(Text, nullable=False)
+    theme = Column(String(200), nullable=True, index=True)
+    others_info = Column(Text, nullable=True)
     sentiment_label = Column(String(20), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

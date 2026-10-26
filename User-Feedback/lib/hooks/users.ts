@@ -40,6 +40,7 @@ export const useCreateUser = () => {
         mutationFn: createUser,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
+            queryClient.invalidateQueries({ queryKey: ['roles'] });
         },
     });
 };
@@ -54,6 +55,7 @@ export const useUpdateUser = () => {
             updateUser(userId, payload),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
+            queryClient.invalidateQueries({ queryKey: ['roles'] });
             queryClient.invalidateQueries({ queryKey: ['user', variables.userId] });
         },
     });
@@ -68,6 +70,7 @@ export const useDeleteUser = () => {
         mutationFn: (userId: string) => deleteUser(userId),
         onSuccess: (data, userId) => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
+            queryClient.invalidateQueries({ queryKey: ['roles'] });
             queryClient.invalidateQueries({ queryKey: ['user', userId] });
         },
     });

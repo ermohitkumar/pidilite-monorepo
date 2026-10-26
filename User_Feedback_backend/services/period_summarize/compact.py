@@ -58,9 +58,12 @@ def compact_line(row: dict[str, Any]) -> str:
     group = str(row.get("group_type") or "").replace(" GROUP", "")[:12]
     product = truncate_chars(str(row.get("product_name") or "-"), 40)
     tags = truncate_chars(str(row.get("tags") or ""), 40)
+    theme = truncate_chars(str(row.get("theme") or ""), 40)
+    others = truncate_chars(str(row.get("others_info") or ""), 80)
     sentiment = row_sentiment(row) or "-"
     summary = truncate_chars(str(row.get("ai_summary") or ""), LINE_SUMMARY_CHARS)
-    return f"{day}|{group}|{product}|{tags}|{sentiment}|{summary}"
+    others_bit = f"|others:{others}" if others else ""
+    return f"{day}|{group}|{product}|{tags}|theme:{theme}{others_bit}|{sentiment}|{summary}"
 
 
 def normalize_sentiment(value: Any) -> str | None:
@@ -95,6 +98,10 @@ _NEG_PHRASES = (
     "push other brands",
     "does not exist",
     "not working",
+    "not that good",
+    "did not perform",
+    "letting go",
+    "let go",
 )
 _POS_WORDS = re.compile(
     r"\b(good|great|excellent|prais(?:e|es|ed)|happy|better|best|impressed|"
@@ -130,6 +137,13 @@ def infer_sentiment(value: Any) -> str:
     cleaned = lowered
     for phrase in _POS_PHRASES + _NEG_PHRASES:
         cleaned = cleaned.replace(phrase, " ")
+    cleaned = re.sub(
+        r"\b(?:not|no|never|didn.?t|doesn.?t|isn.?t|wasn.?t|without)\b(?:\s+\w+){0,3}\s+"
+        r"(?:good|great|excellent|happy|better|best|impressed|satisfied|easy|easier|strong|effective)\b",
+        " ",
+        cleaned,
+        flags=re.I,
+    )
     pos += len(_POS_WORDS.findall(cleaned))
     neg += len(_NEG_WORDS.findall(cleaned))
     if neg > pos:
@@ -275,13 +289,15 @@ def _is_vague_theme(label: str) -> bool:
 
 
 def _canonicalize_theme(theme: str) -> str:
-    """Map free-form / near-duplicate labels onto one bucket so similar praise collapses."""
+    """Map free-form sentences onto one bucket. A short taxonomy name is kept as written."""
     text = re.sub(r"\s+", " ", str(theme or "")).strip().rstrip(".")
     if not text:
         return "product quality"
-    for pattern, label in _THEME_RULES:
-        if pattern.search(text):
-            return label
+    short_label = len(text.split()) <= 6 and len(text) <= 48 and not re.search(r"[.!?]", text)
+    if not short_label:
+        for pattern, label in _THEME_RULES:
+            if pattern.search(text):
+                return label
     if _PRAISE_THEME_RE.search(text) or _is_vague_theme(text):
         return "product quality"
     return text
@@ -343,7 +359,22 @@ def _keyword_pattern(theme: str):
     return None
 
 
+def _stored_theme(row: dict[str, Any]) -> str:
+    """Short taxonomy theme captured on the insight. Keyword guesses are only a fallback."""
+    text = re.sub(r"\s+", " ", str(row.get("theme") or "")).strip().rstrip(".")
+    if not text or _is_vague_theme(text):
+        return ""
+    if re.search(r"[.!?]", text):
+        return ""
+    if len(text.split()) > 6 or len(text) > 48:
+        return ""
+    return text
+
+
 def _theme_labels(row: dict[str, Any]) -> list[str]:
+    stored = _stored_theme(row)
+    if stored:
+        return [stored]
     blob = str(row.get("ai_summary") or "").strip() or str(row.get("verbatim_quote") or "").strip()
     hits = [_canonicalize_theme(label) for pattern, label in _THEME_RULES if pattern.search(blob)]
     unique: list[str] = []
@@ -402,16 +433,15 @@ def _soft_theme(label: str) -> str:
 
 
 def _point_line(theme: str, count: int, index: int, detail: str = "") -> str:
-    theme = _soft_theme(theme) or "this feedback"
-    if theme:
-        theme = theme[0].upper() + theme[1:]
+    """(1) Theme - detail. The product stays on its own row, not inside the line."""
+    label = re.sub(r"\s+", " ", str(theme or "")).strip().rstrip(".") or "Feedback"
+    if label:
+        label = label[0].upper() + label[1:]
     detail = re.sub(r"\s+", " ", str(detail or "")).strip(" -–.")
     count = max(int(count or 0), 1)
-    noun = "user" if count == 1 else "users"
-    tail = f"({count} {noun})"
-    if detail and detail.lower() not in theme.lower():
-        return f"{theme} — {detail} {tail}"
-    return f"{theme} {tail}"
+    if detail and detail.lower() not in label.lower():
+        return f"({count}) {label} - {detail}"
+    return f"({count}) {label}"
 
 
 def _resolve_product(row: dict[str, Any], known_products: list[str]) -> str:
@@ -504,30 +534,65 @@ def findings_from_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return findings[:12]
 
 
+def _finding_product(item: dict[str, Any]) -> str:
+    product = str(item.get("product") or item.get("title") or "").strip()
+    if product.lower() in {"other", "unknown"}:
+        return ""
+    return product
+
+
 def format_findings(findings: list[dict[str, Any]] | None) -> str:
-    blocks: list[str] = []
+    """One line per theme. The same issue on several products stays one line."""
+    grouped: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
     for item in findings or []:
-        title = str(item.get("product") or item.get("title") or "").strip()
-        show_title = bool(title) and title.lower() not in {"other", "unknown"}
-        points = item.get("points") or []
-        lines: list[str] = [title] if show_title else []
-        if points:
-            for point in points:
-                line = str(point.get("line") or "").strip()
-                if not line:
-                    theme = str(point.get("theme") or point.get("summary") or "").strip()
-                    line = _point_line(
-                        theme,
-                        int(point.get("user_count") or 0),
-                        len(lines),
-                        str(point.get("detail") or ""),
-                    )
-                lines.append(f"• {line}")
-        elif str(item.get("summary") or item.get("data") or "").strip():
-            lines.append(f"• {item.get('summary') or item.get('data')}")
-        if len(lines) > (1 if show_title else 0):
-            blocks.append("\n".join(lines).strip())
-    return "\n\n".join(blocks)
+        product = _finding_product(item)
+        points = list(item.get("points") or [])
+        if not points and str(item.get("summary") or item.get("data") or "").strip():
+            points = [{
+                "theme": item.get("theme") or item.get("title") or "Feedback",
+                "detail": item.get("summary") or item.get("data") or "",
+                "user_count": item.get("user_count") or 1,
+            }]
+        for point in points:
+            if not isinstance(point, dict):
+                continue
+            theme = str(point.get("theme") or "").strip()
+            detail = str(point.get("detail") or "").strip()
+            count = int(point.get("user_count") or 0)
+            if not theme:
+                theme = str(point.get("summary") or "Feedback").strip() or "Feedback"
+            key = theme.lower()
+            bucket = grouped.get(key)
+            if bucket is None:
+                bucket = {"theme": theme, "count": 0, "parts": []}
+                grouped[key] = bucket
+                order.append(key)
+            bucket["count"] += count if count > 0 else 1
+            snippet = detail
+            if snippet:
+                bucket["parts"].append((product, snippet))
+    lines: list[str] = []
+    for key in sorted(order, key=lambda item: item == "others"):
+        bucket = grouped[key]
+        parts: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for product, snippet in bucket["parts"]:
+            marker = f"{product.lower()}|{snippet.lower()}"
+            if marker in seen:
+                continue
+            seen.add(marker)
+            parts.append((product, snippet))
+        products = {product for product, _snippet in parts if product}
+        if len(products) > 1:
+            detail = "; ".join(
+                f"{product}: {snippet}" if product else snippet
+                for product, snippet in parts
+            )
+        else:
+            detail = "; ".join(snippet for _product, snippet in parts)
+        lines.append(_point_line(bucket["theme"], int(bucket["count"] or 1), len(lines), detail))
+    return "\n".join(line for line in lines if line)
 
 
 def merge_findings(children: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -872,6 +937,9 @@ def _insight_select_sql(db: Session, extra_where: str = "") -> tuple[Any, str]:
     dialect = _dialect_name(db)
     call_date = call_date_sql(dialect, *INSIGHT_CALL_COLUMNS)
     tag_agg = "GROUP_CONCAT(ft.tag_name, ',')" if dialect == "sqlite" else "string_agg(ft.tag_name, ',')"
+    feedback_cols = _table_columns(db, "feedbacks")
+    theme_sql = "COALESCE(fb.theme, '')" if "theme" in feedback_cols else "''"
+    others_sql = "COALESCE(fb.others_info, '')" if "others_info" in feedback_cols else "''"
     sql = text(
         f"""
         SELECT
@@ -888,6 +956,8 @@ def _insight_select_sql(db: Session, extra_where: str = "") -> tuple[Any, str]:
             COALESCE(fb.group_type, '') AS group_type,
             COALESCE(fb.ai_summary, '') AS ai_summary,
             {_verbatim_sql(db)} AS verbatim_quote,
+            {theme_sql} AS theme,
+            {others_sql} AS others_info,
             COALESCE((
                 SELECT {tag_agg}
                 FROM feedback_tag_link ftl
@@ -901,6 +971,17 @@ def _insight_select_sql(db: Session, extra_where: str = "") -> tuple[Any, str]:
         """
     )
     return sql, call_date
+
+
+def _insight_geo_column(grain: str) -> str | None:
+    """Which file_details column a leaf grain's geo key refers to."""
+    if grain == "bde" or grain.startswith("bde_"):
+        return "fme_code"
+    if grain == "rfmm" or grain.startswith("rfmm_"):
+        return "rfmm_cluster"
+    if grain == "zone" or grain.startswith("zone_"):
+        return "zone"
+    return None
 
 
 def gather_insights(
@@ -918,8 +999,9 @@ def gather_insights(
     parsed = parse_insight_key(grain, grain_key)
     clauses: list[str] = []
     params: dict[str, Any] = {"start": start.isoformat(), "end": end.isoformat()}
-    if parsed.get("geo_key"):
-        clauses.append("NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') = :geo_key")
+    geo_column = _insight_geo_column(grain)
+    if parsed.get("geo_key") and geo_column:
+        clauses.append(f"NULLIF(TRIM(COALESCE(fd.{geo_column}, '')), '') = :geo_key")
         params["geo_key"] = parsed["geo_key"]
     group_sql, group_params = _group_filter(parsed.get("group_type"))
     if group_sql:
@@ -1018,6 +1100,17 @@ def list_product_keys(
     return [str(row["product_name"]) for row in rows if row.get("product_name")]
 
 
+def _active_tag_sql(db: Session) -> str:
+    """Keep inactive legacy tags out of new summaries when the column exists."""
+    try:
+        columns = {col["name"] for col in inspect(db.get_bind()).get_columns("feedback_tags")}
+    except Exception:
+        return ""
+    if "is_active" not in columns:
+        return ""
+    return " AND ft.is_active IS NOT FALSE"
+
+
 def list_tag_keys(
     db: Session,
     start: date,
@@ -1036,6 +1129,7 @@ def list_tag_keys(
         JOIN file_details fd ON fd.job_id = fb.job_id
         WHERE {call_date} BETWEEN :start AND :end
           AND ft.tag_id IS NOT NULL
+          {_active_tag_sql(db)}
           {group_sql}
         ORDER BY ft.tag_id
         """
@@ -1080,6 +1174,7 @@ def list_cube_keys(
         WHERE {call_date} BETWEEN :start AND :end
           AND NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') IS NOT NULL
           AND ft.tag_id IS NOT NULL
+          {_active_tag_sql(db)}
           {group_sql}
         """
     )

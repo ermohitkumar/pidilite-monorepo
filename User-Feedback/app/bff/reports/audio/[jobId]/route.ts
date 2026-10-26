@@ -1,4 +1,5 @@
 import { getBackendApiUrl } from "@/lib/auth/env";
+import { canPlayAudio } from "@/lib/auth/permissions";
 import { SESSION_COOKIE, getSession } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from "next/server";
 import { Readable } from "node:stream";
@@ -99,11 +100,15 @@ async function audioResponse(
     jobId: string,
     body: boolean,
 ): Promise<Response> {
-    if (process.env.NODE_ENV === "production") {
-        const session = await getSession();
-        if (!session) {
-            return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-        }
+    const session = await getSession();
+    if (!session) {
+        return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (!canPlayAudio(session)) {
+        return NextResponse.json(
+            { error: "Audio playback is limited to Admin and Super Admin" },
+            { status: 403 },
+        );
     }
 
     if (!jobId || jobId.length < 8 || jobId.length > 64) {

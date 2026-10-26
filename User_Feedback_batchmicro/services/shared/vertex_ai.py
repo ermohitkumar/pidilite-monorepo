@@ -713,19 +713,22 @@ ALLOWED TAGS (STRICT TAXONOMY — use tag_id in output):
 
 CRITICAL TAGGING RULES:
 1. You MUST ONLY use tag_id values from the ALLOWED TAGS list above. Do NOT invent new tags.
-2. Assign tag_ids only when a tag's description actually matches the insight. If no tag fits, OMIT that insight from the output array entirely. Never dump leftover chat onto a catch-all tag (especially Site visits or Existing Product - Performance improvements).
-3. For `group_type`, use exactly one of: "PDT GROUP", "USER GROUP", "DEALER GROUP":
-   - insight_focus=product → "PDT GROUP" and ONLY [PDT GROUP] tag_ids.
-   - insight_focus=user → "USER GROUP" and ONLY [USER GROUP] tag_ids — unless the content is actually product quality/application/usage/performance, in which case reclassify to PDT GROUP with PDT tags.
-   - insight_focus=dealer → "DEALER GROUP" and ONLY [DEALER GROUP] tag_ids.
-4. For `category_type`, use the category shown in parentheses next to the chosen tag (e.g., "Competition", "Systems", "User Meets", "Dealer-related").
-5. SITE VISITS: Use ONLY when the user comments on FME site-visit activity itself (visit quality, frequency, FME not coming / delayed, scheduling, requesting more visits). NEVER because the audio was recorded on a job site, and NEVER for product talk that happened during a visit.
-6. CATCH-ALL BANS:
-   - tag_id=6 (Existing Product - Performance improvements) when the User evaluates product performance: praise ("excellent", "superb", "good", "no deficiencies"), comparison ("better than"), complaint, or a request for a change (strength, coverage, bond, pot/shelf life, longevity, drying, grip). NEVER for "used X", "ordered X", "FME introduced X", or "X is commonly used" with no evaluation.
-   - tag_id=5 (packaging / application complaints) ONLY for leak, token, pack open/close, bubble, smell, adhesion on substrate. NEVER for "uses Century plywood" or a list of SKUs.
-   - If the insight is only usage or quantity, OMIT it. Do not park it on tag 6.
-   - Do NOT omit a named-SKU User praise/complaint because they did not ask for an improvement — tag 6 is the correct home for that evaluation.
-7. SUMMARY MUST JUSTIFY THE TAG: Rewrite `summary` so a reader of the tag name knows why this row is here (e.g. tag 5 → "Marine tin leaked from the lid."). Not "User uses Marine."
+2. Every saved insight must have exactly one theme: one tag_id from the list. Prefer the specific theme. Use that Feedback Tag's "Others" theme only when no specific theme fits. When the theme is Others, set others_info to a short statement of what the unmatched point was. If nothing in the taxonomy fits, OMIT the insight.
+3. For `group_type`, use exactly one of: "PDT GROUP", "USER GROUP", "DEALER GROUP", mapped from the Feedback Category of the chosen theme:
+   - Feedback Category Product or Competitor → "PDT GROUP".
+   - Feedback Category System, User engagement, or User benefits/schemes → "USER GROUP".
+   - Feedback Category Dealer related → "DEALER GROUP".
+   - insight_focus=product → PDT GROUP themes (Product or Competitor).
+   - insight_focus=user → USER GROUP themes — unless the content is product quality, packaging, application, or performance, in which case use a Product theme and PDT GROUP.
+   - insight_focus=dealer → DEALER GROUP themes.
+4. For `category_type`, use the Feedback Tag shown next to the chosen theme (for example "Product Quality Complaint", "Schemes", "stock").
+5. FIELD VISITS: Use "No/ sporadic Field Rep Visit" only when the user comments on the visit itself (visit quality, frequency, the rep not coming or delayed, scheduling, requesting more visits). NEVER because the audio was recorded on a job site, and NEVER for product talk that happened during a visit.
+6. SPECIFIC TAGS, NOT USAGE:
+   - Product quality, bond, viscosity, coverage, odor, tack, or bubble forming map to the matching Product Quality Complaint theme, including "Bubble forming".
+   - Packaging leaks, lids, nozzles, and drying in the tub map to Product Packaging Complaint.
+   - Praise, comparison, or a request to change performance maps to the specific theme, not to Others.
+   - If the insight is only usage or quantity ("used X", "ordered X"), OMIT it.
+7. SUMMARY MUST JUSTIFY THE TAG: Rewrite `summary` so a reader of the theme name knows why this row is here (for example Bubble forming → "Marine glue line formed bubbles."). Not "User uses Marine." For an Others theme, the summary is the statement of what was important and unmatched.
 7b. SENTIMENT: Set `sentiment` to exactly one of Positive, Neutral, Negative from the User's words. Praise / satisfaction → Positive. Complaint / leak / delay / request-to-fix → Negative. Factual usage with no evaluation → Neutral.
 8. ONE NARRATIVE → ONE INSIGHT: Do not emit the same summary/quote with different product_name values. Pick the one SKU the feedback is about. Separate User evaluations of two SKUs (e.g. X-Per praised, then 463 praised) stay as two insights.
 9. SEPARATE SKU PRAISE: Keep a User praise/complaint even when the spoken name is a short code (463, SH). Map it to the catalog Product_Name. Do not drop it as a duplicate of another SKU's praise.
@@ -772,7 +775,11 @@ SKU_ID|Product_Name
                     "properties": {
                         "group_type": {"type": "string", "enum": ["PDT GROUP", "USER GROUP", "DEALER GROUP"]},
                         "category_type": {"type": "string"},
-                        "tag_ids": {"type": "array", "items": {"type": "integer"}},
+                        "tag_ids": {"type": "array", "items": {"type": "integer"}, "description": "Exactly one theme tag_id."},
+                        "others_info": {
+                            "type": "string",
+                            "description": "Required when the theme is Others. State the unmatched point. Empty otherwise.",
+                        },
                         "verbatim_quote": {
                             "type": "string",
                             "description": "Copy the raw insight quote unchanged except drop speaker labels. One speaker only.",

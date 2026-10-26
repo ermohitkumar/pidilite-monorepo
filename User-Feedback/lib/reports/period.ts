@@ -1,6 +1,6 @@
 import type { FeedbackGroup, ReportFilters } from "@/lib/reports/types";
 
-export type PeriodKind = "month" | "quarter" | "year";
+export type PeriodKind = "all" | "month" | "quarter" | "year";
 export type GroupFilter = FeedbackGroup | "ALL";
 
 const GROUP_FROM_TOKEN: Record<string, FeedbackGroup> = {
@@ -41,6 +41,7 @@ function lastDayOfMonth(year: number, monthIndex: number): Date {
 }
 
 export function datesForPeriod(period: PeriodState, now = new Date()): { start_date?: string; end_date?: string } {
+    if (period.kind === "all") return {};
     if (period.kind === "month") {
         const value = period.month || currentMonthValue(now);
         const [yearText, monthText] = value.split("-");
@@ -70,6 +71,7 @@ export function datesForPeriod(period: PeriodState, now = new Date()): { start_d
 }
 
 export function defaultPeriod(kind: PeriodKind, now = new Date()): PeriodState {
+    if (kind === "all") return { kind: "all" };
     if (kind === "quarter") {
         return { kind, year: currentYearValue(now), quarter: currentQuarterValue(now) };
     }
@@ -129,10 +131,10 @@ export function filtersFromSearchParams(params: { get: (key: string) => string |
 }
 
 export function periodFromDateRange(start?: string, end?: string, now = new Date()): PeriodState {
-    if (!start || !end) return defaultPeriod("month", now);
+    if (!start || !end) return defaultPeriod("all", now);
     const startDate = new Date(`${start}T00:00:00`);
     const endDate = new Date(`${end}T00:00:00`);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return defaultPeriod("month", now);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return defaultPeriod("all", now);
     if (
         startDate.getMonth() === 0 &&
         startDate.getDate() === 1 &&
@@ -156,7 +158,7 @@ export function periodFromDateRange(start?: string, end?: string, now = new Date
 
 export function insightsHref(filters: ReportFilters): string {
     const qs = filtersToSearchParams(filters);
-    return qs ? `/reports/insights?${qs}` : "/reports/insights";
+    return qs ? `/reports/feedback?${qs}` : "/reports/feedback";
 }
 
 export function summariesHref(filters: ReportFilters): string {

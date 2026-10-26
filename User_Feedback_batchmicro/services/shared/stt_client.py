@@ -1,8 +1,8 @@
-"""Cloud Speech-to-Text v2 client (asia-south1 telephony).
+"""Cloud Speech-to-Text v2 client (Chirp 3, us multi-region).
 
-Chirp is not available in asia-south1 and other regions are blocked by
-org policy. v1 latest_long dropped most of noisy WhatsApp field audio;
-v2 telephony recovered 2–3× more words on the same clips.
+Chirp 3 is not in asia-south1. BatchRecognize runs in STT_LOCATION (us)
+with speaker diarization. Word timestamps are off so calls longer than
+20 minutes still transcribe.
 """
 from __future__ import annotations
 
@@ -55,22 +55,24 @@ def recognizer_path() -> str:
 
 
 def build_recognition_config(language_code: str, model: str | None = None):
-    """v2 config: auto-detect container, telephony model, no diarization.
+    """Chirp 3 config: auto-decode and speaker diarization.
 
-    asia-south1 telephony rejects features.diarization_config
-    (Recognizer does not support feature: speaker_diarization).
+    Word timestamps stay off. Chirp 3 caps BatchRecognize at about 20
+    minutes when enable_word_time_offsets is set. Diarization is supported
+    for hi-IN. Extra locales (mr-IN, gu-IN) are not on that list, so only
+    the requested language is sent. Word confidence is not a real Chirp 3
+    score and is left off.
     """
     resolved = resolve_v2_model(model)
     primary = (language_code or "hi-IN").strip() or "hi-IN"
-    # asia-south1 telephony rejects en-IN (and other pool alts). Keep primary only.
     return cloud_speech.RecognitionConfig(
         auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
         language_codes=[primary],
         model=resolved,
         features=cloud_speech.RecognitionFeatures(
             enable_automatic_punctuation=True,
-            enable_word_confidence=True,
-            enable_word_time_offsets=True,
+            enable_word_time_offsets=False,
+            diarization_config=cloud_speech.SpeakerDiarizationConfig(),
         ),
     )
 

@@ -107,7 +107,7 @@ export default function FileInsightClient({ fileId }: Readonly<{ fileId: string 
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                         {status ? <JobStatusBadge status={status as JobStatus} /> : null}
                         <span className="text-sm text-text-subtle">
-                            {feedbacks.length} insight{feedbacks.length === 1 ? '' : 's'}
+                            {feedbacks.length} feedback{feedbacks.length === 1 ? '' : 's'}
                         </span>
                         {durationLabel ? (
                             <span className="text-sm text-text-subtle">Duration {durationLabel}</span>

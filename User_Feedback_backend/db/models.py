@@ -63,6 +63,23 @@ class User(Base):
                         server_default=func.now(), onupdate=func.now())
 
 
+# ── ROLES ─────────────────────────────────────────────────────────────────────
+class Role(Base):
+    """Named access bundle. `slug` is the value stored on users.role."""
+    __tablename__ = "roles"
+
+    role_id = Column(UUID(as_uuid=False), primary_key=True, default=_uuid)
+    slug = Column(String(50), unique=True, nullable=False, index=True)
+    label = Column(String(80), nullable=False)
+    description = Column(Text, nullable=True)
+    # Page keys: reports, monitor, all_files, file_insight, library
+    permissions = Column(JSONB, nullable=False, default=list)
+    is_system = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True),
+                        server_default=func.now(), onupdate=func.now())
+
+
 # ── BATCHES ───────────────────────────────────────────────────────────────────
 class Batch(Base):
     __tablename__ = "batches"

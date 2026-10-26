@@ -87,15 +87,26 @@ class TestUserManagement:
         assert db_user is not None
         assert db_user.password_hash is None
 
-    def test_create_user_rejects_password_in_production(self, client):
-        """Production must not accept a password field."""
+    def test_create_user_accepts_password_in_production(self, client, db_session):
+        """A password set in the admin panel is what the sign-in form checks."""
         payload = {
-            "email": "bad@example.com",
+            "email": "form@example.com",
             "password": "StrongPassword123",
             "role": "admin"
         }
         res = client.post("/api/v1/users/", json=payload)
-        assert res.status_code == 422  # model_validator rejects password in production
+        assert res.status_code == 200
+        db_user = db_session.query(User).filter_by(email="form@example.com").first()
+        assert db_user is not None
+        assert verify_password("StrongPassword123", db_user.password_hash)
+        assert "reports" in (db_user.allowed_resources or [])
+
+        login = client.post("/api/v1/auth/login", json={
+            "email": "form@example.com",
+            "password": "StrongPassword123",
+        })
+        assert login.status_code == 200
+        assert login.json()["data"]["user"]["email"] == "form@example.com"
 
     # ── POST /users/ (development mode — password required) ──
     def test_create_user_success_development(self, client, db_session):

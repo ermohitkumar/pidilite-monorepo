@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 
-export type UserRole = 'admin' | 'super_admin' | 'user';
+export type UserRole = string;
 export type UserStatus = 'active' | 'inactive' | 'pending';
 
 // Type representing the shape expected by the frontend UI components
@@ -98,10 +98,16 @@ export function mapBackendUserToAppUser(user: UserResponseData): AppUser {
 /**
  * Fetch list of all users from the backend.
  */
+async function apiError(res: Response, fallback: string): Promise<Error> {
+    const body = await res.json().catch(() => null);
+    const message = body && typeof body.message === 'string' ? body.message : fallback;
+    return new Error(message || fallback);
+}
+
 export const fetchUsers = async (): Promise<UserListResponse> => {
     const res = await apiFetch('/api/v1/users/');
     if (!res.ok) {
-        throw new Error('Failed to fetch users');
+        throw await apiError(res, 'Failed to fetch users');
     }
     return res.json();
 };
@@ -112,7 +118,7 @@ export const fetchUsers = async (): Promise<UserListResponse> => {
 export const fetchUserProfile = async (userId: string): Promise<UserResponse> => {
     const res = await apiFetch(`/api/v1/users/${userId}`);
     if (!res.ok) {
-        throw new Error(`Failed to fetch profile for user ${userId}`);
+        throw await apiError(res, `Failed to fetch profile for user ${userId}`);
     }
     return res.json();
 };
@@ -126,7 +132,7 @@ export const createUser = async (payload: UserCreatePayload): Promise<UserRespon
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
-        throw new Error('Failed to create user');
+        throw await apiError(res, 'Failed to create user');
     }
     return res.json();
 };
@@ -140,7 +146,7 @@ export const updateUser = async (userId: string, payload: UserUpdatePayload): Pr
         body: JSON.stringify(payload),
     });
     if (!res.ok) {
-        throw new Error(`Failed to update user ${userId}`);
+        throw await apiError(res, `Failed to update user ${userId}`);
     }
     return res.json();
 };
@@ -153,7 +159,7 @@ export const deleteUser = async (userId: string): Promise<APIResponse> => {
         method: 'DELETE',
     });
     if (!res.ok) {
-        throw new Error(`Failed to deactivate user ${userId}`);
+        throw await apiError(res, `Failed to deactivate user ${userId}`);
     }
     return res.json();
 };

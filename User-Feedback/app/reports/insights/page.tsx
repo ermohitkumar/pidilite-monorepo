@@ -1,13 +1,16 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import ReportsClient from "@/components/reports/ReportsClient";
-
-export default function ReportInsightsPage() {
-    return (
-        <div className="h-full w-full">
-            <Suspense fallback={<div className="p-6 text-sm text-slate-500">Loading feedback…</div>}>
-                <ReportsClient />
-            </Suspense>
-        </div>
-    );
+export default async function LegacyInsightsPage({
+    searchParams,
+}: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+    const params = await searchParams;
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (typeof value === "string") qs.set(key, value);
+        else if (Array.isArray(value)) value.forEach((item) => qs.append(key, item));
+    }
+    const query = qs.toString();
+    redirect(query ? `/reports/feedback?${query}` : "/reports/feedback");
 }

@@ -22,6 +22,15 @@ import { toast } from "sonner";
 
 type Tab = "products" | "tags";
 
+const LEVEL_1_OPTIONS = [
+    "Product",
+    "System",
+    "Competitor",
+    "Dealer related",
+    "User engagement",
+    "User benefits/schemes",
+];
+
 function tagKey(tag: CatalogTag): string | number {
     return tag.tag_id ?? tag.id ?? tag.tag_name;
 }
@@ -122,8 +131,7 @@ function TagModal({
     const updateMutation = useUpdateTag();
     const [tagId, setTagId] = useState(tag?.tag_id?.toString() || "");
     const [tagName, setTagName] = useState(tag?.tag_name || "");
-    const [subTag, setSubTag] = useState(tag?.sub_tag_name || "");
-    const [groupType, setGroupType] = useState(tag?.group_type || "PDT GROUP");
+    const [groupType, setGroupType] = useState(tag?.group_type || "Product");
     const [category, setCategory] = useState(tag?.category || "");
     const [description, setDescription] = useState(tag?.description || "");
     const [isActive, setIsActive] = useState(tag?.is_active !== false);
@@ -136,7 +144,6 @@ function TagModal({
         try {
             const payload = {
                 tag_name: tagName,
-                sub_tag_name: subTag || null,
                 group_type: groupType || null,
                 category: category || null,
                 description: description || null,
@@ -177,31 +184,27 @@ function TagModal({
                         </label>
                     )}
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
-                        Tag name
-                        <Input value={tagName} onChange={(e) => setTagName(e.target.value)} required className="mt-1" />
-                    </label>
-                    <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
-                        Sub-tag
-                        <Input value={subTag} onChange={(e) => setSubTag(e.target.value)} className="mt-1" />
-                    </label>
-                    <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
-                        Group
+                        Feedback Category
                         <select
                             value={groupType}
                             onChange={(e) => setGroupType(e.target.value)}
                             className="mt-1 flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"
                         >
-                            {groupType && !["PDT GROUP", "USER GROUP", "DEALER GROUP"].includes(groupType) && (
+                            {groupType && !LEVEL_1_OPTIONS.includes(groupType) && (
                                 <option value={groupType}>{groupType}</option>
                             )}
-                            <option value="PDT GROUP">Product</option>
-                            <option value="USER GROUP">User</option>
-                            <option value="DEALER GROUP">Dealer</option>
+                            {LEVEL_1_OPTIONS.map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                            ))}
                         </select>
                     </label>
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
-                        Category
+                        Feedback Tag
                         <Input value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1" />
+                    </label>
+                    <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
+                        Theme
+                        <Input value={tagName} onChange={(e) => setTagName(e.target.value)} required className="mt-1" />
                     </label>
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
                         Description
@@ -244,11 +247,11 @@ export default function CatalogClient() {
     }, [productsQuery.data, search]);
 
     const tags = useMemo(() => {
-        const rows = tagsQuery.data?.data ?? [];
+        const rows = (tagsQuery.data?.data ?? []).filter((row) => row.is_active !== false);
         const q = search.trim().toLowerCase();
         if (!q) return rows;
         return rows.filter((row) =>
-            [row.tag_name, row.sub_tag_name, row.group_type, row.category, row.description]
+            [row.tag_name, row.group_type, row.category, row.description]
                 .join(" ")
                 .toLowerCase()
                 .includes(q),
@@ -295,7 +298,7 @@ export default function CatalogClient() {
                     </div>
                     <SearchInput
                         value={search}
-                        placeholder={tab === "products" ? "Search products…" : "Search tags, group, category…"}
+                        placeholder={tab === "products" ? "Search products…" : "Search category, tag, theme…"}
                         onChange={setSearch}
                     />
                 </div>
@@ -335,31 +338,22 @@ export default function CatalogClient() {
                         <table className="w-full min-w-[960px]">
                             <thead className="sticky top-0 z-10">
                                 <tr className="border-b border-border bg-bg">
-                                    {["ID", "TAG", "SUB-TAG", "GROUP", "CATEGORY", "DESCRIPTION", "STATUS", "ACTIONS"].map((label) => (
+                                    {["ID", "FEEDBACK CATEGORY", "FEEDBACK TAG", "THEME", "DESCRIPTION", "STATUS", "ACTIONS"].map((label) => (
                                         <th key={label} className="px-5 py-3 text-left text-label-sm text-text-disabled tracking-widest">{label}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {tagsQuery.isLoading ? (
-                                    <TableLoading colSpan={8} />
+                                    <TableLoading colSpan={7} />
                                 ) : tags.length === 0 ? (
-                                    <TableEmpty colSpan={8} message="No tags found." />
+                                    <TableEmpty colSpan={7} message="No tags found." />
                                 ) : tags.map((row, idx) => (
                                     <tr key={String(tagKey(row))} className={`border-b border-border ${idx % 2 !== 0 ? "bg-bg/40" : ""}`}>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.tag_id ?? row.id ?? "—"}</td>
-                                        <td className="px-5 py-3.5 text-body-sm font-medium text-text">{row.tag_name}</td>
-                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.sub_tag_name || "—"}</td>
-                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">
-                                            {row.group_type === "PDT GROUP"
-                                                ? "Product"
-                                                : row.group_type === "USER GROUP"
-                                                    ? "User"
-                                                    : row.group_type === "DEALER GROUP"
-                                                        ? "Dealer"
-                                                        : row.group_type || "—"}
-                                        </td>
+                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.group_type || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.category || "—"}</td>
+                                        <td className="px-5 py-3.5 text-body-sm font-medium text-text">{row.tag_name}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.description || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm">{row.is_active === false ? "Inactive" : "Active"}</td>
                                         <td className="px-5 py-3.5">

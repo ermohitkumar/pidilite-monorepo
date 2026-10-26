@@ -16,7 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from core.config import settings
 import db.session
 from db import models
-from services.api.routers import auth, dashboard, users, keywords, registry_categories, registry_languages, reports, catalog
+from services.api.routers import auth, dashboard, users, roles, keywords, registry_categories, registry_languages, reports, catalog
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from core.exceptions import APIException
@@ -92,6 +92,13 @@ class CsrfHeaderMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     try:
         db.session.Base.metadata.create_all(bind=db.session.engine)
+        from scripts.migrate_schema import apply_schema
+        from sqlalchemy.orm import Session
+        from core.roles import ensure_system_roles
+
+        apply_schema(db.session.engine)
+        with Session(bind=db.session.engine) as session:
+            ensure_system_roles(session)
         logger.info("DB tables verified successfully")
         print("✅  DB tables verified.")
     except Exception as exc:
@@ -233,6 +240,7 @@ PREFIX = "/api/v1"
 app.include_router(auth.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
 app.include_router(users.router, prefix=PREFIX)
+app.include_router(roles.router, prefix=PREFIX)
 app.include_router(keywords.router, prefix=PREFIX)
 app.include_router(registry_categories.router, prefix=PREFIX)
 app.include_router(registry_languages.router, prefix=PREFIX)

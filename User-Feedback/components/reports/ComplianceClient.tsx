@@ -19,6 +19,7 @@ import {
 import type { ComplianceRow, FilterOptions, ReportFilters } from "@/lib/reports/types";
 
 const PERIOD_TABS: { id: PeriodKind; label: string }[] = [
+    { id: "all", label: "All" },
     { id: "month", label: "Monthly" },
     { id: "quarter", label: "Quarterly" },
     { id: "year", label: "Year" },
@@ -84,18 +85,16 @@ function applyLinkedSelect(prev: ReportFilters, key: keyof ReportFilters, value:
     if (key === "division") {
         delete next.zone;
         delete next.cluster;
-        delete next.fme_code;
     } else if (key === "zone") {
         delete next.cluster;
-        delete next.fme_code;
-    } else if (key === "cluster") {
-        delete next.fme_code;
     }
     return next;
 }
 
 function sanitizeFilters(draft: ReportFilters, dates: Pick<ReportFilters, "start_date" | "end_date">): ReportFilters {
     const next: ReportFilters = { ...draft, ...dates };
+    delete next.fme_code;
+    delete next.user_type;
     (Object.keys(next) as (keyof ReportFilters)[]).forEach((key) => {
         const value = next[key];
         if (value === undefined || value === null || value === "" || value === "ALL") {
@@ -149,7 +148,6 @@ function exportCsv(rows: ComplianceRow[]) {
         "User type",
         "RFMM Cluster",
         "FME Code",
-        "FME Period",
         "FME NAME",
         "Number of sites visited",
         "Number of sites visited, in which conversations were recorded",
@@ -164,7 +162,6 @@ function exportCsv(rows: ComplianceRow[]) {
             row.user_type,
             row.rfmm_cluster,
             row.fme_code,
-            row.fme_period,
             row.fme_name,
             row.sites_visited,
             row.sites_recorded,
@@ -191,7 +188,6 @@ const COLUMNS: { key: keyof ComplianceRow; label: string; metric?: boolean; rend
     { key: "user_type", label: "User type" },
     { key: "rfmm_cluster", label: "RFMM Cluster" },
     { key: "fme_code", label: "FME Code" },
-    { key: "fme_period", label: "FME Period" },
     { key: "fme_name", label: "FME NAME" },
     { key: "sites_visited", label: "Number of sites visited", metric: true },
     {
@@ -217,14 +213,17 @@ export default function ComplianceClient() {
     const searchParams = useSearchParams();
     const fromUrl = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
     const initialPeriod = useMemo(
-        () => defaultPeriod("month"),
+        () => defaultPeriod("all"),
         [],
     );
     const initialFilters = useMemo(() => {
         const dates = fromUrl.start_date && fromUrl.end_date
             ? { start_date: fromUrl.start_date, end_date: fromUrl.end_date }
             : datesForPeriod(initialPeriod);
-        return { ...fromUrl, ...dates };
+        const rest = { ...fromUrl };
+        delete rest.fme_code;
+        delete rest.user_type;
+        return { ...rest, ...dates };
     }, [fromUrl, initialPeriod]);
     const [draft, setDraft] = useState<ReportFilters>(initialFilters);
     const [filters, setFilters] = useState<ReportFilters>(initialFilters);
@@ -245,7 +244,7 @@ export default function ComplianceClient() {
     const reportQuery = useCompliance(filters);
     const rows = reportQuery.data?.data?.items || [];
     // Prefer /filter-options; if that master list is empty, derive dropdowns from
-    // the loaded compliance rows so Division/Zone/RFMM/BDE still appear.
+    // the loaded compliance rows so Division/Zone/RFMM still appear.
     const rowFilterOptions = useMemo(() => {
         const uniq = (values: Array<string | null | undefined>) =>
             Array.from(
@@ -256,8 +255,6 @@ export default function ComplianceClient() {
             zones: uniq(rows.map((row) => row.zone)),
             clusters: uniq(rows.map((row) => row.rfmm_cluster)),
             rfmm_clusters: uniq(rows.map((row) => row.rfmm_cluster)),
-            fme_codes: uniq(rows.map((row) => row.fme_code)),
-            user_types: uniq(rows.map((row) => row.user_type)),
         } satisfies Partial<FilterOptions>;
     }, [rows]);
     const linked = filterQuery.data?.data;
@@ -269,8 +266,6 @@ export default function ComplianceClient() {
         zones: pick("zones"),
         clusters: pick("clusters"),
         rfmm_clusters: pick("rfmm_clusters"),
-        fme_codes: pick("fme_codes"),
-        user_types: pick("user_types"),
         states: linked?.states || [],
         products: linked?.products || [],
         data_sources: linked?.data_sources || [],
@@ -288,7 +283,7 @@ export default function ComplianceClient() {
         setFilters(sanitizeFilters(draft, datesForPeriod(period)));
     };
     const clearFilters = () => {
-        const next = defaultPeriod("month");
+        const next = defaultPeriod("all");
         setDraft({});
         setPeriod(next);
         setFilters(datesForPeriod(next));
@@ -348,18 +343,6 @@ export default function ComplianceClient() {
                         value={draft.cluster}
                         onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
                         options={rfmmOptions}
-                    />
-                    <OptionalSelect
-                        label="FME / BDE"
-                        value={draft.fme_code}
-                        onChange={(value) => setDraft((prev) => applySelect(prev, "fme_code", value))}
-                        options={filterOptions.fme_codes}
-                    />
-                    <OptionalSelect
-                        label="User type"
-                        value={draft.user_type}
-                        onChange={(value) => setDraft((prev) => applySelect(prev, "user_type", value))}
-                        options={filterOptions.user_types}
                     />
                     <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                         Time period
