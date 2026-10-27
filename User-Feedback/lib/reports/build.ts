@@ -586,11 +586,16 @@ function tagIdsFor(category: string, tag: string, includeChildren = false): stri
         const children = taxonomy.filter((item) => norm(item.feedback_category) === key);
         if (children.length) return children.map((item) => String(item.tag_id));
     }
+    // "Product" is Competitor's level-2 category and also the Product level-1 group.
+    // A level-2 lookup must stay on that category, or its Others line copies
+    // Product Quality Complaint and every other Product Others tag.
+    const categoryIsLevel2 = Boolean(cat) && taxonomy.some((item) => norm(item.feedback_category) === cat);
     return taxonomy
         .filter((item) => {
             if (norm(item.feedback_tag) !== key) return false;
             if (!cat || cat === key) return true;
-            return norm(item.feedback_category) === cat || norm(item.level_1) === cat;
+            if (norm(item.feedback_category) === cat) return true;
+            return !categoryIsLevel2 && norm(item.level_1) === cat;
         })
         .map((item) => String(item.tag_id));
 }
