@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { LuPause, LuPlay, LuRotateCcw, LuRotateCw } from "react-icons/lu";
+import { LuDownload, LuPause, LuPlay, LuRotateCcw, LuRotateCw } from "react-icons/lu";
 
 import { ReportModal } from "@/components/reports/ReportModal";
 import { canPlayAudio } from "@/lib/auth/permissions";
@@ -429,11 +429,13 @@ export function AudioPlayer({
     fileName,
     durationSeconds,
     onDurationResolved,
+    showDownload = false,
 }: Readonly<{
     jobId?: string;
     fileName?: string;
     durationSeconds?: number | null;
     onDurationResolved?: (seconds: number) => void;
+    showDownload?: boolean;
 }>) {
     const user = useAppStore((state) => state.user);
     const isUserLoaded = useAppStore((state) => state.isUserLoaded);
@@ -488,14 +490,27 @@ export function AudioPlayer({
                 className="hidden"
                 aria-hidden
             />
-            <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-white"
-            >
-                <LuPlay className="h-3.5 w-3.5" />
-                Play{known ? ` · ${known}` : ""}
-            </button>
+            <div className="inline-flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => setOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand hover:text-white"
+                >
+                    <LuPlay className="h-3.5 w-3.5" />
+                    Play{known ? ` · ${known}` : ""}
+                </button>
+                {showDownload ? (
+                    <a
+                        href={`${src}?download=1`}
+                        download={fileName || "recording"}
+                        title="Download audio"
+                        aria-label={`Download ${fileName || "audio recording"}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border text-text-subtle hover:bg-surface-raised hover:text-brand"
+                    >
+                        <LuDownload className="h-4 w-4" />
+                    </a>
+                ) : null}
+            </div>
             {open ? (
                 <AudioPlaybackModal
                     jobId={jobId}

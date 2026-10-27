@@ -102,7 +102,33 @@ def _plain_transcript(results: list) -> str:
         )
         if last_covers_earlier:
             return last
-    return " ".join(parts).strip()
+    merged = ""
+    for part in parts:
+        if not merged:
+            merged = part
+            continue
+        if _normalize_repeated_text(merged) == _normalize_repeated_text(part):
+            continue
+        overlap = _transcript_overlap_words(merged, part)
+        if overlap:
+            chunks = list(re.finditer(r"\S+", part))
+            part = part[chunks[overlap - 1].end():].lstrip(" \t,.;:!?-–—")
+        if part:
+            merged = f"{merged} {part}"
+    return merged.strip()
+
+
+def _normalize_repeated_text(value: str) -> str:
+    return " ".join(re.findall(r"\w+", (value or "").casefold()))
+
+
+def _transcript_overlap_words(left: str, right: str, minimum: int = 5) -> int:
+    left_words = _normalize_repeated_text(left).split()
+    right_words = _normalize_repeated_text(right).split()
+    for size in range(min(len(left_words), len(right_words)), minimum - 1, -1):
+        if left_words[-size:] == right_words[:size]:
+            return size
+    return 0
 
 
 def _diarized_transcript(words: list[dict]) -> str:
@@ -264,7 +290,23 @@ def timed_utterances(raw_json: dict, gap_seconds: float = 0.8) -> list[dict]:
                 current["words"].append(token)
                 current["end"] = end
         flush()
-    return utterances
+    deduplicated: list[dict] = []
+    seen: dict[str, list[dict]] = {}
+    for utterance in utterances:
+        key = _normalize_repeated_text(utterance["text"])
+        start = utterance["start"]
+        end = utterance["end"]
+        overlaps_existing = any(
+            start <= previous["end"] + 0.2 and end >= previous["start"] - 0.2
+            for previous in seen.get(key, [])
+        )
+        if key and overlaps_existing:
+            logger.info("Dropped duplicate overlapping STT utterance at %.2fs", start)
+            continue
+        deduplicated.append(utterance)
+        if key:
+            seen.setdefault(key, []).append(utterance)
+    return deduplicated
 
 
 def download_stt_json(gcs_uri: str) -> dict:

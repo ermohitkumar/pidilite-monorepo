@@ -7,6 +7,7 @@ from core.config import settings
 from services.shared.insight_quality import filter_meaningful_insights
 from services.shared.verbatim import snap_verbatim_quote_to_transcript
 from services.shared.speakers import (
+    collapse_repeated_turn_cycles,
     content_preserved,
     is_collapsed_speaker_transcript,
     remap_speaker_roles,
@@ -182,7 +183,13 @@ def _audio_mime(gcs_uri: str) -> str:
 def format_labeled_turns(lines: list[dict]) -> str:
     """One timestamped FME/User line per spoken stretch. Adjacent lines stay separate."""
     rendered: list[str] = []
-    for line in lines:
+    collapsed = collapse_repeated_turn_cycles(
+        lines,
+        lambda line: " ".join(
+            re.findall(r"\w+", f"{_role_name(line.get('role') or '')} {line.get('english') or line.get('text') or ''}".casefold())
+        ),
+    )
+    for line in collapsed:
         text = (line.get("english") or line.get("text") or "").strip()
         if not text:
             continue

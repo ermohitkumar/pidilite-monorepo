@@ -476,12 +476,13 @@ export default function SummariesClient() {
         () =>
             buildCategoryTagRows(summaryTags, {
                 category: category === "ALL" ? undefined : category,
+                themes: summaryQuery.data?.data?.themes || [],
             }),
-        [category, summaryTags],
+        [category, summaryTags, summaryQuery.data?.data?.themes],
     );
     const levelThreeRows = useMemo(
-        () => (drill ? buildLevelThreeRows(summaryTags, drill.tag) : []),
-        [drill, summaryTags],
+        () => (drill ? buildLevelThreeRows(summaryTags, drill.tag, summaryQuery.data?.data?.themes || []) : []),
+        [drill, summaryTags, summaryQuery.data?.data?.themes],
     );
     const categoryOptions = [
         { id: "ALL", label: "All" },

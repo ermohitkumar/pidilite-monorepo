@@ -145,8 +145,9 @@ export default function ReportsClient() {
             buildCategoryTagRows(data?.data?.tags || [], {
                 category: category === "ALL" ? undefined : category,
                 periodTags: periodListQuery.data?.data?.tags || [],
+                themes: data?.data?.themes || [],
             }),
-        [category, data?.data?.tags, periodListQuery.data?.data?.tags],
+        [category, data?.data?.tags, data?.data?.themes, periodListQuery.data?.data?.tags],
     );
 
     const columns = columnsForSummaryTags();

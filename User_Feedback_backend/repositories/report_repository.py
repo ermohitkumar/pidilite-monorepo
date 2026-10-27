@@ -5,8 +5,9 @@ Prefers vw_pbi_feedback_fact_slim so aggregations never join transcripts.
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
@@ -16,6 +17,9 @@ SLIM_VIEW = "vw_pbi_feedback_fact_slim"
 FAT_VIEW = "vw_pbi_feedback_fact"
 FILTER_VIEW = "vw_filter_options"
 HIERARCHY_VIEW = "vw_filter_hierarchy"
+HIERARCHY_TABLE = "dimhierarchy"
+# dimhierarchy.divisioncode for Fevicol; Zone dropdowns only list these zones.
+ZONE_DIVISION_CODE = "10"
 NO_PRODUCT_LABEL = "(No product)"
 MASTER_FILTER_LIMIT = 5000
 
@@ -409,6 +413,19 @@ def _options_from_hierarchy(
     }
 
 
+def _division_zones(db: Session) -> Optional[set[str]]:
+    """Zones under ZONE_DIVISION_CODE (Fevicol). None if dimhierarchy is missing."""
+    sql = (
+        "SELECT DISTINCT COALESCE(NULLIF(TRIM(sh5name), ''), NULLIF(TRIM(sh5code), '')) "
+        f"FROM {HIERARCHY_TABLE} WHERE TRIM(divisioncode) = :division_code"
+    )
+    try:
+        rows = execute(db, sql, {"division_code": ZONE_DIVISION_CODE}).fetchall()
+    except (MissingFactView, ProgrammingError, OperationalError):
+        return None
+    return set(_sorted_unique([row[0] for row in rows]))
+
+
 def filter_options(
     db: Session,
     fact: Optional[str] = None,
@@ -467,6 +484,11 @@ def filter_options(
     )
     if not out["rfmm_clusters"]:
         out["rfmm_clusters"] = list(out.get("clusters", []))
+    division_zones = _division_zones(db)
+    out["zones"] = [
+        value for value in out.get("zones", [])
+        if str(value).strip() and (division_zones is None or value in division_zones)
+    ]
     return out
 
 
@@ -579,6 +601,15 @@ def theme_counts(
         if dialect == "sqlite"
         else "string_agg(DISTINCT NULLIF(TRIM(COALESCE(fb.others_info, '')), ''), ' · ')"
     )
+    sentiment_sql = {
+        label: (
+            "COUNT(DISTINCT CASE WHEN LOWER(TRIM(COALESCE(fb.sentiment_label, ''))) = "
+            f"'{label}' THEN fb.id END)"
+            if "sentiment_label" in feedback_cols
+            else "0"
+        )
+        for label in ("positive", "neutral", "negative")
+    }
     clauses = [
         "NULLIF(TRIM(COALESCE(fb.theme, '')), '') IS NOT NULL",
         "NULLIF(TRIM(COALESCE(fb.product_name, '')), '') IS NOT NULL",
@@ -633,7 +664,10 @@ def theme_counts(
             NULLIF(TRIM(COALESCE(fb.category_type, '')), '') AS feedback_tag,
             COUNT(DISTINCT fb.id) AS feedback_count,
             COUNT(DISTINCT fb.job_id) AS site_visit_count,
-            {others_sql} AS others_info
+            {others_sql} AS others_info,
+            {sentiment_sql['positive']} AS sentiment_positive_count,
+            {sentiment_sql['neutral']} AS sentiment_neutral_count,
+            {sentiment_sql['negative']} AS sentiment_negative_count
         FROM feedbacks fb
         LEFT JOIN file_details fd ON fd.job_id = fb.job_id
         WHERE {" AND ".join(clauses)}
@@ -654,6 +688,9 @@ def theme_counts(
             "feedback_count": int(mapping["feedback_count"] or 0),
             "site_visit_count": int(mapping["site_visit_count"] or 0),
             "others_info": info or None,
+            "sentiment_positive_count": int(mapping["sentiment_positive_count"] or 0),
+            "sentiment_neutral_count": int(mapping["sentiment_neutral_count"] or 0),
+            "sentiment_negative_count": int(mapping["sentiment_negative_count"] or 0),
         })
     return themes
 
@@ -949,6 +986,7 @@ def compliance_rows(
     user_type: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    user_timezone: str = "UTC",
 ) -> list[dict[str, Any]]:
     """FME-level open-conversation compliance from file_details / transcripts."""
     fd_cols = _table_columns(db, "file_details")
@@ -968,11 +1006,22 @@ def compliance_rows(
     recorded_join = ""
     recorded_site = "j.id"
     recorded_duration = duration_expr
-    date_expr = (
-        "DATE(COALESCE(fd.call_date, j.created_at))"
-        if dialect == "sqlite"
-        else "COALESCE(CAST(fd.call_date AS DATE), CAST(j.created_at AS DATE))"
+    job_created_at_expr = (
+        "NULLIF(j.created_at, '')::timestamptz"
+        if dialect != "sqlite"
+        else "j.created_at"
     )
+    timestamp_expr = f"COALESCE(fd.call_date, {job_created_at_expr})"
+    if dialect == "sqlite":
+        timestamp_expr = f"datetime({timestamp_expr})"
+    try:
+        user_tz = ZoneInfo(user_timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        user_tz = timezone.utc
+
+    def local_midnight_utc(day: date) -> datetime:
+        return datetime.combine(day, time.min, tzinfo=user_tz).astimezone(timezone.utc)
+
     clauses: list[str] = []
     params: dict[str, Any] = {}
     if division:
@@ -991,11 +1040,21 @@ def compliance_rows(
         clauses.append("NULLIF(TRIM(COALESCE(fd.user_type, '')), '') = :user_type")
         params["user_type"] = user_type
     if start_date:
-        clauses.append(f"{date_expr} >= :start_date")
-        params["start_date"] = start_date.isoformat()
+        clauses.append(f"{timestamp_expr} >= :start_at")
+        start_at = local_midnight_utc(start_date)
+        params["start_at"] = (
+            start_at.replace(tzinfo=None).isoformat(sep=" ")
+            if dialect == "sqlite"
+            else start_at
+        )
     if end_date:
-        clauses.append(f"{date_expr} <= :end_date")
-        params["end_date"] = end_date.isoformat()
+        clauses.append(f"{timestamp_expr} < :end_before")
+        end_before = local_midnight_utc(end_date + timedelta(days=1))
+        params["end_before"] = (
+            end_before.replace(tzinfo=None).isoformat(sep=" ")
+            if dialect == "sqlite"
+            else end_before
+        )
     where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     period = _period_label(start_date, end_date)
     sql = f"""

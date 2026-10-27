@@ -8,6 +8,7 @@ from typing import Annotated, Any, Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import MetaData, Table, delete, inspect as sa_inspect, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.dependencies import RoleChecker
@@ -126,6 +127,13 @@ def _tag_pk(columns: set[str]) -> str:
     return "tag_id" if "tag_id" in columns else "id"
 
 
+def _is_short_code_conflict(exc: Exception) -> bool:
+    """True when trg_products_short_code_unique rejected a duplicate short_code."""
+    if not isinstance(exc, IntegrityError):
+        return False
+    return getattr(exc.orig, "pgcode", None) == "23505" and "short code" in str(exc.orig).lower()
+
+
 def _coerce_pk(pk_col, raw_id: str):
     try:
         if "INT" in str(pk_col.type).upper():
@@ -185,6 +193,8 @@ def create_product(payload: ProductCreate, db: DbSession):
         raise
     except Exception as exc:
         db.rollback()
+        if _is_short_code_conflict(exc):
+            raise APIException(status_code=409, message="Short code already exists", error="Conflict")
         logger.exception("Failed to create product")
         raise APIException(status_code=500, message="Failed to create product", error=str(exc))
 
@@ -212,6 +222,8 @@ def update_product(product_id: str, payload: ProductUpdate, db: DbSession):
         raise
     except Exception as extra:
         db.rollback()
+        if _is_short_code_conflict(extra):
+            raise APIException(status_code=409, message="Short code already exists", error="Conflict")
         logger.exception("Failed to update product")
         raise APIException(status_code=500, message="Failed to update product", error=str(extra))
 
