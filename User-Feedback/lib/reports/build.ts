@@ -14,6 +14,7 @@ import {
     type ReportProductCount,
     type ReportSummaryCategory,
     type ReportSummaryTag,
+    type ReportThemeCount,
     type TaxonomyTag,
 } from "./types";
 
@@ -215,7 +216,7 @@ export function buildTagMatrixFromSummary(
     group: FeedbackGroup,
     tags: ReportSummaryTag[],
     categories: ReportSummaryCategory[] = [],
-    options: { showSubTags?: boolean; categoryTotals?: boolean; search?: string; periodTags?: PeriodSummaryRecord[] } = {},
+    options: { showSubTags?: boolean; categoryTotals?: boolean; search?: string; periodTags?: PeriodSummaryRecord[]; themes?: ReportThemeCount[] } = {},
 ): MatrixRow[] {
     const showSubTags = options.showSubTags ?? false;
     const categoryTotals = options.categoryTotals ?? true;
@@ -259,7 +260,7 @@ export function buildTagMatrixFromSummary(
             categoryHasRows = false;
             tagCount = 0;
             tagNarrative = summaryTagNarrative(tags, tax.feedback_category, tax.feedback_category, options.periodTags);
-            tagSentiment = summaryTagSentiment(tags, tax.feedback_category, tax.feedback_category, options.periodTags);
+            tagSentiment = summaryTagSentiment(tags, tax.feedback_category, tax.feedback_category, options.periodTags, options.themes);
         }
         const count = summaryTagCount(tags, tax.feedback_category, tax.feedback_tag);
         if (!count) continue;
@@ -351,7 +352,7 @@ export function levelOneCategories(): string[] {
 /** One row per feedback tag, labeled with its level-1 category. Group is not shown. */
 export function buildCategoryTagRows(
     tags: ReportSummaryTag[],
-    options: { category?: string; periodTags?: PeriodSummaryRecord[] } = {},
+    options: { category?: string; periodTags?: PeriodSummaryRecord[]; themes?: ReportThemeCount[] } = {},
 ): MatrixRow[] {
     const wanted = norm(options.category);
     const buckets = new Map<string, {
@@ -382,7 +383,7 @@ export function buildCategoryTagRows(
                 category,
                 group: tax.feedback_group as FeedbackGroup,
                 count: 0,
-                sentiment: summaryTagSentiment(tags, category, category, options.periodTags || []),
+                sentiment: summaryTagSentiment(tags, category, category, options.periodTags || [], options.themes),
             };
             buckets.set(bucketKey, bucket);
         }
@@ -463,7 +464,7 @@ export function buildCategoryTagRows(
 }
 
 /** Level-3 tags under one level-2 category, with the same counts the summary row adds up. */
-export function buildLevelThreeRows(tags: ReportSummaryTag[], levelTwo: string): MatrixRow[] {
+export function buildLevelThreeRows(tags: ReportSummaryTag[], levelTwo: string, themes: ReportThemeCount[] = []): MatrixRow[] {
     const parent = norm(levelTwo);
     if (!parent) return [];
     const rows: MatrixRow[] = [];
@@ -486,7 +487,7 @@ export function buildLevelThreeRows(tags: ReportSummaryTag[], levelTwo: string):
             feedback_tag: tag,
             feedback_count: count,
             feedback_summary_ai: narrative,
-            sentiment: display(match?.sentiment) || undefined,
+            sentiment: summaryTagSentiment(tags, levelTwo, tag, [], themes) || display(match?.sentiment) || undefined,
             drill: {
                 group: groupForCategory(levelTwo, tag),
                 level: "tag",
@@ -561,22 +562,15 @@ function themesInCategory(tags: ReportSummaryTag[], category: string): ReportSum
 function majoritySentiment(labels: Array<string | null | undefined>): string | undefined {
     const counts = new Map<string, number>();
     for (const label of labels) {
-        const clean = (label || "").trim();
+        const clean = (label || "").trim().toLowerCase();
         if (!clean) continue;
         counts.set(clean, (counts.get(clean) || 0) + 1);
     }
-    const rank: Record<string, number> = { Negative: 0, Neutral: 1, Positive: 2 };
-    let best = "";
-    let bestCount = 0;
-    for (const [label, count] of counts) {
-        const betterCount = count > bestCount;
-        const sameCountEarlier = count === bestCount && (rank[label] ?? 9) < (rank[best] ?? 9);
-        if (betterCount || sameCountEarlier) {
-            best = label;
-            bestCount = count;
-        }
-    }
-    return best || undefined;
+    if (!counts.size) return undefined;
+    const highest = Math.max(...counts.values());
+    const winners = [...counts].filter(([, count]) => count === highest).map(([label]) => label);
+    if (winners.length > 1) return "Neutral";
+    return winners[0].replace(/^./, (letter) => letter.toUpperCase());
 }
 
 function tagIdsFor(category: string, tag: string, includeChildren = false): string[] {
@@ -699,8 +693,20 @@ function summaryTagSentiment(
     category: string,
     tag: string,
     periodTags: PeriodSummaryRecord[] = [],
+    themes: ReportThemeCount[] = [],
 ): string | undefined {
     const cat = norm(category);
+    const themeRows = themes.filter(
+        (row) => norm(row.feedback_tag) === cat && (!tag || norm(tag) === cat || norm(row.theme) === norm(tag)),
+    );
+    const positive = themeRows.reduce((total, row) => total + (row.sentiment_positive_count || 0), 0);
+    const neutral = themeRows.reduce((total, row) => total + (row.sentiment_neutral_count || 0), 0);
+    const negative = themeRows.reduce((total, row) => total + (row.sentiment_negative_count || 0), 0);
+    if (positive + neutral + negative > 0) {
+        if (positive > neutral && positive > negative) return "Positive";
+        if (negative > positive && negative > neutral) return "Negative";
+        return "Neutral";
+    }
     const fromThemes = majoritySentiment(themesInCategory(tags, category).map((row) => row.sentiment));
     if (fromThemes) return fromThemes;
     const fromPeriod =

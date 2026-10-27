@@ -739,3 +739,31 @@ def test_compliance_counts_visited_and_recorded_sites(
     assert row["sites_recorded"] == 2
     assert row["conversation_rate"] == 100.0
     assert row["time_period"] == "2026-07"
+
+
+def test_compliance_date_range_uses_user_local_day(
+    client: TestClient, create_test_job, db_session
+):
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+
+    job = create_test_job(status=JobStatus.COMPLETED, file_name="late-local-day.wav")
+    job.file_details.call_date = datetime(2026, 7, 10, 2, 30, tzinfo=timezone.utc)
+    job.file_details.fme_code = "NYC01"
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/reports/compliance",
+        params={
+            "start_date": "2026-07-09",
+            "end_date": "2026-07-09",
+            "user_timezone": "America/New_York",
+        },
+    )
+
+    assert response.status_code == 200
+    items = response.json()["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["fme_code"] == "NYC01"
+    assert items[0]["time_period"] == "2026-07-09 – 2026-07-09"

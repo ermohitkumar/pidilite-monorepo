@@ -134,6 +134,17 @@ def test_full_final_result_still_replaces_chunked_prefix():
     assert text.count("Namaste") == 1
 
 
+def test_plain_transcript_removes_overlapping_chunk_boundary_words():
+    raw = {
+        "results": [
+            {"alternatives": [{"transcript": "We discussed the Fevicol SH application on site today"}]},
+            {"alternatives": [{"transcript": "Fevicol SH application on site today and delivery tomorrow"}]},
+        ]
+    }
+    text = format_stt_results(raw)
+    assert text == "We discussed the Fevicol SH application on site today and delivery tomorrow"
+
+
 def test_format_empty_results():
     assert format_stt_results({}) == ""
     assert format_stt_results({"results": []}) == ""
@@ -242,4 +253,22 @@ def test_timed_utterances_split_on_pause_and_keep_times():
 def test_timed_utterances_ignore_text_without_offsets():
     raw = {"results": [{"alternatives": [{"transcript": "Hello there."}]}]}
     assert timed_utterances(raw) == []
+
+
+def test_timed_utterances_drop_same_text_repeated_at_overlapping_times():
+    words = [
+        {"word": "The", "startOffset": "0s", "endOffset": "0.2s"},
+        {"word": "L-free", "startOffset": "0.2s", "endOffset": "0.5s"},
+        {"word": "one", "startOffset": "0.5s", "endOffset": "0.7s"},
+        {"word": "is", "startOffset": "0.7s", "endOffset": "0.9s"},
+    ]
+    raw = {
+        "results": [
+            {"alternatives": [{"words": words}]},
+            {"alternatives": [{"words": words}]},
+        ]
+    }
+    utterances = timed_utterances(raw)
+    assert len(utterances) == 1
+    assert utterances[0]["text"] == "The L-free one is"
 

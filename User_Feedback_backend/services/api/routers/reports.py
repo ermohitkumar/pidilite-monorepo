@@ -1058,6 +1058,7 @@ def get_compliance(
     user_type: Optional[str] = Query(None),
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    user_timezone: str = Query("UTC", max_length=100),
 ):
     """Open-conversation compliance by FME: sites visited vs recorded."""
     try:
@@ -1070,6 +1071,7 @@ def get_compliance(
             user_type=user_type,
             start_date=start_date,
             end_date=end_date,
+            user_timezone=user_timezone,
         )
     except Exception:
         logger.exception("Failed to retrieve compliance report")

@@ -95,6 +95,18 @@ def test_format_turns_unlabeled_passthrough():
     assert format_turns([(None, "hello there")]) == "hello there"
 
 
+def test_format_turns_collapses_repeated_conversation_cycles():
+    turns = [
+        (1, "The L-free one is."),
+        (2, "The L-free one is."),
+    ] * 4
+    output = format_turns(turns)
+    assert output.splitlines() == [
+        "FME: The L-free one is.",
+        "User: The L-free one is.",
+    ]
+
+
 def test_collapsed_single_speaker_blob_detected():
     blob = "Speaker 1: " + ("Namaste. How is Fevicol SH working on site? I applied two drums. " * 8)
     assert is_collapsed_speaker_transcript(blob) is True
