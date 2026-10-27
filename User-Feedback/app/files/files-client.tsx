@@ -260,6 +260,7 @@ export default function FilesClient() {
                                                     jobId={job.job_id}
                                                     fileName={job.file_name || undefined}
                                                     durationSeconds={job.audio_duration_seconds}
+                                                    showDownload
                                                 />
                                                 <Link href={`/files/${job.job_id}`}>
                                                     <Button variant="action">View</Button>

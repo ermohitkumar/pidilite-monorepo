@@ -8,6 +8,9 @@ then emits FME: / User: (Speaker 1 / Speaker 2 are treated as aliases).
 from __future__ import annotations
 
 import re
+from typing import Callable, TypeVar
+
+_Turn = TypeVar("_Turn")
 
 _TURN_RE = re.compile(
     r"^(?:Speaker\s+(\d+)|(FME|User|Customer|Dealer|Contractor|Carpenter))\s*:\s*(.*)$",
@@ -137,9 +140,47 @@ def merge_consecutive(turns: list[tuple[int | None, str]]) -> list[tuple[int | N
     return merged
 
 
+def collapse_repeated_turn_cycles(
+    turns: list[_Turn],
+    identity: Callable[[_Turn], str],
+    minimum_repeats: int = 3,
+) -> list[_Turn]:
+    """Collapse repeated consecutive turn sequences while retaining their first copy."""
+    kept = list(turns)
+    changed = True
+    while changed:
+        changed = False
+        keys = [identity(item) for item in kept]
+        for pattern_size in range(1, min(4, len(kept) // minimum_repeats) + 1):
+            start_limit = len(kept) - pattern_size * minimum_repeats
+            for start in range(start_limit + 1):
+                pattern = keys[start:start + pattern_size]
+                if not all(pattern):
+                    continue
+                repeats = 1
+                while keys[start + repeats * pattern_size:start + (repeats + 1) * pattern_size] == pattern:
+                    repeats += 1
+                if repeats >= minimum_repeats:
+                    del kept[start + pattern_size:start + repeats * pattern_size]
+                    changed = True
+                    break
+            if changed:
+                break
+    return kept
+
+
+def _turn_identity(speaker: int | None, body: str) -> str:
+    normalized = " ".join(re.findall(r"\w+", (body or "").casefold()))
+    return f"{speaker}:{normalized}" if normalized else ""
+
+
 def format_turns(turns: list[tuple[int | None, str]]) -> str:
     lines: list[str] = []
-    for sid, body in merge_consecutive(turns):
+    collapsed = collapse_repeated_turn_cycles(
+        turns,
+        lambda turn: _turn_identity(turn[0], turn[1]),
+    )
+    for sid, body in merge_consecutive(collapsed):
         if sid is None:
             lines.append(body)
         else:

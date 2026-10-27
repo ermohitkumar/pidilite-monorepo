@@ -53,6 +53,39 @@ function stripSurroundingMarkup(value: string): string {
     return value.slice(start, end).trim();
 }
 
+function collapseRepeatedTurnCycles(turns: ConversationTurn[]): ConversationTurn[] {
+    const kept = [...turns];
+    const identity = (turn: ConversationTurn) =>
+        `${turn.speaker.toLowerCase()}:${turn.text.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()}`;
+    let changed = true;
+    while (changed) {
+        changed = false;
+        const keys = kept.map(identity);
+        for (let patternSize = 1; patternSize <= Math.min(4, Math.floor(kept.length / 3)); patternSize += 1) {
+            const startLimit = kept.length - patternSize * 3;
+            for (let start = 0; start <= startLimit; start += 1) {
+                const pattern = keys.slice(start, start + patternSize);
+                if (!pattern.every(Boolean)) continue;
+                let repeats = 1;
+                while (
+                    keys.slice(start + repeats * patternSize, start + (repeats + 1) * patternSize)
+                        .every((value, index) => value === pattern[index]) &&
+                    start + (repeats + 1) * patternSize <= keys.length
+                ) {
+                    repeats += 1;
+                }
+                if (repeats >= 3) {
+                    kept.splice(start + patternSize, (repeats - 1) * patternSize);
+                    changed = true;
+                    break;
+                }
+            }
+            if (changed) break;
+        }
+    }
+    return kept;
+}
+
 export function parseConversationTurns(raw: string): ConversationTurn[] {
     const text = (raw || "").replaceAll("\u00a0", " ").replaceAll("\r\n", "\n").trim();
     if (!text) return [];
@@ -72,7 +105,7 @@ export function parseConversationTurns(raw: string): ConversationTurn[] {
         if (!speaker || !body) continue;
         turns.push({ speaker, text: body, side: sideFor(speaker) });
     }
-    return turns;
+    return collapseRepeatedTurnCycles(turns);
 }
 
 export function isFullConversationTitle(title?: string | null): boolean {

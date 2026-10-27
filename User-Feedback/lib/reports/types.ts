@@ -102,6 +102,9 @@ export type ReportThemeCount = {
     feedback_count: number;
     site_visit_count?: number;
     others_info?: string | null;
+    sentiment_positive_count?: number;
+    sentiment_neutral_count?: number;
+    sentiment_negative_count?: number;
 };
 
 export type ReportSummaryCategory = {
@@ -326,6 +329,7 @@ export type ReportFilters = {
     user_type?: string;
     start_date?: string;
     end_date?: string;
+    user_timezone?: string;
     search?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";

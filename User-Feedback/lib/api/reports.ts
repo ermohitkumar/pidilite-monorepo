@@ -99,7 +99,7 @@ export async function fetchPeriodSummaries(
 }
 
 export async function fetchCompliance(
-    params: Pick<ReportFilters, "division" | "zone" | "cluster" | "fme_code" | "user_type" | "start_date" | "end_date"> = {},
+    params: Pick<ReportFilters, "division" | "zone" | "cluster" | "fme_code" | "user_type" | "start_date" | "end_date" | "user_timezone"> = {},
 ): Promise<ComplianceResponse> {
     const qs = buildQuery(params);
     const res = await apiFetch(`/api/v1/reports/compliance${qs ? `?${qs}` : ""}`);

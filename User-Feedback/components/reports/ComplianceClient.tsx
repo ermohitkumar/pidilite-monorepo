@@ -92,7 +92,7 @@ function applyLinkedSelect(prev: ReportFilters, key: keyof ReportFilters, value:
 }
 
 function sanitizeFilters(draft: ReportFilters, dates: Pick<ReportFilters, "start_date" | "end_date">): ReportFilters {
-    const next: ReportFilters = { ...draft, ...dates };
+    const next: ReportFilters = { ...dates, ...draft };
     delete next.fme_code;
     delete next.user_type;
     (Object.keys(next) as (keyof ReportFilters)[]).forEach((key) => {
@@ -241,7 +241,8 @@ export default function ComplianceClient() {
         zone: draft.zone,
         cluster: draft.cluster,
     });
-    const reportQuery = useCompliance(filters);
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const reportQuery = useCompliance({ ...filters, user_timezone: userTimezone });
     const rows = reportQuery.data?.data?.items || [];
     // Prefer /filter-options; if that master list is empty, derive dropdowns from
     // the loaded compliance rows so Division/Zone/RFMM still appear.
@@ -277,8 +278,12 @@ export default function ComplianceClient() {
     const showingFrom = rows.length ? (currentPage - 1) * pageSize + 1 : 0;
     const showingTo = Math.min(currentPage * pageSize, rows.length);
     const rfmmOptions = filterOptions.rfmm_clusters?.length ? filterOptions.rfmm_clusters : filterOptions.clusters;
+    const invalidDateRange = Boolean(
+        draft.start_date && draft.end_date && draft.start_date > draft.end_date,
+    );
 
     const applyFilters = () => {
+        if (invalidDateRange) return;
         setPage(1);
         setFilters(sanitizeFilters(draft, datesForPeriod(period)));
     };
@@ -291,8 +296,14 @@ export default function ComplianceClient() {
     };
     const selectPeriod = (kind: PeriodKind) => {
         const next = defaultPeriod(kind);
+        const nextDates = datesForPeriod(next);
         setPeriod(next);
-        setDraft((prev) => ({ ...prev, ...datesForPeriod(next) }));
+        setDraft((prev) => {
+            const nextDraft = { ...prev };
+            delete nextDraft.start_date;
+            delete nextDraft.end_date;
+            return { ...nextDraft, ...nextDates };
+        });
     };
     const updatePeriod = (patch: Partial<PeriodState>) => {
         const next = { ...period, ...patch };
@@ -388,14 +399,53 @@ export default function ComplianceClient() {
                             />
                         </label>
                     ) : null}
+                    {period.kind === "all" ? (
+                        <>
+                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
+                                Start date
+                                <input
+                                    type="date"
+                                    value={draft.start_date || ""}
+                                    max={draft.end_date || undefined}
+                                    onChange={(event) =>
+                                        setDraft((prev) => ({
+                                            ...prev,
+                                            start_date: event.target.value || undefined,
+                                        }))
+                                    }
+                                    className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
+                                />
+                            </label>
+                            <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
+                                End date
+                                <input
+                                    type="date"
+                                    value={draft.end_date || ""}
+                                    min={draft.start_date || undefined}
+                                    onChange={(event) =>
+                                        setDraft((prev) => ({
+                                            ...prev,
+                                            end_date: event.target.value || undefined,
+                                        }))
+                                    }
+                                    className="mt-1 h-9 w-full rounded border border-border bg-surface px-3 text-sm"
+                                />
+                            </label>
+                        </>
+                    ) : null}
                     <div className="flex items-end gap-2">
-                        <Button type="button" onClick={applyFilters}>
+                        <Button type="button" onClick={applyFilters} disabled={invalidDateRange}>
                             Apply
                         </Button>
                         <Button type="button" variant="secondary" onClick={clearFilters}>
                             Clear
                         </Button>
                     </div>
+                    {invalidDateRange ? (
+                        <p className="text-sm text-red-600 sm:col-span-2 xl:col-span-4">
+                            Start date must be on or before the end date.
+                        </p>
+                    ) : null}
                 </div>
             ) : null}
 
