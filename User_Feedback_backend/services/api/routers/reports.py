@@ -367,6 +367,21 @@ def _row_for_level_three(
     return None
 
 
+def _geo_single(*values: report_repo.FilterValue) -> Optional[tuple[Optional[str], ...]]:
+    """One value per geo filter for stored narratives; None when any filter has several.
+
+    Period summaries are stored per single division / zone / RFMM, so a multi-select
+    has no matching narrative.
+    """
+    picked: list[Optional[str]] = []
+    for value in values:
+        items = report_repo.filter_values(value)
+        if len(items) > 1:
+            return None
+        picked.append(items[0] if items else None)
+    return tuple(picked)
+
+
 def _attach_tag_ai_summaries(
     db: Session,
     tags: list[dict[str, Any]],
@@ -374,12 +389,16 @@ def _attach_tag_ai_summaries(
     period_key: str,
     *,
     feedback_group: Optional[str] = None,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: report_repo.FilterValue = None,
+    zone: report_repo.FilterValue = None,
+    cluster: report_repo.FilterValue = None,
     fme_code: Optional[str] = None,
     product_name: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    single = _geo_single(division, zone, cluster)
+    if single is None:
+        return [{**tag, "ai_summary": None, "summary_status": None, "sentiment": None} for tag in tags]
+    division, zone, cluster = single
     token = group_token(feedback_group)
     geo_grain, geo_key = resolve_grain(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
@@ -570,9 +589,9 @@ def _filters(
     feedback_category: Optional[str],
     feedback_tag: Optional[str],
     feedback_sub_tag: Optional[str],
-    division: Optional[str],
-    zone: Optional[str],
-    cluster: Optional[str],
+    division: report_repo.FilterValue,
+    zone: report_repo.FilterValue,
+    cluster: report_repo.FilterValue,
     state: Optional[str],
     data_source: Optional[str],
     start_date: Optional[date],
@@ -608,9 +627,9 @@ def _filters(
 @router.get("/filter-options")
 def get_report_filter_options(
     db: DbSession,
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
 ):
     """Linked dropdowns from vw_filter_hierarchy / vw_filter_options."""
     fact = None
@@ -639,9 +658,9 @@ def get_report_filter_options(
 @router.get("/period-summary")
 def get_period_summary(
     db: DbSession,
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     fme_code: Optional[str] = Query(None),
     product_name: Optional[str] = Query(None),
     feedback_tag: Optional[str] = Query(None),
@@ -652,6 +671,25 @@ def get_period_summary(
 ):
     """Stored narrative for the most specific filter grain. Does not call Gemini."""
     period_type, period_key = _period_from_dates(start_date, end_date)
+    single = _geo_single(division, zone, cluster)
+    if single is None:
+        return make_response(
+            success=True,
+            message="No stored summary for multiple selections",
+            data={
+                "period_type": period_type,
+                "period_key": period_key,
+                "grain": None,
+                "grain_key": None,
+                "current": None,
+                "previous": None,
+                "product": None,
+                "previous_product": None,
+                "tag": None,
+                "previous_tag": None,
+            },
+        )
+    division, zone, cluster = single
     token = group_token(feedback_group)
     grain, grain_key = resolve_grain(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
@@ -699,9 +737,9 @@ def get_period_summary(
 @router.get("/period-summaries")
 def get_period_summaries(
     db: DbSession,
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     fme_code: Optional[str] = Query(None),
     product_name: Optional[str] = Query(None),
     feedback_group: Optional[str] = Query(None),
@@ -710,6 +748,25 @@ def get_period_summaries(
 ):
     """List stored current rows for the selected period (division cards when unfiltered)."""
     period_type, period_key = _period_from_dates(start_date, end_date)
+    single = _geo_single(division, zone, cluster)
+    if single is None:
+        return make_response(
+            success=True,
+            message="No stored summaries for multiple selections",
+            data={
+                "period_type": period_type,
+                "period_key": period_key,
+                "grain": None,
+                "items": [],
+                "products": [],
+                "tags": [],
+                "product_tags": [],
+                "available_filters": {
+                    key: [] for key in ("divisions", "zones", "rfmm_clusters", "fme_codes", "products")
+                },
+            },
+        )
+    division, zone, cluster = single
     token = group_token(feedback_group)
     grain = list_grain_for_filters(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
@@ -863,9 +920,9 @@ def get_report_summary(
     feedback_category: Optional[str] = Query(None),
     feedback_tag: Optional[str] = Query(None),
     feedback_sub_tag: Optional[str] = Query(None),
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     state: Optional[str] = Query(None),
     data_source: Optional[str] = Query(None),
     fme_code: Optional[str] = Query(None),
@@ -934,9 +991,9 @@ def get_report_products(
     feedback_category: Optional[str] = Query(None),
     feedback_tag: Optional[str] = Query(None),
     feedback_sub_tag: Optional[str] = Query(None),
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     state: Optional[str] = Query(None),
     data_source: Optional[str] = Query(None),
     fme_code: Optional[str] = Query(None),
@@ -977,9 +1034,9 @@ def get_report_details(
     feedback_category: Optional[str] = Query(None),
     feedback_tag: Optional[str] = Query(None),
     feedback_sub_tag: Optional[str] = Query(None),
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     state: Optional[str] = Query(None),
     data_source: Optional[str] = Query(None),
     fme_code: Optional[str] = Query(None),
@@ -1051,9 +1108,9 @@ def get_report_conversation(
 @router.get("/compliance")
 def get_compliance(
     db: DbSession,
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     fme_code: Optional[str] = Query(None),
     user_type: Optional[str] = Query(None),
     start_date: Optional[date] = Query(None),
@@ -1090,9 +1147,9 @@ def get_feedback_fact(
     feedback_category: Optional[str] = Query(None),
     feedback_tag: Optional[str] = Query(None),
     feedback_sub_tag: Optional[str] = Query(None),
-    division: Optional[str] = Query(None),
-    zone: Optional[str] = Query(None),
-    cluster: Optional[str] = Query(None),
+    division: Optional[list[str]] = Query(None),
+    zone: Optional[list[str]] = Query(None),
+    cluster: Optional[list[str]] = Query(None),
     state: Optional[str] = Query(None),
     data_source: Optional[str] = Query(None),
     fme_code: Optional[str] = Query(None),

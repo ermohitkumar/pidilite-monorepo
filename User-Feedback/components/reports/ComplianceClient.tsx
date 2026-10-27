@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { FiDownload, FiFilter } from "react-icons/fi";
 
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Pagination } from "@/components/ui/Pagination";
 import { Select } from "@/components/ui/Select";
 import { useCompliance, useReportFilterOptions } from "@/lib/hooks/reports";
@@ -44,44 +45,32 @@ const EMPTY_FILTERS: FilterOptions = {
     user_types: [],
 };
 
-function withAll(values: string[]): { label: string; value: string }[] {
-    return [{ label: "All", value: "ALL" }, ...values.map((value) => ({ label: value, value }))];
-}
-
-function OptionalSelect({
+function OptionalMultiSelect({
     label,
-    value,
+    values,
     onChange,
     options,
 }: {
     label: string;
-    value?: string;
-    onChange: (value: string) => void;
+    values?: string[];
+    onChange: (values: string[]) => void;
     options: string[];
 }) {
-    if (!options.length) return null;
+    if (!options.length && !values?.length) return null;
     return (
         <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
             {label}
-            <Select
-                className="mt-1"
-                value={value || "ALL"}
-                onChange={onChange}
-                options={withAll(options)}
-            />
+            <MultiSelect className="mt-1" values={values || []} onChange={onChange} options={options} />
         </div>
     );
 }
 
-function applySelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
-    const next = { ...prev };
-    if (!value || value === "ALL") delete next[key];
-    else (next as Record<string, unknown>)[key] = value;
-    return next;
-}
+type GeoKey = "division" | "zone" | "cluster";
 
-function applyLinkedSelect(prev: ReportFilters, key: keyof ReportFilters, value: string): ReportFilters {
-    const next = applySelect(prev, key, value);
+function applyLinkedSelect(prev: ReportFilters, key: GeoKey, values: string[]): ReportFilters {
+    const next = { ...prev };
+    if (values.length) next[key] = values;
+    else delete next[key];
     if (key === "division") {
         delete next.zone;
         delete next.cluster;
@@ -97,7 +86,13 @@ function sanitizeFilters(draft: ReportFilters, dates: Pick<ReportFilters, "start
     delete next.user_type;
     (Object.keys(next) as (keyof ReportFilters)[]).forEach((key) => {
         const value = next[key];
-        if (value === undefined || value === null || value === "" || value === "ALL") {
+        if (
+            value === undefined ||
+            value === null ||
+            value === "" ||
+            value === "ALL" ||
+            (Array.isArray(value) && value.length === 0)
+        ) {
             delete next[key];
         }
     });
@@ -326,22 +321,22 @@ export default function ComplianceClient() {
 
             {showFilters ? (
                 <div className="mb-5 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <OptionalSelect
+                    <OptionalMultiSelect
                         label="Division"
-                        value={draft.division}
-                        onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "division", value))}
+                        values={draft.division}
+                        onChange={(values) => setDraft((prev) => applyLinkedSelect(prev, "division", values))}
                         options={filterOptions.divisions}
                     />
-                    <OptionalSelect
+                    <OptionalMultiSelect
                         label="Zone"
-                        value={draft.zone}
-                        onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "zone", value))}
+                        values={draft.zone}
+                        onChange={(values) => setDraft((prev) => applyLinkedSelect(prev, "zone", values))}
                         options={filterOptions.zones}
                     />
-                    <OptionalSelect
+                    <OptionalMultiSelect
                         label="RFMM Cluster"
-                        value={draft.cluster}
-                        onChange={(value) => setDraft((prev) => applyLinkedSelect(prev, "cluster", value))}
+                        values={draft.cluster}
+                        onChange={(values) => setDraft((prev) => applyLinkedSelect(prev, "cluster", values))}
                         options={rfmmOptions}
                     />
                     <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">

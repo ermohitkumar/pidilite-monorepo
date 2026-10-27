@@ -101,22 +101,32 @@ export function filtersToSearchParams(filters: ReportFilters): string {
     const params = new URLSearchParams();
     (Object.entries(filters) as [keyof ReportFilters, unknown][]).forEach(([key, value]) => {
         if (value === undefined || value === null || value === "" || value === "ALL") return;
+        if (Array.isArray(value)) {
+            value.forEach((item) => params.append(String(key), String(item)));
+            return;
+        }
         params.set(String(key), String(value));
     });
     return params.toString();
 }
 
-export function filtersFromSearchParams(params: { get: (key: string) => string | null }): ReportFilters {
+const MULTI_FILTER_KEYS = ["division", "zone", "cluster"] as const;
+
+export function filtersFromSearchParams(params: {
+    get: (key: string) => string | null;
+    getAll: (key: string) => string[];
+}): ReportFilters {
     const filters: ReportFilters = {};
+    MULTI_FILTER_KEYS.forEach((key) => {
+        const values = params.getAll(key).map((value) => value.trim()).filter(Boolean);
+        if (values.length) filters[key] = Array.from(new Set(values));
+    });
     const keys: (keyof ReportFilters)[] = [
         "feedback_group",
         "feedback_category",
         "feedback_tag",
         "feedback_sub_tag",
         "product_name",
-        "division",
-        "zone",
-        "cluster",
         "fme_code",
         "user_type",
         "start_date",

@@ -45,14 +45,14 @@ import {
 
 function scopeFilters(
     product: string | undefined,
-    zone: string | undefined,
-    cluster: string | undefined,
+    zone: string[] | undefined,
+    cluster: string[] | undefined,
     dates: Pick<ReportFilters, "start_date" | "end_date">,
 ): ReportFilters {
     const next: ReportFilters = { ...dates };
     if (product && product !== "ALL") next.product_name = product;
-    if (zone && zone !== "ALL") next.zone = zone;
-    if (cluster && cluster !== "ALL") next.cluster = cluster;
+    if (zone?.length) next.zone = zone;
+    if (cluster?.length) next.cluster = cluster;
     return next;
 }
 
@@ -296,23 +296,23 @@ export default function ReportsClient() {
                         showProduct={false}
                         product={draft.product_name || "ALL"}
                         productOptions={productNames}
-                        zone={draft.zone || ""}
+                        zone={draft.zone || []}
                         zones={zoneOptions}
-                        cluster={draft.cluster || ""}
+                        cluster={draft.cluster || []}
                         clusters={rfmmOptions}
                         period={period}
                         onProduct={selectProduct}
-                        onZone={(value) =>
+                        onZone={(values) =>
                             setDraft((prev) => ({
                                 ...prev,
-                                zone: !value || value === "ALL" ? undefined : value,
+                                zone: values.length ? values : undefined,
                                 cluster: undefined,
                             }))
                         }
-                        onCluster={(value) =>
+                        onCluster={(values) =>
                             setDraft((prev) => ({
                                 ...prev,
-                                cluster: !value || value === "ALL" ? undefined : value,
+                                cluster: values.length ? values : undefined,
                             }))
                         }
                         onPeriodKind={selectPeriod}

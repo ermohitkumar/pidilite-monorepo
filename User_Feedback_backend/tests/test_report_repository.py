@@ -312,11 +312,26 @@ def test_filter_options_cascades_from_hierarchy(fact_view):
     assert "AMFC-Kolkata" not in west_only["rfmm_clusters"]
     assert "FCSCAL1" not in west_only["fme_codes"]
 
+    both = filter_options(fact_view, fact, zone=["West", "East"])
+    assert both["rfmm_clusters"] == ["AMFC-Kolkata", "Other RFMM", "PUNE 1"]
+    one_div = filter_options(fact_view, fact, division=["FV-RETAIL-NSM"], zone=["West", "East"])
+    assert one_div["rfmm_clusters"] == ["AMFC-Kolkata", "PUNE 1"]
+
 
 def test_build_filters_cluster_matches_rfmm():
     where_sql, params = build_filters(cluster="PUNE 1")
     assert "cluster = :cluster OR rfmm_cluster = :cluster" in where_sql
     assert params["cluster"] == "PUNE 1"
+
+
+def test_build_filters_multiple_geo_values():
+    where_sql, params = build_filters(zone=["West", "East"], cluster=["PUNE 1", "Mumbai"])
+    assert "zone IN (:zone_0, :zone_1)" in where_sql
+    assert "cluster IN (:cluster_0, :cluster_1) OR rfmm_cluster IN (:cluster_0, :cluster_1)" in where_sql
+    assert params["zone_0"] == "West" and params["zone_1"] == "East"
+    assert params["cluster_1"] == "Mumbai"
+    _, single = build_filters(zone=["West", " ", "West"])
+    assert single["zone"] == "West"
 
 
 def test_build_filters_product_and_fme():

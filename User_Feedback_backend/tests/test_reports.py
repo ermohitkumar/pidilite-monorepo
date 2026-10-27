@@ -361,6 +361,21 @@ def test_report_summary_uses_cluster_zone_and_product_rollups(client: TestClient
     east = client.get("/api/v1/reports/summary", params={**params, "zone": "East"})
     assert east.status_code == 200
     assert tag_name not in {row["feedback_tag"] for row in east.json()["data"]["tags"]}
+    # Several zones: counts cover both, but no single stored zone narrative fits.
+    multi = client.get("/api/v1/reports/summary", params={**params, "zone": ["West", "East"]})
+    assert multi.status_code == 200
+    multi_tags = {row["feedback_tag"]: row for row in multi.json()["data"]["tags"]}
+    assert multi_tags[tag_name]["ai_summary"] is None
+
+    def detail_total(**extra):
+        resp = client.get("/api/v1/reports/details", params={**params, **extra})
+        assert resp.status_code == 200
+        return resp.json()["data"]["metadata"]["total_items"]
+
+    west_total = detail_total(zone="West")
+    assert west_total > 0
+    assert detail_total(zone="East") == 0
+    assert detail_total(zone=["West", "East"]) == west_total
 
 
 def test_product_filter_uses_stored_product_tag_summary(client: TestClient, db_session):

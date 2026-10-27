@@ -20,9 +20,11 @@ export function useReportFilterOptions(filters: Pick<ReportFilters, "division" |
         placeholderData: (previousData, previousQuery) => {
             if (!previousData?.data) return previousData;
             const prevKey = previousQuery?.queryKey ?? [];
-            const divisionChanged = prevKey[1] !== filters.division;
-            const zoneChanged = prevKey[2] !== filters.zone;
-            const clusterChanged = prevKey[3] !== filters.cluster;
+            const same = (prev: unknown, next?: string[]) =>
+                (Array.isArray(prev) ? prev : []).join("\u0000") === (next || []).join("\u0000");
+            const divisionChanged = !same(prevKey[1], filters.division);
+            const zoneChanged = !same(prevKey[2], filters.zone);
+            const clusterChanged = !same(prevKey[3], filters.cluster);
             if (!divisionChanged && !zoneChanged && !clusterChanged) return previousData;
             return {
                 ...previousData,

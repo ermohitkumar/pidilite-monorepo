@@ -20,6 +20,8 @@ HIERARCHY_TABLE = "dimhierarchy"
 # dimhierarchy.divisioncode for Fevicol; Zone dropdowns only list these zones.
 ZONE_DIVISION_CODE = "10"
 NO_PRODUCT_LABEL = "(No product)"
+# Division / Zone / RFMM filters accept one value or a list (multi-select).
+FilterValue = Optional[str | list[str]]
 MASTER_FILTER_LIMIT = 5000
 
 # vw_filter_options.filter_type → report API keys (clusters also get RFMM).
@@ -85,15 +87,45 @@ def _serialize(value: Any) -> Any:
     return str(value)
 
 
+def filter_values(value: FilterValue) -> list[str]:
+    """Non-empty, de-duplicated values from a single string or a list of them."""
+    if value is None:
+        return []
+    out: list[str] = []
+    for item in [value] if isinstance(value, str) else value:
+        text_value = str(item or "").strip()
+        if text_value and text_value not in out:
+            out.append(text_value)
+    return out
+
+
+def match_any(exprs: list[str], name: str, value: FilterValue, params: dict[str, Any]) -> Optional[str]:
+    """`expr = :name` for one value, `expr IN (...)` for several; ORed across exprs."""
+    values = filter_values(value)
+    if not values:
+        return None
+    if len(values) == 1:
+        params[name] = values[0]
+        target = f"= :{name}"
+    else:
+        keys = []
+        for index, item in enumerate(values):
+            params[f"{name}_{index}"] = item
+            keys.append(f":{name}_{index}")
+        target = f"IN ({', '.join(keys)})"
+    parts = [f"{expr} {target}" for expr in exprs]
+    return parts[0] if len(parts) == 1 else "(" + " OR ".join(parts) + ")"
+
+
 def build_filters(
     feedback_group: Optional[str] = None,
     product_name: Optional[str] = None,
     feedback_category: Optional[str] = None,
     feedback_tag: Optional[str] = None,
     feedback_sub_tag: Optional[str] = None,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: FilterValue = None,
+    zone: FilterValue = None,
+    cluster: FilterValue = None,
     state: Optional[str] = None,
     data_source: Optional[str] = None,
     fme_code: Optional[str] = None,
@@ -114,11 +146,13 @@ def build_filters(
 
     eq("feedback_group", feedback_group)
     eq("feedback_sub_tag", feedback_sub_tag)
-    eq("division", division)
-    eq("zone", zone)
-    if cluster:
-        clauses.append("(cluster = :cluster OR rfmm_cluster = :cluster)")
-        params["cluster"] = cluster
+    for clause in (
+        match_any(["division"], "division", division, params),
+        match_any(["zone"], "zone", zone, params),
+        match_any(["cluster", "rfmm_cluster"], "cluster", cluster, params),
+    ):
+        if clause:
+            clauses.append(clause)
     eq("state", state)
     eq("data_source", data_source)
     eq("fme_code", fme_code)
@@ -363,9 +397,9 @@ def _options_from_filter_view(db: Session) -> dict[str, list]:
 def _options_from_hierarchy(
     db: Session,
     *,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: FilterValue = None,
+    zone: FilterValue = None,
+    cluster: FilterValue = None,
 ) -> dict[str, list]:
     """Linked Division → Zone → RFMM → FME lists from vw_filter_hierarchy."""
     sql = (
@@ -391,16 +425,19 @@ def _options_from_hierarchy(
     divisions = _sorted_unique([path["division"] for path in paths])
 
     scoped = paths
-    if division:
-        scoped = [path for path in scoped if path["division"] == division]
+    divisions_picked = set(filter_values(division))
+    if divisions_picked:
+        scoped = [path for path in scoped if path["division"] in divisions_picked]
     zones = _sorted_unique([path["zone"] for path in scoped])
 
-    if zone:
-        scoped = [path for path in scoped if path["zone"] == zone]
+    zones_picked = set(filter_values(zone))
+    if zones_picked:
+        scoped = [path for path in scoped if path["zone"] in zones_picked]
     rfmms = _sorted_unique([path["rfmm_cluster"] for path in scoped])
 
-    if cluster:
-        scoped = [path for path in scoped if path["rfmm_cluster"] == cluster]
+    clusters_picked = set(filter_values(cluster))
+    if clusters_picked:
+        scoped = [path for path in scoped if path["rfmm_cluster"] in clusters_picked]
     fmes = _sorted_unique([path["fme_code"] for path in scoped])
 
     return {
@@ -430,9 +467,9 @@ def filter_options(
     fact: Optional[str] = None,
     limit: int = 400,
     *,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: FilterValue = None,
+    zone: FilterValue = None,
+    cluster: FilterValue = None,
 ) -> dict[str, list]:
     """Masters from hierarchy / vw_filter_options; file_details only if masters are empty."""
     linked = _options_from_hierarchy(db, division=division, zone=zone, cluster=cluster)
@@ -451,7 +488,7 @@ def filter_options(
     # When hierarchy is present, keep scoped RFMM/FME even if the zone has none.
     # Do not refill from the unscoped master view. Unscoped empty lists still fall
     # through to file_details so dropdowns are not blanked by a sparse hierarchy.
-    scoped = bool(division or zone or cluster)
+    scoped = bool(filter_values(division) or filter_values(zone) or filter_values(cluster))
     out: dict[str, list] = {
         "rfmm_clusters": list(
             linked.get("rfmm_clusters", []) if linked else master.get("rfmm_clusters", [])
@@ -573,9 +610,9 @@ def theme_counts(
     product_name: Optional[str] = None,
     feedback_category: Optional[str] = None,
     feedback_tag: Optional[str] = None,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: FilterValue = None,
+    zone: FilterValue = None,
+    cluster: FilterValue = None,
     fme_code: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
@@ -611,17 +648,15 @@ def theme_counts(
     if product_name:
         clauses.append("LOWER(TRIM(COALESCE(fb.product_name, ''))) = LOWER(TRIM(:product_name))")
         params["product_name"] = product_name
-    if division and "division" in detail_cols:
-        clauses.append("fd.division = :division")
-        params["division"] = division
-    if zone and "zone" in detail_cols:
-        clauses.append("fd.zone = :zone")
-        params["zone"] = zone
-    if cluster:
-        cluster_cols = [name for name in ("rfmm_cluster", "cluster") if name in detail_cols]
-        if cluster_cols:
-            clauses.append("(" + " OR ".join(f"fd.{name} = :cluster" for name in cluster_cols) + ")")
-            params["cluster"] = cluster
+    geo_clauses = []
+    if "division" in detail_cols:
+        geo_clauses.append(match_any(["fd.division"], "division", division, params))
+    if "zone" in detail_cols:
+        geo_clauses.append(match_any(["fd.zone"], "zone", zone, params))
+    cluster_cols = [f"fd.{name}" for name in ("rfmm_cluster", "cluster") if name in detail_cols]
+    if cluster_cols:
+        geo_clauses.append(match_any(cluster_cols, "cluster", cluster, params))
+    clauses.extend(clause for clause in geo_clauses if clause)
     if fme_code and "fme_code" in detail_cols:
         clauses.append("fd.fme_code = :fme_code")
         params["fme_code"] = fme_code
@@ -963,9 +998,9 @@ def _period_label(start: Optional[date], end: Optional[date]) -> str:
 def compliance_rows(
     db: Session,
     *,
-    division: Optional[str] = None,
-    zone: Optional[str] = None,
-    cluster: Optional[str] = None,
+    division: FilterValue = None,
+    zone: FilterValue = None,
+    cluster: FilterValue = None,
     fme_code: Optional[str] = None,
     user_type: Optional[str] = None,
     start_date: Optional[date] = None,
@@ -996,15 +1031,14 @@ def compliance_rows(
     )
     clauses: list[str] = []
     params: dict[str, Any] = {}
-    if division:
-        clauses.append("NULLIF(TRIM(COALESCE(fd.division, '')), '') = :division")
-        params["division"] = division
-    if zone:
-        clauses.append("NULLIF(TRIM(COALESCE(fd.zone, '')), '') = :zone")
-        params["zone"] = zone
-    if cluster:
-        clauses.append("(fd.cluster = :cluster OR fd.rfmm_cluster = :cluster)" if "rfmm_cluster" in fd_cols else "fd.cluster = :cluster")
-        params["cluster"] = cluster
+    cluster_cols = ["fd.cluster", "fd.rfmm_cluster"] if "rfmm_cluster" in fd_cols else ["fd.cluster"]
+    for clause in (
+        match_any(["NULLIF(TRIM(COALESCE(fd.division, '')), '')"], "division", division, params),
+        match_any(["NULLIF(TRIM(COALESCE(fd.zone, '')), '')"], "zone", zone, params),
+        match_any(cluster_cols, "cluster", cluster, params),
+    ):
+        if clause:
+            clauses.append(clause)
     if fme_code:
         clauses.append("NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') = :fme_code")
         params["fme_code"] = fme_code
