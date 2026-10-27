@@ -723,7 +723,7 @@ export function buildProductRowsFromCounts(
 ): MatrixRow[] {
     return items
         .filter((item) => (item.feedback_count || 0) > 0)
-        .map((item) => {
+        .map((item): MatrixRow => {
         const product = display(item.product_name) || NO_PRODUCT_LABEL;
         const tagName = drill.feedback_tag || drill.feedback_category;
         const tagRows = tagName
