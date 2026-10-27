@@ -16,6 +16,9 @@ SLIM_VIEW = "vw_pbi_feedback_fact_slim"
 FAT_VIEW = "vw_pbi_feedback_fact"
 FILTER_VIEW = "vw_filter_options"
 HIERARCHY_VIEW = "vw_filter_hierarchy"
+HIERARCHY_TABLE = "dimhierarchy"
+# dimhierarchy.divisioncode for Fevicol; Zone dropdowns only list these zones.
+ZONE_DIVISION_CODE = "10"
 NO_PRODUCT_LABEL = "(No product)"
 MASTER_FILTER_LIMIT = 5000
 
@@ -409,6 +412,19 @@ def _options_from_hierarchy(
     }
 
 
+def _division_zones(db: Session) -> Optional[set[str]]:
+    """Zones under ZONE_DIVISION_CODE (Fevicol). None if dimhierarchy is missing."""
+    sql = (
+        "SELECT DISTINCT COALESCE(NULLIF(TRIM(sh5name), ''), NULLIF(TRIM(sh5code), '')) "
+        f"FROM {HIERARCHY_TABLE} WHERE TRIM(divisioncode) = :division_code"
+    )
+    try:
+        rows = execute(db, sql, {"division_code": ZONE_DIVISION_CODE}).fetchall()
+    except (MissingFactView, ProgrammingError, OperationalError):
+        return None
+    return set(_sorted_unique([row[0] for row in rows]))
+
+
 def filter_options(
     db: Session,
     fact: Optional[str] = None,
@@ -467,6 +483,11 @@ def filter_options(
     )
     if not out["rfmm_clusters"]:
         out["rfmm_clusters"] = list(out.get("clusters", []))
+    division_zones = _division_zones(db)
+    out["zones"] = [
+        value for value in out.get("zones", [])
+        if str(value).strip() and (division_zones is None or value in division_zones)
+    ]
     return out
 
 
