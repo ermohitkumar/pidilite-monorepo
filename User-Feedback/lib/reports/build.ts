@@ -616,9 +616,12 @@ function periodRowsForTag(
 ): PeriodSummaryRecord[] {
     const ids = tagIdsFor(category, tag, includeChildren);
     const productKey = norm(product);
+    // "Others" is a separate tag in every category, and every one of those stored
+    // rows is labeled Others. A name match would paste the same sentence into each row.
+    const matchByName = norm(tag) !== "others";
     return periodTags.filter((row) => {
         const byId = ids.some((id) => keyHasTagId(row.grain_key, id));
-        const byName = !byId && labelMentionsTag(row.grain_label || row.grain_key, tag);
+        const byName = matchByName && !byId && labelMentionsTag(row.grain_label || row.grain_key, tag);
         if (!byId && !byName) return false;
         if (!productKey || productKey === norm(NO_PRODUCT_LABEL)) return true;
         const haystack = `${norm(row.grain_label)} ${norm(row.grain_key)}`;
