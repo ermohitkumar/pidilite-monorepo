@@ -367,19 +367,62 @@ def _row_for_level_three(
     return None
 
 
-def _geo_single(*values: report_repo.FilterValue) -> Optional[tuple[Optional[str], ...]]:
-    """One value per geo filter for stored narratives; None when any filter has several.
+def _geo_variants(
+    division: report_repo.FilterValue,
+    zone: report_repo.FilterValue,
+    cluster: report_repo.FilterValue,
+    fme_code: Optional[str] = None,
+) -> list[dict[str, Optional[str]]]:
+    """Single-value geo filters for stored narratives.
 
-    Period summaries are stored per single division / zone / RFMM, so a multi-select
-    has no matching narrative.
+    Narratives use the most specific selected level, so a multi-select at that level
+    becomes one lookup per value; the results are merged afterwards.
     """
-    picked: list[Optional[str]] = []
-    for value in values:
-        items = report_repo.filter_values(value)
-        if len(items) > 1:
-            return None
-        picked.append(items[0] if items else None)
-    return tuple(picked)
+    empty: dict[str, Optional[str]] = {"division": None, "zone": None, "cluster": None}
+    if fme_code:
+        return [empty]
+    picked = {
+        "cluster": report_repo.filter_values(cluster),
+        "zone": report_repo.filter_values(zone),
+        "division": report_repo.filter_values(division),
+    }
+    for level, values in picked.items():
+        if values:
+            return [{**empty, level: value} for value in values]
+    return [empty]
+
+
+def _join_texts(texts: list[Optional[str]]) -> Optional[str]:
+    unique: list[str] = []
+    for text in texts:
+        clean = (text or "").strip()
+        if clean and clean not in unique:
+            unique.append(clean)
+    return "\n".join(unique) or None
+
+
+def _majority(labels: list[Optional[str]]) -> Optional[str]:
+    counts: dict[str, int] = {}
+    for label in labels:
+        if label:
+            counts[label] = counts.get(label, 0) + 1
+    return max(counts, key=counts.get) if counts else None
+
+
+def _merge_period_records(groups: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """One record per label; summary texts from each selected geo are joined."""
+    merged: dict[str, dict[str, Any]] = {}
+    texts: dict[str, list[Optional[str]]] = {}
+    for records in groups:
+        for record in records:
+            key = (record.get("grain_label") or record.get("grain_key") or "").strip().lower()
+            if key not in merged:
+                merged[key] = dict(record)
+                texts[key] = []
+            texts[key].append(record.get("summary_text"))
+    for key, record in merged.items():
+        record["summary_text"] = _join_texts(texts[key])
+    return list(merged.values())
 
 
 def _attach_tag_ai_summaries(
@@ -395,10 +438,43 @@ def _attach_tag_ai_summaries(
     fme_code: Optional[str] = None,
     product_name: Optional[str] = None,
 ) -> list[dict[str, Any]]:
-    single = _geo_single(division, zone, cluster)
-    if single is None:
-        return [{**tag, "ai_summary": None, "summary_status": None, "sentiment": None} for tag in tags]
-    division, zone, cluster = single
+    variants = _geo_variants(division, zone, cluster, fme_code)
+    results = [
+        _attach_tag_ai_summaries_one(
+            db, tags, period_type, period_key,
+            feedback_group=feedback_group, fme_code=fme_code, product_name=product_name, **variant,
+        )
+        for variant in variants
+    ]
+    if len(results) == 1:
+        return results[0]
+    merged = []
+    for index, tag in enumerate(tags):
+        rows = [result[index] for result in results]
+        summary = _join_texts([row.get("ai_summary") for row in rows])
+        statuses = [row.get("summary_status") for row in rows]
+        merged.append({
+            **tag,
+            "ai_summary": summary,
+            "summary_status": "ok" if summary else next((status for status in statuses if status), None),
+            "sentiment": _majority([row.get("sentiment") for row in rows]),
+        })
+    return merged
+
+
+def _attach_tag_ai_summaries_one(
+    db: Session,
+    tags: list[dict[str, Any]],
+    period_type: str,
+    period_key: str,
+    *,
+    feedback_group: Optional[str] = None,
+    division: Optional[str] = None,
+    zone: Optional[str] = None,
+    cluster: Optional[str] = None,
+    fme_code: Optional[str] = None,
+    product_name: Optional[str] = None,
+) -> list[dict[str, Any]]:
     token = group_token(feedback_group)
     geo_grain, geo_key = resolve_grain(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
@@ -671,8 +747,8 @@ def get_period_summary(
 ):
     """Stored narrative for the most specific filter grain. Does not call Gemini."""
     period_type, period_key = _period_from_dates(start_date, end_date)
-    single = _geo_single(division, zone, cluster)
-    if single is None:
+    variants = _geo_variants(division, zone, cluster, fme_code)
+    if len(variants) > 1:
         return make_response(
             success=True,
             message="No stored summary for multiple selections",
@@ -689,7 +765,7 @@ def get_period_summary(
                 "previous_tag": None,
             },
         )
-    division, zone, cluster = single
+    division, zone, cluster = variants[0]["division"], variants[0]["zone"], variants[0]["cluster"]
     token = group_token(feedback_group)
     grain, grain_key = resolve_grain(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
@@ -747,26 +823,45 @@ def get_period_summaries(
     end_date: Optional[date] = Query(None),
 ):
     """List stored current rows for the selected period (division cards when unfiltered)."""
-    period_type, period_key = _period_from_dates(start_date, end_date)
-    single = _geo_single(division, zone, cluster)
-    if single is None:
+    variants = _geo_variants(division, zone, cluster, fme_code)
+    if len(variants) > 1:
+        payloads = [
+            get_period_summaries(
+                db,
+                division=[variant["division"]] if variant["division"] else None,
+                zone=[variant["zone"]] if variant["zone"] else None,
+                cluster=[variant["cluster"]] if variant["cluster"] else None,
+                fme_code=fme_code,
+                product_name=product_name,
+                feedback_group=feedback_group,
+                start_date=start_date,
+                end_date=end_date,
+            ).data
+            for variant in variants
+        ]
+        available: dict[str, list] = {}
+        for payload in payloads:
+            for key, values in payload["available_filters"].items():
+                bucket = available.setdefault(key, [])
+                bucket.extend(value for value in values if value not in bucket)
+        items: dict[Any, dict[str, Any]] = {}
+        for payload in payloads:
+            for item in payload["items"]:
+                items.setdefault(item["id"], item)
         return make_response(
             success=True,
-            message="No stored summaries for multiple selections",
+            message="Period summaries retrieved successfully",
             data={
-                "period_type": period_type,
-                "period_key": period_key,
-                "grain": None,
-                "items": [],
-                "products": [],
-                "tags": [],
-                "product_tags": [],
-                "available_filters": {
-                    key: [] for key in ("divisions", "zones", "rfmm_clusters", "fme_codes", "products")
-                },
+                **payloads[0],
+                "items": list(items.values()),
+                "products": _merge_period_records([payload["products"] for payload in payloads]),
+                "tags": _merge_period_records([payload["tags"] for payload in payloads]),
+                "product_tags": _merge_period_records([payload["product_tags"] for payload in payloads]),
+                "available_filters": available,
             },
         )
-    division, zone, cluster = single
+    period_type, period_key = _period_from_dates(start_date, end_date)
+    division, zone, cluster = variants[0]["division"], variants[0]["zone"], variants[0]["cluster"]
     token = group_token(feedback_group)
     grain = list_grain_for_filters(
         fme_code=fme_code, cluster=cluster, zone=zone, division=division,
