@@ -319,9 +319,10 @@ export type ReportFilters = {
     feedback_category?: string;
     feedback_tag?: string;
     feedback_sub_tag?: string;
-    division?: string;
-    zone?: string;
-    cluster?: string;
+    // Multi-select: sent as repeated query params (?zone=A&zone=B).
+    division?: string[];
+    zone?: string[];
+    cluster?: string[];
     state?: string;
     product_name?: string;
     data_source?: string;

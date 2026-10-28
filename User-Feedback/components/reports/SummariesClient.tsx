@@ -9,6 +9,7 @@ import { FormattedSummary } from "@/components/reports/FormattedSummary";
 import { ReportModal } from "@/components/reports/ReportModal";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Select } from "@/components/ui/Select";
 import { useReportDetails, useReportFilterOptions, useReportProducts, useReportSummary } from "@/lib/hooks/reports";
 import {
@@ -67,16 +68,16 @@ type TagDrill = {
 
 type ScopeDraft = {
     product: string;
-    zone: string;
-    cluster: string;
+    zone: string[];
+    cluster: string[];
     period: PeriodState;
 };
 
 function scopeFromFilters(filters: ReportFilters): ScopeDraft {
     return {
         product: filters.product_name || "ALL",
-        zone: filters.zone || "",
-        cluster: filters.cluster || "",
+        zone: filters.zone || [],
+        cluster: filters.cluster || [],
         period: periodFromDateRange(filters.start_date, filters.end_date),
     };
 }
@@ -84,8 +85,8 @@ function scopeFromFilters(filters: ReportFilters): ScopeDraft {
 function filtersFromScope(scope: ScopeDraft): ReportFilters {
     const next: ReportFilters = { ...datesForPeriod(scope.period) };
     if (scope.product !== "ALL") next.product_name = scope.product;
-    if (scope.zone) next.zone = scope.zone;
-    if (scope.cluster) next.cluster = scope.cluster;
+    if (scope.zone.length) next.zone = scope.zone;
+    if (scope.cluster.length) next.cluster = scope.cluster;
     return next;
 }
 
@@ -156,6 +157,25 @@ function FilterSelect({
     );
 }
 
+function MultiFilterSelect({
+    label,
+    values,
+    onChange,
+    options,
+}: {
+    label: string;
+    values: string[];
+    onChange: (values: string[]) => void;
+    options: string[];
+}) {
+    return (
+        <div className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
+            {label}
+            <MultiSelect className="mt-1" values={values} onChange={onChange} options={options} />
+        </div>
+    );
+}
+
 export function ScopeFilterBar({
     showProduct,
     product,
@@ -176,14 +196,14 @@ export function ScopeFilterBar({
     showProduct: boolean;
     product: string;
     productOptions: string[];
-    zone: string;
+    zone: string[];
     zones: string[];
-    cluster: string;
+    cluster: string[];
     clusters: string[];
     period: PeriodState;
     onProduct: (value: string) => void;
-    onZone: (value: string) => void;
-    onCluster: (value: string) => void;
+    onZone: (values: string[]) => void;
+    onCluster: (values: string[]) => void;
     onPeriodKind: (kind: PeriodKind) => void;
     onPeriodPatch: (patch: Partial<PeriodState>) => void;
     onApply: () => void;
@@ -194,13 +214,8 @@ export function ScopeFilterBar({
             {showProduct ? (
                 <FilterSelect label="Product" value={product} onChange={onProduct} options={productOptions} />
             ) : null}
-            <FilterSelect label="Zone" value={zone} onChange={onZone} options={zones} />
-            <FilterSelect
-                label="RFMM cluster"
-                value={cluster}
-                onChange={onCluster}
-                options={clusters}
-            />
+            <MultiFilterSelect label="Zone" values={zone} onChange={onZone} options={zones} />
+            <MultiFilterSelect label="RFMM cluster" values={cluster} onChange={onCluster} options={clusters} />
             <label className="text-[12px] font-bold uppercase tracking-wider text-slate-600">
                 Time period
                 <Select
@@ -285,8 +300,8 @@ function SummaryItems({
     clusters: string[];
     onProductChip: (value: string) => void;
     onProduct: (value: string) => void;
-    onZone: (value: string) => void;
-    onCluster: (value: string) => void;
+    onZone: (values: string[]) => void;
+    onCluster: (values: string[]) => void;
     onPeriodKind: (kind: PeriodKind) => void;
     onPeriodPatch: (patch: Partial<PeriodState>) => void;
     onApply: () => void;
@@ -359,8 +374,8 @@ function SummaryItems({
             ? { label: "Level 3 tag", value: drill.theme }
             : null,
         productName ? { label: COLUMN_LABELS.product_name, value: productName } : null,
-        scope.zone ? { label: "Zone", value: scope.zone } : null,
-        scope.cluster ? { label: "RFMM cluster", value: scope.cluster } : null,
+        scope.zone?.length ? { label: "Zone", value: scope.zone.join(", ") } : null,
+        scope.cluster?.length ? { label: "RFMM cluster", value: scope.cluster.join(", ") } : null,
     ].filter((chip): chip is { label: string; value: string } => Boolean(chip?.value));
 
     return (
@@ -470,7 +485,7 @@ export default function SummariesClient() {
     const summaryFilters = useMemo(() => filtersFromScope(applied), [applied]);
     const summaryQuery = useReportSummary(summaryFilters);
     const productsQuery = useReportProducts({});
-    const filterQuery = useReportFilterOptions({ zone: draft.zone || undefined });
+    const filterQuery = useReportFilterOptions({ zone: draft.zone.length ? draft.zone : undefined });
     const summaryTags = summaryQuery.data?.data?.tags || [];
     const rows = useMemo(
         () =>
@@ -504,11 +519,11 @@ export default function SummariesClient() {
         : filterQuery.data?.data?.clusters || [];
     const loading = summaryQuery.isLoading && !summaryQuery.data;
 
-    const selectZone = (value: string) => {
-        setDraft((prev) => ({ ...prev, zone: value === "ALL" ? "" : value, cluster: "" }));
+    const selectZone = (values: string[]) => {
+        setDraft((prev) => ({ ...prev, zone: values, cluster: [] }));
     };
-    const selectCluster = (value: string) => {
-        setDraft((prev) => ({ ...prev, cluster: value === "ALL" ? "" : value }));
+    const selectCluster = (values: string[]) => {
+        setDraft((prev) => ({ ...prev, cluster: values }));
     };
     const selectPeriod = (kind: PeriodKind) => {
         setDraft((prev) => ({ ...prev, period: defaultPeriod(kind) }));
@@ -523,8 +538,8 @@ export default function SummariesClient() {
     const clearFilters = () => {
         const cleared: ScopeDraft = {
             product: "ALL",
-            zone: "",
-            cluster: "",
+            zone: [],
+            cluster: [],
             period: defaultPeriod("all"),
         };
         setDraft(cleared);
