@@ -512,10 +512,23 @@ function FindingList({
         <div className="space-y-2 text-[17px] leading-7 text-slate-800">
             {lines.map((line) => (
                 <p key={line} className="whitespace-pre-wrap break-words">
-                    {line}
+                    <HighlightedSummaryLine text={line} />
                 </p>
             ))}
         </div>
+    );
+}
+
+function HighlightedSummaryLine({ text }: { text: string }) {
+    const match = text.match(/^(\(\d+\)\s+)(.+?)(?=\s+-\s+|$)([\s\S]*)$/);
+    if (!match) return <>{text}</>;
+    return (
+        <>
+            <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-900">
+                {match[1]}{match[2]}
+            </span>
+            {match[3]}
+        </>
     );
 }
 
@@ -555,7 +568,7 @@ export function FormattedSummary({
                                 <ul key={`l-${index}`} className="list-disc space-y-1.5 pl-5 text-base leading-7 text-slate-800">
                                     {block.items.map((item) => (
                                         <li key={item} className="whitespace-pre-wrap break-words">
-                                            {item}
+                                            <HighlightedSummaryLine text={item} />
                                         </li>
                                     ))}
                                 </ul>
@@ -563,7 +576,7 @@ export function FormattedSummary({
                         }
                         return (
                             <p key={`p-${index}`} className="whitespace-pre-wrap break-words text-base leading-7 text-slate-800">
-                                {block.text}
+                                <HighlightedSummaryLine text={block.text} />
                             </p>
                         );
                     })}

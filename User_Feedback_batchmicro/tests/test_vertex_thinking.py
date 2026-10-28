@@ -186,6 +186,18 @@ def test_label_timed_turns_retries_when_reply_is_two_blocks():
     assert tokens["total"] == 4
 
 
+def test_format_labeled_turns_collapses_repeated_translated_cycles():
+    rows = [
+        {"start": 0, "end": 1, "role": "FME", "english": "The L-free one is."},
+        {"start": 1, "end": 2, "role": "User", "english": "The L-free one is."},
+    ] * 3
+    text = format_labeled_turns(rows)
+    assert text.splitlines() == [
+        "[00:00–00:01] FME: The L-free one is.",
+        "[00:01–00:02] User: The L-free one is.",
+    ]
+
+
 def test_translate_splits_collapsed_english_turns():
     fme = ("How is Fevicol SH working on site? Do you use it for plywood? " * 4).strip()
     user = ("I applied two drums yesterday. Packets are leaking on my site. " * 4).strip()

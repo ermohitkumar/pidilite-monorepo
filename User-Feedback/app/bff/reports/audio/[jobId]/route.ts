@@ -136,12 +136,14 @@ async function audioResponse(
                 ? locator.content_type
                 : metadata.contentType || locator.content_type || "audio/mpeg";
         const range = body ? parseRange(request.headers.get("range"), size) : null;
+        const download = request.nextUrl.searchParams.get("download") === "1";
+        const safeFileName = (locator.file_name || "recording").replace(/[\r\n"\\]/g, "_");
 
         const headers = new Headers({
             "Content-Type": contentType,
             "Accept-Ranges": "bytes",
             "Cache-Control": "private, no-store",
-            "Content-Disposition": `inline; filename="${(locator.file_name || "recording").replaceAll('"', "")}"`,
+            "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(locator.file_name || "recording")}`,
         });
 
         if (!body) {
