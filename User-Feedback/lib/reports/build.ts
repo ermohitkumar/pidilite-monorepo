@@ -961,11 +961,11 @@ export function columnsForSummaryTags(): MatrixColumn[] {
 }
 
 export function columnsForSummaryItems(): MatrixColumn[] {
-    return ["sentiment", "feedback_summary_ai", "feedback_excerpt"];
+    return ["feedback_summary_ai", "feedback_excerpt", "sentiment"];
 }
 
 export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
-    const cols: MatrixColumn[] = ["product_name", "feedback_summary_ai"];
+    const cols: MatrixColumn[] = ["feedback_summary_ai", "product_name"];
     if (drill.level === "group" || drill.level === "category" || !drill.feedback_tag) {
         cols.push("feedback_category", "feedback_tag");
     }
@@ -978,22 +978,21 @@ export function columnsForDetail(
     includeProduct: boolean,
     verbatim = false,
 ): MatrixColumn[] {
-    const cols: MatrixColumn[] = [];
-    if (includeProduct && !drill.product_name) cols.push("product_name");
+    const cols: MatrixColumn[] = ["feedback_summary_ai"];
+    if (!verbatim && includeProduct && !drill.product_name) cols.push("product_name");
     if (!verbatim && !drill.feedback_category) cols.push("feedback_category");
     if (!drill.feedback_tag) cols.push("feedback_tag");
     if (verbatim) {
-        cols.push("sentiment", "feedback_summary_ai", "feedback_excerpt", "call_datetime", "full_conversation");
+        cols.push("feedback_excerpt", "call_datetime", "full_conversation", "sentiment");
         return cols;
     }
     cols.push(
-        "sentiment",
-        "feedback_summary_ai",
         "feedback_excerpt",
         "call_datetime",
         "full_conversation",
         "file_name",
         "audio",
+        "sentiment",
     );
     return cols;
 }
