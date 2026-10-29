@@ -225,7 +225,6 @@ export function ReportDrillView({
                         itemLabel="feedback items"
                         pageSizeOptions={DETAIL_PAGE_SIZES}
                         optionalColumns={["call_datetime", "file_name", "audio"]}
-                        insightLevel
                         defaultHiddenColumns={["file_name", "audio"]}
                         settingsStorageKey="reports-detail-hidden-columns-v2"
                         onTextClick={onTextClick}
