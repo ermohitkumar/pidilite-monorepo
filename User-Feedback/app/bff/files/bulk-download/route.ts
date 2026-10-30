@@ -200,6 +200,7 @@ export async function GET(request: NextRequest) {
     const endDate = request.nextUrl.searchParams.get("end_date");
     if (!validDate(startDate) || !validDate(endDate)) return NextResponse.json({ error: "Provide valid start_date and end_date values in YYYY-MM-DD format." }, { status: 400 });
     if (startDate > endDate) return NextResponse.json({ error: "Start date must be on or before end date." }, { status: 400 });
+    if (startDate.slice(0, 7) !== endDate.slice(0, 7)) return NextResponse.json({ error: "The selected date range must be within one calendar month." }, { status: 400 });
 
     let directory: string | undefined;
     try {
