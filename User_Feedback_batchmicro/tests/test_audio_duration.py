@@ -4,6 +4,7 @@ import struct
 from services.shared.audio_duration import (
     probe_duration_seconds_from_bytes,
     _parse_wav_duration_seconds,
+    _parse_webm_cluster_duration_seconds,
 )
 
 
@@ -63,6 +64,31 @@ def test_wav_duration_from_header():
     )
     assert _parse_wav_duration_seconds(buf) == 1
     assert probe_duration_seconds_from_bytes(buf, "wav") == 1
+
+
+def _element(element_id: bytes, payload: bytes) -> bytes:
+    return element_id + _ebml_vint(len(payload), 1) + payload
+
+
+def _simple_block(relative_ms: int) -> bytes:
+    payload = _ebml_vint(1, 1) + struct.pack(">h", relative_ms) + b"\x80"
+    return _element(b"\xa3", payload)
+
+
+def _cluster(timecode_ms: int, relative_ms: list[int]) -> bytes:
+    body = _element(b"\xe7", timecode_ms.to_bytes(4, "big"))
+    body += b"".join(_simple_block(value) for value in relative_ms)
+    return b"\x1f\x43\xb6\x75" + _ebml_vint(len(body), 2) + body
+
+
+def test_webm_cluster_duration_ignores_timestamp_hole():
+    # Two frames at t=0, then a 5000s jump, then 1.2s of 60ms frames.
+    scale = (1_000_000).to_bytes(4, "big")
+    header = b"\x2a\xd7\xb1" + _ebml_vint(4, 1) + scale
+    first = _cluster(0, [0, 60])
+    second = _cluster(5_000_000, [index * 60 for index in range(21)])
+    buf = header + first + second
+    assert _parse_webm_cluster_duration_seconds(buf) == 1
 
 
 def test_unknown_bytes_return_none():

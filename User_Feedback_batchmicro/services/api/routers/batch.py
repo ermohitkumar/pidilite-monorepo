@@ -7,13 +7,14 @@ batches, enqueuing Cloud Tasks for each job in the batch.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.config import settings
 from core.response import make_response, make_error_response
 from db.session import get_db
 from repositories import batch_repository
-from db.models import Batch
+from db.models import Batch, Job
 from core.enums import JobStatus, BatchStatus
 from schemas.schemas import BatchStartResponseData
 from services.shared.cloud_tasks import enqueue_http_task
@@ -44,30 +45,52 @@ def _evaluate_batch_status(db: Session, batch_id: str) -> None:
     batch_repository.evaluate_batch_status(db, batch_id)
 
 
+def _stt_batch_limit(db: Session) -> int:
+    """Files allowed in one STT wave. Hard cap so Chirp quota is not exhausted."""
+    del db
+    return max(1, settings.STT_BATCH_LIMIT)
+
+
+def _stt_in_flight(db: Session) -> int:
+    return (
+        db.query(Job)
+        .filter(Job.status.in_((JobStatus.BATCHED, JobStatus.STT_SUBMITTED)))
+        .count()
+    )
+
+
+def _stt_slots_open(db: Session) -> int:
+    """Start a batch only when no speech batch is already running."""
+    if _stt_in_flight(db):
+        return 0
+    return _stt_batch_limit(db)
+
+
 def _flush_pending_jobs(db: Session) -> tuple[list[Batch], int]:
     """
-    Core orchestration logic:
-      1. Atomically claim PENDING jobs (FOR UPDATE SKIP LOCKED on Postgres).
-      2. Read batch_size from app_config (fallback to settings).
-      3. Chunk into batches, persist each batch, enqueue Cloud Tasks.
+    Start at most one STT batch.
 
-    Returns (created_batches, total_jobs_enqueued).
+    One speech batch at a time: if any job is still BATCHED or
+    STT_SUBMITTED, leave every other file PENDING. Otherwise claim at
+    most STT_BATCH_LIMIT (20) files.
     """
-    batch_size = int(
-        batch_repository.get_config_value(db, "batch_size", settings.BATCH_SIZE)
-    )
+    bind = db.get_bind()
+    if bind is not None and bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(48201520)"))
+    batch_size = _stt_slots_open(db)
     created_batches: list[Batch] = []
     total_enqueued = 0
 
-    while True:
-        # Claim one chunk at a time so concurrent /batch callers don't overlap.
-        chunk = batch_repository.claim_pending_jobs(db, batch_size)
-        if not chunk:
-            break
-        # Never persist a zero-file batch (claim may race to empty under concurrency).
-        if len(chunk) < 1:
-            break
+    if batch_size < 1:
+        logger.info(
+            "STT batch skipped — %d files already in this batch (limit %d)",
+            _stt_in_flight(db),
+            _stt_batch_limit(db),
+        )
+        return created_batches, total_enqueued
 
+    chunk = batch_repository.claim_pending_jobs(db, batch_size)
+    if chunk:
         logger.info("Claimed %d pending jobs, batch_size=%d", len(chunk), batch_size)
 
         batch = Batch(
@@ -91,7 +114,7 @@ def _flush_pending_jobs(db: Session) -> tuple[list[Batch], int]:
             logger.warning("Batch %s created with 0 jobs — deleting", batch.id)
             db.delete(batch)
             db.commit()
-            continue
+            chunk = []
 
         for job in chunk:
             try:

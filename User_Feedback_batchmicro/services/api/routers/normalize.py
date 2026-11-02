@@ -112,12 +112,16 @@ def _competition_product_name(
 
 def _build_tags_context(db: Session) -> str:
     """Build a human-readable tag context string from the feedback_tags DB table.
-    
+
     Includes tag_id so the LLM outputs integer IDs instead of tag name strings.
+    Brackets are Feedback Category (level_1 / feedback_tags.group_type).
+    "(Category: …)" is the Feedback Tag (feedback_tags.category).
+    Theme line text is feedback_tags.tag_name.
+    Model output group_type (PDT/USER/DEALER GROUP) is mapped from Feedback Category in the prompt rules.
     """
     all_tags = db.query(FeedbackTag).filter(FeedbackTag.is_active == True).order_by(FeedbackTag.tag_id).all()
 
-    # Group by group_type (e.g. "PDT GROUP", "USER GROUP", "DEALER GROUP")
+    # Group by Feedback Category (level_1 stored in group_type)
     groups: dict[str, list] = {}
     for tag in all_tags:
         group = tag.group_type or "General"

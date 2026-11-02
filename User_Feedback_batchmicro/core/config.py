@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     CLOUD_RUN_SERVICE_AUDIENCE: str = ""
 
     # ── Batch ──────────────────────────────────────────────────────────────────
-    BATCH_SIZE: int = 10
+    BATCH_SIZE: int = 20
+    # Chirp BatchRecognize quota is per in-flight operation. One /batch
+    # call must not submit more than this many files, and must not start
+    # another wave while this many are already BATCHED or STT_SUBMITTED.
+    STT_BATCH_LIMIT: int = 20
     MAX_RETRY_COUNT: int = 2
     # Checker re-enqueues only when a job has been in the same status at least this long.
     # Prevents tight Cloud Task enqueue loops across frequent scheduler ticks.
@@ -44,6 +48,9 @@ class Settings(BaseSettings):
     # Chirp 3 is only in the us and eu multi-regions, not asia-south1.
     STT_LOCATION: str = "us"
     STT_MODEL: str = "chirp_3"
+    # Files shorter than this (probed duration) are marked FAILED before STT.
+    # Unknown duration still goes through. Set 0 to disable.
+    MIN_AUDIO_SECONDS: int = 120
 
     # ── Gemini (translate / insights — not transcription) ─────────────────────
     GEMINI_MODEL: str = "gemini-2.5-flash"

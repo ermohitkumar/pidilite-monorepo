@@ -314,6 +314,47 @@ export type ComplianceResponse = {
     };
 };
 
+export type PipelineDurationBucket = {
+    bucket: string;
+    count: number;
+    avg_minutes: number | null;
+};
+
+export type PipelineFailedReason = {
+    reason: "no_insights" | "few_words" | "short_audio" | "errors";
+    count: number;
+};
+
+export type PipelineTotals = {
+    processed: number;
+    successful: number;
+    failed: number;
+};
+
+export type PipelineSeriesPoint = PipelineTotals & { key: string };
+
+export type PipelineSiteRow = PipelineTotals & {
+    site_number: string;
+    duration_buckets: PipelineDurationBucket[];
+    failed_reasons: PipelineFailedReason[];
+};
+
+export type PipelineHealthData = {
+    totals: PipelineTotals;
+    series: PipelineSeriesPoint[];
+    duration_buckets: PipelineDurationBucket[];
+    failed_reasons: PipelineFailedReason[];
+    by_site: PipelineSiteRow[];
+    sites: string[];
+    grain: "day" | "week" | "month";
+    period: string;
+};
+
+export type PipelineHealthResponse = {
+    success: boolean;
+    data?: PipelineHealthData;
+};
+
 export type ReportFilters = {
     feedback_group?: string;
     feedback_category?: string;
@@ -327,9 +368,11 @@ export type ReportFilters = {
     data_source?: string;
     fme_code?: string;
     user_type?: string;
+    site_number?: string;
     start_date?: string;
     end_date?: string;
     user_timezone?: string;
+    grain?: "day" | "week" | "month";
     search?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";

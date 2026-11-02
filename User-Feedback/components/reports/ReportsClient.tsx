@@ -21,6 +21,7 @@ import {
     columnsForSummaryTags,
     groupForCategory,
     levelOneCategories,
+    rowMatchesProduct,
     tagLabelsMatch,
 } from "@/lib/reports/build";
 import { isFullConversationTitle, parseConversationTurns } from "@/lib/reports/conversation";
@@ -167,7 +168,7 @@ export default function ReportsClient() {
         if (!drill?.product_name) return undefined;
         const productName = drill.product_name;
         const periodMatch = (periodListQuery.data?.data?.products || []).find((row) =>
-            tagLabelsMatch(row.grain_label || row.grain_key, productName),
+            rowMatchesProduct(row, productName),
         );
         if (periodMatch?.status === "error") return "Updating…";
         return (periodMatch?.summary_text || "").trim() || undefined;
@@ -183,7 +184,7 @@ export default function ReportsClient() {
         if (!drill?.product_name) return undefined;
         const productName = drill.product_name;
         const periodMatch = (periodListQuery.data?.data?.products || []).find((row) =>
-            tagLabelsMatch(row.grain_label || row.grain_key, productName),
+            rowMatchesProduct(row, productName),
         );
         return periodMatch?.highlights;
     }, [drill?.feedback_tag, drill?.product_name, periodListQuery.data?.data?.tags, periodListQuery.data?.data?.products]);

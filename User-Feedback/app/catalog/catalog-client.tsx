@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { TableEmpty, TableLoading } from "@/components/ui/TableStatus";
 import type { CatalogProduct, CatalogTag } from "@/lib/api/catalog";
-import taxonomyData from "@/lib/reports/feedback_taxonomy.json";
 import {
     useCreateProduct,
     useCreateTag,
@@ -17,26 +16,48 @@ import {
     useUpdateProduct,
     useUpdateTag,
 } from "@/lib/hooks/catalog";
+import taxonomyJson from "@/lib/reports/feedback_taxonomy.json";
+import type { TaxonomyTag } from "@/lib/reports/types";
 import { useMemo, useState } from "react";
 import { LuPackage, LuPencil, LuPlus, LuTags, LuTrash2, LuX } from "react-icons/lu";
 import { toast } from "sonner";
 
 type Tab = "products" | "tags";
 
-const DASHBOARD_CATEGORIES = (taxonomyData as { _meta: { level_1: string[] } })._meta.level_1;
-const TAXONOMY_TAGS = (taxonomyData as { taxonomy: Array<{ level_1: string; feedback_group: string; feedback_category: string; feedback_tag: string }> }).taxonomy;
+const LEVEL_1_OPTIONS = [
+    "Product",
+    "System",
+    "Competitor",
+    "Dealer related",
+    "User engagement",
+    "User benefits/schemes",
+];
 
-function dashboardCategoryForTag(tag: CatalogTag): string {
-    const normalize = (value?: string | null) => value?.trim().toLocaleLowerCase() || "";
-    const exactMatch = TAXONOMY_TAGS.find((item) =>
-        normalize(item.feedback_category) === normalize(tag.category) &&
-        normalize(item.feedback_tag) === normalize(tag.tag_name),
-    );
-    if (exactMatch) return exactMatch.level_1;
+/** Legacy feedback_group values historically stored in group_type — not feedback categories. */
+const FEEDBACK_GROUP_VALUES = new Set(["PDT GROUP", "USER GROUP", "DEALER GROUP"]);
 
-    const categoryMatches = TAXONOMY_TAGS.filter((item) => normalize(item.feedback_category) === normalize(tag.category));
-    const groupMatch = categoryMatches.find((item) => normalize(item.feedback_group) === normalize(tag.group_type));
-    return groupMatch?.level_1 || "";
+const LEVEL_1_BY_TAG_ID = new Map<number, string>(
+    ((taxonomyJson as { taxonomy: TaxonomyTag[] }).taxonomy || [])
+        .filter((item) => item.tag_id != null && item.level_1)
+        .map((item) => [item.tag_id, String(item.level_1)]),
+);
+
+function isFeedbackGroup(value?: string | null): boolean {
+    return Boolean(value && FEEDBACK_GROUP_VALUES.has(value.trim().toUpperCase()));
+}
+
+/**
+ * Feedback Category = taxonomy level_1 (Product, System, …).
+ * Prefer DB group_type when it already holds level_1; else resolve from taxonomy by tag_id.
+ */
+function feedbackCategoryLabel(tag: CatalogTag): string {
+    if (tag.group_type && !isFeedbackGroup(tag.group_type)) return tag.group_type;
+    const tagId = tag.tag_id ?? (typeof tag.id === "number" ? tag.id : Number(tag.id));
+    if (Number.isFinite(tagId)) {
+        const fromTaxonomy = LEVEL_1_BY_TAG_ID.get(Number(tagId));
+        if (fromTaxonomy) return fromTaxonomy;
+    }
+    return "—";
 }
 
 function tagKey(tag: CatalogTag): string | number {
@@ -139,22 +160,24 @@ function TagModal({
     const updateMutation = useUpdateTag();
     const [tagId, setTagId] = useState(tag?.tag_id?.toString() || "");
     const [tagName, setTagName] = useState(tag?.tag_name || "");
-    const [dashboardCategory, setDashboardCategory] = useState(tag ? dashboardCategoryForTag(tag) : "");
+    const initialCategory = tag ? feedbackCategoryLabel(tag) : "Product";
+    const [groupType, setGroupType] = useState(
+        initialCategory === "—" ? "Product" : initialCategory,
+    );
     const [category, setCategory] = useState(tag?.category || "");
-    const [groupType, setGroupType] = useState(tag?.group_type || "");
     const [description, setDescription] = useState(tag?.description || "");
     const [isActive, setIsActive] = useState(tag?.is_active !== false);
     const [error, setError] = useState("");
 
     const id = tag?.tag_id ?? tag?.id;
-    const subcategoryOptions = [...new Set(TAXONOMY_TAGS.filter((item) => item.level_1 === dashboardCategory).map((item) => item.feedback_category))];
     const save = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         try {
+            const categoryValue = isFeedbackGroup(groupType) ? null : groupType || null;
             const payload = {
                 tag_name: tagName,
-                group_type: groupType || null,
+                group_type: categoryValue,
                 category: category || null,
                 description: description || null,
                 is_active: isActive,
@@ -196,38 +219,25 @@ function TagModal({
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
                         Feedback Category
                         <select
-                            value={dashboardCategory}
-                            onChange={(e) => {
-                                const selectedDashboardCategory = e.target.value;
-                                setDashboardCategory(selectedDashboardCategory);
-                                const matchingTag = TAXONOMY_TAGS.find((item) => item.level_1 === selectedDashboardCategory);
-                                const nextSubcategory = TAXONOMY_TAGS.find((item) => item.level_1 === selectedDashboardCategory)?.feedback_category || "";
-                                setCategory(nextSubcategory);
-                                setGroupType(matchingTag?.feedback_group || "");
-                            }}
-                            required
+                            value={
+                                !groupType || isFeedbackGroup(groupType) ? "Product" : groupType
+                            }
+                            onChange={(e) => setGroupType(e.target.value)}
                             className="mt-1 flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"
                         >
-                            <option value="" disabled>Select a feedback category</option>
-                            {DASHBOARD_CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
+                            {groupType &&
+                                !LEVEL_1_OPTIONS.includes(groupType) &&
+                                !isFeedbackGroup(groupType) && (
+                                <option value={groupType}>{groupType}</option>
+                            )}
+                            {LEVEL_1_OPTIONS.map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                            ))}
                         </select>
                     </label>
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
-                        Feedback subcategory
-                        <select
-                            value={category}
-                            onChange={(e) => {
-                                setCategory(e.target.value);
-                                const matchingTag = TAXONOMY_TAGS.find((item) => item.level_1 === dashboardCategory && item.feedback_category === e.target.value);
-                                if (matchingTag) setGroupType(matchingTag.feedback_group);
-                            }}
-                            required
-                            className="mt-1 flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"
-                        >
-                            <option value="" disabled>Select a subcategory</option>
-                            {category && !subcategoryOptions.includes(category) && <option value={category}>{category}</option>}
-                            {subcategoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                        </select>
+                        Feedback Tag
+                        <Input value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1" />
                     </label>
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
                         Theme
@@ -254,7 +264,6 @@ function TagModal({
 export default function CatalogClient() {
     const [tab, setTab] = useState<Tab>("products");
     const [search, setSearch] = useState("");
-    const [feedbackCategoryFilter, setFeedbackCategoryFilter] = useState("All");
     const [productModal, setProductModal] = useState<CatalogProduct | null | "new">(null);
     const [tagModal, setTagModal] = useState<CatalogTag | null | "new">(null);
     const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
@@ -277,12 +286,19 @@ export default function CatalogClient() {
     const tags = useMemo(() => {
         const rows = (tagsQuery.data?.data ?? []).filter((row) => row.is_active !== false);
         const q = search.trim().toLowerCase();
-        return rows.filter((row) => {
-            const matchesCategory = feedbackCategoryFilter === "All" || dashboardCategoryForTag(row) === feedbackCategoryFilter;
-            const matchesSearch = !q || [row.tag_name, row.group_type, row.category, row.description].join(" ").toLowerCase().includes(q);
-            return matchesCategory && matchesSearch;
-        });
-    }, [tagsQuery.data, search, feedbackCategoryFilter]);
+        if (!q) return rows;
+        return rows.filter((row) =>
+            [
+                row.tag_name,
+                feedbackCategoryLabel(row),
+                row.category,
+                row.description,
+            ]
+                .join(" ")
+                .toLowerCase()
+                .includes(q),
+        );
+    }, [tagsQuery.data, search]);
 
     return (
         <div className="flex h-full flex-col gap-5 p-6">
@@ -329,22 +345,6 @@ export default function CatalogClient() {
                     />
                 </div>
 
-                {tab === "tags" && (
-                    <div className="flex flex-wrap gap-2 border-b border-border px-5 py-3" aria-label="Filter tags by feedback category">
-                        {["All", ...DASHBOARD_CATEGORIES].map((category) => (
-                            <button
-                                key={category}
-                                type="button"
-                                aria-pressed={feedbackCategoryFilter === category}
-                                className={`rounded-full border px-3 py-1.5 text-body-sm ${feedbackCategoryFilter === category ? "border-brand bg-brand-subtle text-brand font-medium" : "border-border bg-surface text-text-subtle"}`}
-                                onClick={() => setFeedbackCategoryFilter(category)}
-                            >
-                                {category}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
                 <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
                     {tab === "products" ? (
                         <table className="w-full min-w-[720px]">
@@ -380,20 +380,21 @@ export default function CatalogClient() {
                         <table className="w-full min-w-[960px]">
                             <thead className="sticky top-0 z-10">
                                 <tr className="border-b border-border bg-bg">
-                                    {["ID", "FEEDBACK CATEGORY", "THEME", "DESCRIPTION", "STATUS", "ACTIONS"].map((label) => (
+                                    {["ID", "FEEDBACK CATEGORY", "FEEDBACK TAG", "THEME", "DESCRIPTION", "STATUS", "ACTIONS"].map((label) => (
                                         <th key={label} className="px-5 py-3 text-left text-label-sm text-text-disabled tracking-widest">{label}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {tagsQuery.isLoading ? (
-                                    <TableLoading colSpan={6} />
+                                    <TableLoading colSpan={7} />
                                 ) : tags.length === 0 ? (
-                                    <TableEmpty colSpan={6} message="No tags found." />
+                                    <TableEmpty colSpan={7} message="No tags found." />
                                 ) : tags.map((row, idx) => (
                                     <tr key={String(tagKey(row))} className={`border-b border-border ${idx % 2 !== 0 ? "bg-bg/40" : ""}`}>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.tag_id ?? row.id ?? "—"}</td>
-                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{dashboardCategoryForTag(row) || "—"}</td>
+                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{feedbackCategoryLabel(row)}</td>
+                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.category || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm font-medium text-text">{row.tag_name}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.description || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm">{row.is_active === false ? "Inactive" : "Active"}</td>

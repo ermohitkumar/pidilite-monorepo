@@ -169,6 +169,52 @@ def collapse_repeated_turn_cycles(
     return kept
 
 
+_PHRASE_PUNCT = " \t,.;:!?-–—\"'“”‘’…।॥()[]"
+
+
+def collapse_repeated_phrases(
+    text: str,
+    max_phrase_words: int = 8,
+    minimum_repeats: int = 4,
+) -> str:
+    """Collapse a phrase repeated back-to-back inside one line to its first copy.
+
+    STT (Chirp) sometimes loops a phrase hundreds of times ("सस्ते वाला, सस्ते
+    वाला, ..."). Gemini copies the loop into the translation and runs until
+    MAX_TOKENS. Comparison ignores case and edge punctuation. Short emphasis
+    ("बहुत बहुत बहुत") stays because it repeats fewer than minimum_repeats times.
+    """
+    lines: list[str] = []
+    for line in (text or "").split("\n"):
+        tokens = line.split()
+        if len(tokens) < minimum_repeats:
+            lines.append(line)
+            continue
+        keys = [token.casefold().strip(_PHRASE_PUNCT) for token in tokens]
+        kept: list[str] = []
+        i = 0
+        while i < len(tokens):
+            size, repeats = _phrase_run(keys, i, max_phrase_words, minimum_repeats)
+            kept.extend(tokens[i:i + size])
+            i += size * repeats
+        lines.append(" ".join(kept) if len(kept) < len(tokens) else line)
+    return "\n".join(lines)
+
+
+def _phrase_run(keys: list[str], start: int, max_size: int, minimum_repeats: int) -> tuple[int, int]:
+    """Return (phrase size, repeat count) of the loop at start, or (1, 1) when none."""
+    for size in range(1, max_size + 1):
+        pattern = keys[start:start + size]
+        if len(pattern) < size or not all(pattern):
+            continue
+        repeats = 1
+        while keys[start + repeats * size:start + (repeats + 1) * size] == pattern:
+            repeats += 1
+        if repeats >= minimum_repeats:
+            return size, repeats
+    return 1, 1
+
+
 def _turn_identity(speaker: int | None, body: str) -> str:
     normalized = " ".join(re.findall(r"\w+", (body or "").casefold()))
     return f"{speaker}:{normalized}" if normalized else ""

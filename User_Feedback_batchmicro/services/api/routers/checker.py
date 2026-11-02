@@ -201,8 +201,16 @@ def _recover_stuck_batched_jobs(db: Session, limit: int) -> int:
     (crash between batch commit and Cloud Task create).
     """
     jobs = batch_repository.get_jobs_by_status(db, JobStatus.BATCHED, limit=limit)
+    submitted = (
+        db.query(Job)
+        .filter(Job.status == JobStatus.STT_SUBMITTED)
+        .count()
+    )
+    room = max(0, settings.STT_BATCH_LIMIT - submitted)
     recovered = 0
     for job in jobs:
+        if recovered >= room:
+            break
         if job.stt_operation_name:
             continue
         if not _job_is_stuck(job):
@@ -542,6 +550,10 @@ def run_checker(
 
         # 7. Retry / fail ERROR jobs
         retry_result = _retry_error_jobs(db, limit)
+
+        # 7a. Start the next STT wave, at most STT_BATCH_LIMIT files in flight.
+        from services.api.routers.batch import _flush_pending_jobs
+        _flush_pending_jobs(db)
 
         # 7b. Close PENDING jobs stuck with a batch_id (blocks batch reconcile)
         stuck_pending_closed = _fail_stuck_pending_assigned_jobs(db, limit)
