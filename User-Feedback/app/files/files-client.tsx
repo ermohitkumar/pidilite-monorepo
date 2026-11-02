@@ -13,7 +13,7 @@ import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
 import { formatPipelineError } from '@/lib/monitor/format-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { LuArrowUpDown, LuChevronDown, LuChevronUp, LuFilter } from 'react-icons/lu';
+import { LuArrowUpDown, LuArchive, LuChevronDown, LuChevronUp, LuDownload } from 'react-icons/lu';
 import { toast } from 'sonner';
 
 const FILTER_OPTIONS: Array<{ label: string; value: JobStatus | 'ALL' }> = [
@@ -39,6 +39,10 @@ function formatAudioDuration(seconds: number | null | undefined): string {
 }
 
 export default function FilesClient() {
+    const [tab, setTab] = useState<'files' | 'bulk'>('files');
+    const [bulkStartDate, setBulkStartDate] = useState('');
+    const [bulkEndDate, setBulkEndDate] = useState('');
+    const [bulkDownloading, setBulkDownloading] = useState(false);
     type SortKey = 'job_id' | 'batch_id' | 'file_name' | 'audio_duration_seconds' | 'created_at';
     type SortDir = 'asc' | 'desc' | null;
 
@@ -79,6 +83,32 @@ export default function FilesClient() {
     const applyFilters = () => {
         setApplied({ search, startDate, endDate, status: activeFilter });
         setCurrentPage(1);
+    };
+
+    const downloadBulkArchive = async () => {
+        if (!bulkStartDate || !bulkEndDate) {
+            toast.error('Choose both a start date and an end date.');
+            return;
+        }
+        if (bulkStartDate > bulkEndDate) {
+            toast.error('Start date must be on or before the end date.');
+            return;
+        }
+
+        setBulkDownloading(true);
+        try {
+            const params = new URLSearchParams({ start_date: bulkStartDate, end_date: bulkEndDate });
+            const anchor = document.createElement('a');
+            anchor.href = `/bff/files/bulk-download?${params.toString()}`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            toast.info('Your audio ZIP is being prepared. The download will start when it is ready.');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not download audio files.');
+        } finally {
+            window.setTimeout(() => setBulkDownloading(false), 1500);
+        }
     };
 
     const { data: response, isLoading, isError } = useJobs({
@@ -143,7 +173,34 @@ export default function FilesClient() {
                 </p>
             </div>
 
-            {/* Table Panel */}
+            <div className="flex gap-1 rounded-md bg-surface p-1 self-start border border-border">
+                <button type="button" className={`flex items-center gap-2 rounded px-3 py-2 text-body-sm ${tab === 'files' ? 'bg-brand-subtle text-brand font-medium' : 'text-text-subtle'}`} onClick={() => setTab('files')}>
+                    <LuDownload className="h-4 w-4" /> Files
+                </button>
+                <button type="button" className={`flex items-center gap-2 rounded px-3 py-2 text-body-sm ${tab === 'bulk' ? 'bg-brand-subtle text-brand font-medium' : 'text-text-subtle'}`} onClick={() => setTab('bulk')}>
+                    <LuArchive className="h-4 w-4" /> Bulk download
+                </button>
+            </div>
+
+            {tab === 'bulk' ? (
+                <section className="rounded-lg border border-border bg-surface p-6">
+                    <h2 className="text-h3 font-semibold text-text">Bulk audio download</h2>
+                    <p className="mt-1 text-body-sm text-text-subtle">Choose an inclusive date range to download available recordings as one ZIP file.</p>
+                    <div className="mt-5 flex flex-wrap items-end gap-4">
+                        <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Start date
+                            <input type="date" value={bulkStartDate} max={bulkEndDate || undefined} onChange={(event) => setBulkStartDate(event.target.value)} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                        </label>
+                        <label className="flex flex-col gap-1 text-label-sm text-text-subtle">End date
+                            <input type="date" value={bulkEndDate} min={bulkStartDate || undefined} onChange={(event) => setBulkEndDate(event.target.value)} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                        </label>
+                        <Button type="button" onClick={downloadBulkArchive} disabled={bulkDownloading}>
+                            <LuDownload className="mr-2 h-4 w-4" />{bulkDownloading ? 'Preparing ZIP…' : 'Download ZIP'}
+                        </Button>
+                    </div>
+                    <p className="mt-4 text-xs text-text-disabled">Only recordings you are authorized to access are included. Missing audio files are skipped.</p>
+                </section>
+            ) : (
+            /* Table Panel */
             <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-surface overflow-hidden">
 
                 {/* Toolbar */}
@@ -289,6 +346,7 @@ export default function FilesClient() {
                     onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
                 />
             </div>
+            )}
         </div>
     );
 }

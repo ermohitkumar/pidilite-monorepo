@@ -519,12 +519,12 @@ function FindingList({
     );
 }
 
-function HighlightedSummaryLine({ text }: { text: string }) {
+export function HighlightedSummaryLine({ text }: { text: string }) {
     const match = text.match(/^(\(\d+\)\s+)(.+?)(?=\s+-\s+|$)([\s\S]*)$/);
     if (!match) return <>{text}</>;
     return (
         <>
-            <span className="rounded bg-violet-100 px-1.5 py-0.5 font-semibold text-violet-900">
+            <span className="rounded bg-black px-1.5 py-0.5 font-semibold text-white">
                 {match[1]}{match[2]}
             </span>
             {match[3]}
