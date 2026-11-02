@@ -7,6 +7,7 @@ from core.config import settings
 from services.shared.insight_quality import filter_meaningful_insights
 from services.shared.verbatim import snap_verbatim_quote_to_transcript
 from services.shared.speakers import (
+    collapse_repeated_phrases,
     collapse_repeated_turn_cycles,
     content_preserved,
     is_collapsed_speaker_transcript,
@@ -67,6 +68,14 @@ def translate_transcript(
     product_catalog_tsv: str = "",
 ) -> tuple[str, dict]:
     """Translate STT transcript to English. Returns (translated_text, tokens_dict)."""
+    # STT phrase loops make Gemini repeat the phrase until MAX_TOKENS.
+    deduped = collapse_repeated_phrases(raw_text)
+    if len(deduped) < len(raw_text or ""):
+        logger.warning(
+            "Collapsed repeated STT phrases before translation (%d -> %d chars)",
+            len(raw_text), len(deduped),
+        )
+        raw_text = deduped
     catalog_block = ""
     if (product_catalog_tsv or "").strip():
         catalog_block = f"""
@@ -102,6 +111,7 @@ Transcript:
     translated, tokens = VertexRestAdapter.generate_text(
         prompt, temperature=temperature, model_name=model_name
     )
+    translated = collapse_repeated_phrases(translated)
     if is_collapsed_speaker_transcript(translated):
         split_text, split_tokens = split_collapsed_speaker_transcript(
             translated, model_name=model_name

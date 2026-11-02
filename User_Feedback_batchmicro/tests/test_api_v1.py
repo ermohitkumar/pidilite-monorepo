@@ -171,6 +171,49 @@ class TestBatchStart:
         assert body["data"]["jobs_enqueued"] == 3
         assert body["data"]["batch_id"]
 
+    def test_batch_start_stops_at_twenty(
+        self, client, create_test_job, mock_cloud_tasks, db_session
+    ):
+        for i in range(25):
+            create_test_job(
+                gcs_input_uri=f"gs://input-bucket/audio/wave-{i}.wav",
+                file_name=f"wave-{i}.wav",
+            )
+
+        resp = client.post("/api/v1/batch")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["jobs_enqueued"] == 20
+        still_pending = (
+            db_session.query(Job).filter(Job.status == JobStatus.PENDING).count()
+        )
+        assert still_pending == 5
+
+    def test_batch_start_caps_in_flight_stt(
+        self, client, create_test_job, mock_cloud_tasks, db_session
+    ):
+        for i in range(15):
+            create_test_job(
+                status=JobStatus.STT_SUBMITTED,
+                gcs_input_uri=f"gs://input-bucket/audio/inflight-{i}.wav",
+                file_name=f"inflight-{i}.wav",
+                stt_operation_name=f"operations/inflight-{i}",
+            )
+        for i in range(10):
+            create_test_job(
+                gcs_input_uri=f"gs://input-bucket/audio/waiting-{i}.wav",
+                file_name=f"waiting-{i}.wav",
+            )
+
+        resp = client.post("/api/v1/batch")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["jobs_enqueued"] == 0
+        still_pending = (
+            db_session.query(Job)
+            .filter(Job.status == JobStatus.PENDING)
+            .count()
+        )
+        assert still_pending == 10
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENDPOINT 3 — POST /api/v1/files/transcription
@@ -248,6 +291,50 @@ class TestSTTSubmit:
         body = resp.json()
         assert body["success"] is True
         assert body["data"]["status"] == "STT_SUBMITTED"
+        mock_speech_client.assert_called_once()
+
+    def test_stt_submit_fails_audio_shorter_than_minimum(
+        self, client, create_test_job, mock_speech_client, db_session
+    ):
+        from db.models import FailedJob
+
+        job = create_test_job(status=JobStatus.BATCHED)
+        job.file_details.audio_duration_seconds = 119
+        db_session.commit()
+
+        payload = {
+            "job_id": job.id,
+            "gcs_input_uri": job.gcs_input_uri,
+            "gcs_output_uri_prefix": f"gs://output-bucket/stt-output/{job.id}/",
+        }
+        resp = client.post("/api/v1/files/transcription", json=payload)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is False
+        assert body["data"]["status"] == "FAILED"
+        assert "Audio too short: 119s" in body["error"]
+        assert "need at least 120s" in body["error"]
+        mock_speech_client.assert_not_called()
+        db_session.refresh(job)
+        assert job.status == JobStatus.FAILED
+        assert "Audio too short" in job.error_message
+        failed = db_session.query(FailedJob).filter_by(job_id=job.id).one()
+        assert failed.pipeline_stage == "STT"
+
+    def test_stt_submit_allows_audio_at_minimum(
+        self, client, create_test_job, mock_speech_client, db_session
+    ):
+        job = create_test_job(status=JobStatus.BATCHED)
+        job.file_details.audio_duration_seconds = 120
+        db_session.commit()
+
+        payload = {
+            "job_id": job.id,
+            "gcs_input_uri": job.gcs_input_uri,
+            "gcs_output_uri_prefix": f"gs://output-bucket/stt-output/{job.id}/",
+        }
+        resp = client.post("/api/v1/files/transcription", json=payload)
+        assert resp.json()["data"]["status"] == "STT_SUBMITTED"
         mock_speech_client.assert_called_once()
 
     def test_stt_submit_job_not_found(self, client, mock_speech_client):

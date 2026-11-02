@@ -14,6 +14,7 @@ import logging
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from core.response import make_response
 from core.exceptions import (
     STTError,
@@ -223,7 +224,21 @@ def submit_stt(
             )
             if probed:
                 file_details.audio_duration_seconds = probed
-
+        duration = file_details.audio_duration_seconds
+        if settings.MIN_AUDIO_SECONDS and duration and duration < settings.MIN_AUDIO_SECONDS:
+            error_msg = (
+                f"Audio too short: {duration}s (need at least {settings.MIN_AUDIO_SECONDS}s). "
+                "File marked failed before transcription."
+            )
+            db.add(FailedJob(job_id=job.id, file_name=file_details.file_name, error_message=error_msg, pipeline_stage="STT"))
+            batch_repository.update_job_status(db, payload.job_id, status=JobStatus.FAILED, error_message=error_msg)
+            db.commit()
+            return make_response(
+                success=False,
+                message="STT submission skipped - audio too short",
+                data=STTSubmitResponseData(job_id=payload.job_id, status=JobStatus.FAILED.value).model_dump(),
+                error=error_msg
+            )
 
     try:
         source_hint = file_details.file_extension if file_details else None

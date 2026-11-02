@@ -1,4 +1,6 @@
 from services.shared.speakers import (
+    collapse_repeated_phrases,
+    collapse_repeated_phrases,
     content_preserved,
     format_turns,
     is_collapsed_speaker_transcript,
@@ -126,3 +128,33 @@ def test_two_speaker_dialogue_is_not_collapsed():
 
 def test_short_one_liner_is_not_collapsed():
     assert is_collapsed_speaker_transcript("Speaker 1: Hello.") is False
+
+
+def test_collapse_repeated_phrases_shrinks_stt_loop():
+    text = "Speaker 2: नहीं, " + "सस्ते वाला, " * 50 + "ठीक है।\nSpeaker 1: हाँ।"
+    assert collapse_repeated_phrases(text) == "Speaker 2: नहीं, सस्ते वाला, ठीक है।\nSpeaker 1: हाँ।"
+
+
+def test_collapse_repeated_phrases_shrinks_translated_loop():
+    text = "User: Then " + "he is calling now, " * 30 + "he is"
+    assert collapse_repeated_phrases(text) == "User: Then he is calling now, he is"
+
+
+def test_collapse_repeated_phrases_keeps_short_emphasis():
+    text = "User: बहुत बहुत बहुत अच्छा है, that, that, that."
+    assert collapse_repeated_phrases(text) == text
+
+
+def test_collapse_repeated_phrases_shrinks_stt_loop():
+    text = "Speaker 2: नहीं, " + "सस्ते वाला, " * 50 + "ठीक है।\nSpeaker 1: हाँ।"
+    assert collapse_repeated_phrases(text) == "Speaker 2: नहीं, सस्ते वाला, ठीक है।\nSpeaker 1: हाँ।"
+
+
+def test_collapse_repeated_phrases_shrinks_translated_loop():
+    text = "User: Then " + "he is calling now, " * 30 + "he is"
+    assert collapse_repeated_phrases(text) == "User: Then he is calling now, he is"
+
+
+def test_collapse_repeated_phrases_keeps_short_emphasis():
+    text = "User: बहुत बहुत बहुत अच्छा है, that, that, that."
+    assert collapse_repeated_phrases(text) == text

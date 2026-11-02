@@ -3,7 +3,8 @@
 Supports WebM/Matroska (sitelead MediaRecorder clips) and WAV.
 
 Chrome MediaRecorder WebM often omits the Info/Duration element. In that case
-we estimate duration from Cluster Timecode values (max timecode × TimecodeScale).
+duration is the span of audio blocks. A hole longer than 30 seconds is a
+timestamp jump, not silence, and is left out of the length.
 """
 from __future__ import annotations
 
@@ -121,47 +122,140 @@ def _parse_webm_info_duration_seconds(data: bytes) -> Optional[int]:
     return max(1, int(round(seconds)))
 
 
+# MediaRecorder sometimes writes a couple of frames at t=0, then continues
+# the timeline an hour later. That hole is not silence in the recording.
+_MAX_CONTINUOUS_GAP_SECONDS = 30.0
+_CLUSTER_ID = 0x1F43B675
+_SEGMENT_ID = 0x18538067
+_TIMECODE_ID = 0xE7
+_SIMPLE_BLOCK_ID = 0xA3
+_BLOCK_GROUP_ID = 0xA0
+_BLOCK_ID = 0xA1
+
+
+def _read_element_id(data: bytes, offset: int) -> tuple[int, int] | None:
+    """Return (id, width). The id keeps its EBML length marker bits."""
+    if offset >= len(data):
+        return None
+    first = data[offset]
+    if first == 0:
+        return None
+    width = 1
+    mask = 0x80
+    while width < 4 and (first & mask) == 0:
+        mask >>= 1
+        width += 1
+    if offset + width > len(data):
+        return None
+    return int.from_bytes(data[offset : offset + width], "big"), width
+
+
+def _block_timestamp_seconds(
+    data: bytes, start: int, end: int, cluster_tc: int, scale: int
+) -> Optional[float]:
+    track = _read_vint(data, start)
+    if not track:
+        return None
+    rel_at = start + track[1]
+    if rel_at + 2 > end:
+        return None
+    relative = int.from_bytes(data[rel_at : rel_at + 2], "big", signed=True)
+    return (cluster_tc + relative) * (scale / 1_000_000_000.0)
+
+
+def _collect_block_times(data: bytes, scale: int) -> list[float]:
+    """Absolute block start times, in seconds, in file order."""
+    times: list[float] = []
+    cluster_tc = 0
+    pos = 0
+    limit = len(data)
+    while pos + 2 < limit:
+        ident = _read_element_id(data, pos)
+        if not ident:
+            pos += 1
+            continue
+        element_id, id_width = ident
+        vint = _read_vint(data, pos + id_width, allow_unknown=True)
+        if not vint:
+            pos += 1
+            continue
+        size, size_width = vint
+        body = pos + id_width + size_width
+        if size is not None and body + size > limit:
+            break
+        end = limit if size is None else body + size
+
+        if element_id in (_CLUSTER_ID, _SEGMENT_ID) or size is None:
+            if element_id == _CLUSTER_ID:
+                cluster_tc = 0
+            pos = body
+            continue
+        if element_id == _TIMECODE_ID and 1 <= size <= 8:
+            cluster_tc = int.from_bytes(data[body:end], "big")
+        elif element_id in (_SIMPLE_BLOCK_ID, _BLOCK_ID):
+            stamp = _block_timestamp_seconds(data, body, end, cluster_tc, scale)
+            if stamp is not None:
+                times.append(stamp)
+        elif element_id == _BLOCK_GROUP_ID:
+            inner = body
+            while inner + 2 < end:
+                inner_id = _read_element_id(data, inner)
+                if not inner_id:
+                    break
+                child_id, child_width = inner_id
+                child_vint = _read_vint(data, inner + child_width, allow_unknown=True)
+                if not child_vint or child_vint[0] is None:
+                    break
+                child_size, child_size_width = child_vint
+                child_body = inner + child_width + child_size_width
+                child_end = child_body + child_size
+                if child_end > end:
+                    break
+                if child_id == _BLOCK_ID:
+                    stamp = _block_timestamp_seconds(
+                        data, child_body, child_end, cluster_tc, scale
+                    )
+                    if stamp is not None:
+                        times.append(stamp)
+                inner = child_end
+        next_pos = end
+        if next_pos <= pos:
+            next_pos = pos + 1
+        pos = next_pos
+    return times
+
+
+def _seconds_from_block_times(times: list[float]) -> Optional[int]:
+    """Span of each continuous run. Holes longer than 30s are not counted."""
+    if len(times) < 2:
+        return None
+    ordered = sorted(times)
+    frame_deltas = [
+        ordered[index + 1] - ordered[index]
+        for index in range(len(ordered) - 1)
+        if 0.01 <= ordered[index + 1] - ordered[index] <= 0.5
+    ]
+    frame = frame_deltas[len(frame_deltas) // 2] if frame_deltas else 0.06
+    total = 0.0
+    run_start = ordered[0]
+    previous = ordered[0]
+    for stamp in ordered[1:]:
+        if stamp - previous > _MAX_CONTINUOUS_GAP_SECONDS:
+            total += max(0.0, previous - run_start) + frame
+            run_start = stamp
+        previous = stamp
+    total += max(0.0, previous - run_start) + frame
+    if total < 0.5 or total > 24 * 3600:
+        return None
+    return max(1, int(round(total)))
+
+
 def _parse_webm_cluster_duration_seconds(data: bytes) -> Optional[int]:
-    """Estimate duration from max Cluster Timecode (MediaRecorder WebM)."""
+    """Duration from audio-block timestamps, ignoring timestamp holes."""
     if len(data) < 32:
         return None
     timecode_scale = _find_timecode_scale(data)
-    cluster_id = b"\x1f\x43\xb6\x75"
-    max_tc = 0
-    clusters = 0
-    pos = 0
-    while True:
-        i = data.find(cluster_id, pos)
-        if i < 0:
-            break
-        vint = _read_vint(data, i + 4, allow_unknown=True)
-        if not vint:
-            pos = i + 1
-            continue
-        size, width = vint
-        body_start = i + 4 + width
-        window = data[body_start : body_start + 32]
-        j = window.find(b"\xe7")
-        if j >= 0:
-            tv = _read_vint(window, j + 1)
-            if tv:
-                tsize, tw = tv
-                tstart = j + 1 + tw
-                if tsize is not None and 1 <= tsize <= 8 and tstart + tsize <= len(window):
-                    tc = int.from_bytes(window[tstart : tstart + tsize], "big")
-                    if tc >= max_tc:
-                        max_tc = tc
-                    clusters += 1
-        if size is None:
-            pos = body_start + 1
-        else:
-            pos = min(len(data), body_start + size)
-    if clusters == 0:
-        return None
-    seconds = max_tc * (timecode_scale / 1_000_000_000.0)
-    if seconds < 0.5 or seconds > 24 * 3600:
-        return None
-    return max(1, int(round(seconds)))
+    return _seconds_from_block_times(_collect_block_times(data, timecode_scale))
 
 
 def _parse_webm_duration_seconds(data: bytes) -> Optional[int]:
