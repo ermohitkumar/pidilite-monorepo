@@ -221,6 +221,11 @@ docker compose exec api poetry run alembic upgrade head
 docker compose exec api poetry run python scripts/seed.py
 ```
 
+On PostgreSQL, API startup also applies the versioned Library tag update once per
+database. This keeps the Library Tags page aligned with the frontend taxonomy on
+local installs as well as deployed environments. Restart the API after pulling
+the change if it was already running.
+
 ### 4. Run directly (without Docker)
 ```bash
 poetry run uvicorn services.api.main:app --reload --port 8000

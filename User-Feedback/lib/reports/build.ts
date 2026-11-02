@@ -4,6 +4,7 @@ import taxonomyJson from "./feedback_taxonomy.json";
 import {
     NO_PRODUCT_LABEL,
     type BreakdownRow,
+    type DrillLevel,
     type DrillScope,
     type FeedbackFactRow,
     type FeedbackGroup,
@@ -580,11 +581,16 @@ function tagIdsFor(category: string, tag: string, includeChildren = false): stri
         const children = taxonomy.filter((item) => norm(item.feedback_category) === key);
         if (children.length) return children.map((item) => String(item.tag_id));
     }
+    // "Product" is Competitor's level-2 category and also the Product level-1 group.
+    // A level-2 lookup must stay on that category, or its Others line copies
+    // Product Quality and every other Product Others tag.
+    const categoryIsLevel2 = Boolean(cat) && taxonomy.some((item) => norm(item.feedback_category) === cat);
     return taxonomy
         .filter((item) => {
             if (norm(item.feedback_tag) !== key) return false;
             if (!cat || cat === key) return true;
-            return norm(item.feedback_category) === cat || norm(item.level_1) === cat;
+            if (norm(item.feedback_category) === cat) return true;
+            return !categoryIsLevel2 && norm(item.level_1) === cat;
         })
         .map((item) => String(item.tag_id));
 }
@@ -750,6 +756,7 @@ export function buildProductRowsFromCounts(
             : period?.status === "error"
                 ? "Updating…"
                 : summaryFitsCount(displayBody(period?.summary_text), item.feedback_count || 0);
+        const level: DrillLevel = drill.feedback_sub_tag ? "sub_tag" : drill.feedback_tag ? "tag" : "product";
         return {
             kind: "data" as const,
             feedback_group: drill.group,
@@ -761,7 +768,7 @@ export function buildProductRowsFromCounts(
             sentiment: periodSentiment(period),
             drill: {
                 group: drill.group,
-                level: drill.feedback_sub_tag ? "sub_tag" : drill.feedback_tag ? "tag" : "product",
+                level,
                 product_name: product,
                 feedback_category: drill.feedback_category,
                 feedback_tag: drill.feedback_tag,

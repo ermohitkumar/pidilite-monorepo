@@ -93,10 +93,12 @@ async def lifespan(app: FastAPI):
     try:
         db.session.Base.metadata.create_all(bind=db.session.engine)
         from scripts.migrate_schema import apply_schema
+        from scripts.sync_library_taxonomy import apply_library_taxonomy
         from sqlalchemy.orm import Session
         from core.roles import ensure_system_roles
 
         apply_schema(db.session.engine)
+        apply_library_taxonomy(db.session.engine)
         with Session(bind=db.session.engine) as session:
             ensure_system_roles(session)
         logger.info("DB tables verified successfully")

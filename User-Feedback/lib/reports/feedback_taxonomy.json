@@ -3,7 +3,7 @@
     "description": "Feedback taxonomy with level 1, level 2, and level 3 tags",
     "sources": [
       "New tags.xlsx",
-      "Product / Product Quality Complaint / Bubble forming"
+      "Product / Product Quality / Bubble forming"
     ],
     "groups": [
       "PDT GROUP",
@@ -18,86 +18,86 @@
       "User engagement",
       "User benefits/schemes"
     ],
-    "total_tags": 87
+    "total_tags": 92
   },
   "taxonomy": [
     {
       "tag_id": 101,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bad Viscosity / Too Thick",
       "is_other": false,
-      "description": "Bad Viscosity / Too Thick under Product / Product Quality Complaint."
+      "description": "Bad Viscosity / Too Thick under Product / Product Quality."
     },
     {
       "tag_id": 102,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bad Viscosity / Too Thin",
       "is_other": false,
-      "description": "Bad Viscosity / Too Thin under Product / Product Quality Complaint."
+      "description": "Bad Viscosity / Too Thin under Product / Product Quality."
     },
     {
       "tag_id": 103,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Foul Odor",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Smell/ Odor",
       "is_other": false,
-      "description": "Foul Odor under Product / Product Quality Complaint."
+      "description": "Smell/ Odor under Product / Product Quality."
     },
     {
       "tag_id": 104,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Poor Coverage / High Consumption",
       "is_other": false,
-      "description": "Poor Coverage / High Consumption under Product / Product Quality Complaint."
+      "description": "Poor Coverage / High Consumption under Product / Product Quality."
     },
     {
       "tag_id": 105,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Product Separation / Settling",
       "is_other": false,
-      "description": "Product Separation / Settling under Product / Product Quality Complaint."
+      "description": "Product Separation / Settling under Product / Product Quality."
     },
     {
       "tag_id": 106,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Slow Initial Tack / Grab",
       "is_other": false,
-      "description": "Slow Initial Tack / Grab under Product / Product Quality Complaint."
+      "description": "Slow Initial Tack / Grab under Product / Product Quality."
     },
     {
       "tag_id": 107,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Long Pressing / Clamping Time",
       "is_other": false,
-      "description": "Long Pressing / Clamping Time under Product / Product Quality Complaint."
+      "description": "Long Pressing / Clamping Time under Product / Product Quality."
     },
     {
       "tag_id": 108,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Weak Ultimate Bond / Delamination",
       "is_other": false,
-      "description": "Weak Ultimate Bond / Delamination under Product / Product Quality Complaint."
+      "description": "Weak Ultimate Bond / Delamination under Product / Product Quality."
     },
     {
       "tag_id": 109,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bubble forming",
       "is_other": false,
       "description": "Bubbles forming in the adhesive film, glue line, or finished surface."
@@ -106,64 +106,64 @@
       "tag_id": 110,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Others",
       "is_other": true,
-      "description": "Feedback in Product Quality Complaint that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "description": "Feedback in Product Quality that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 111,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Lid / Cap Hard to Open",
       "is_other": false,
-      "description": "Lid / Cap Hard to Open under Product / Product Packaging Complaint."
+      "description": "Lid / Cap Hard to Open under Product / Product Packaging."
     },
     {
       "tag_id": 112,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Packaging Failure / Transit Leakage",
       "is_other": false,
-      "description": "Packaging Failure / Transit Leakage under Product / Product Packaging Complaint."
+      "description": "Packaging Failure / Transit Leakage under Product / Product Packaging."
     },
     {
       "tag_id": 113,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Nozzle Clogging / Hardening",
       "is_other": false,
-      "description": "Nozzle Clogging / Hardening under Product / Product Packaging Complaint."
+      "description": "Nozzle Clogging / Hardening under Product / Product Packaging."
     },
     {
       "tag_id": 114,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Re-sealing Issue / Product Drying in Tub",
       "is_other": false,
-      "description": "Re-sealing Issue / Product Drying in Tub under Product / Product Packaging Complaint."
+      "description": "Re-sealing Issue / Product Drying in Tub under Product / Product Packaging."
     },
     {
       "tag_id": 115,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Application difficulty",
       "is_other": false,
-      "description": "Application difficulty under Product / Product Packaging Complaint."
+      "description": "Application difficulty under Product / Product Packaging."
     },
     {
       "tag_id": 116,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Others",
       "is_other": true,
-      "description": "Feedback in Product Packaging Complaint that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "description": "Feedback in Product Packaging that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 117,
@@ -803,6 +803,51 @@
       "feedback_tag": "Others",
       "is_other": true,
       "description": "Feedback in Points & Redemption that does not match a specific level 3 tag. Summarize the important points as a statement."
+    },
+    {
+      "tag_id": 188,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Overall Good product",
+      "is_other": false,
+      "description": "Overall Good product under Product / Product Quality."
+    },
+    {
+      "tag_id": 189,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Good grab",
+      "is_other": false,
+      "description": "Good grab under Product / Product Quality."
+    },
+    {
+      "tag_id": 190,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Helping/ Enabling me to complete sites faster",
+      "is_other": false,
+      "description": "Helping/ Enabling me to complete sites faster under Product / Product Quality."
+    },
+    {
+      "tag_id": 191,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Packaging",
+      "feedback_tag": "Good packaging",
+      "is_other": false,
+      "description": "Good packaging under Product / Product Packaging."
+    },
+    {
+      "tag_id": 192,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Post application feedback",
+      "feedback_tag": "Easy to use",
+      "is_other": false,
+      "description": "Easy to use under Product / Post application feedback."
     }
   ]
 }
