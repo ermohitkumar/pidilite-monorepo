@@ -580,11 +580,16 @@ function tagIdsFor(category: string, tag: string, includeChildren = false): stri
         const children = taxonomy.filter((item) => norm(item.feedback_category) === key);
         if (children.length) return children.map((item) => String(item.tag_id));
     }
+    // "Product" is Competitor's level-2 category and also the Product level-1 group.
+    // A level-2 lookup must stay on that category, or its Others line copies
+    // Product Quality Complaint and every other Product Others tag.
+    const categoryIsLevel2 = Boolean(cat) && taxonomy.some((item) => norm(item.feedback_category) === cat);
     return taxonomy
         .filter((item) => {
             if (norm(item.feedback_tag) !== key) return false;
             if (!cat || cat === key) return true;
-            return norm(item.feedback_category) === cat || norm(item.level_1) === cat;
+            if (norm(item.feedback_category) === cat) return true;
+            return !categoryIsLevel2 && norm(item.level_1) === cat;
         })
         .map((item) => String(item.tag_id));
 }
@@ -601,6 +606,43 @@ function labelMentionsTag(label: string | null | undefined, tag: string): boolea
     return value.split(/\s+[×x]\s+/).some((part) => part.trim() === needle);
 }
 
+/** Exact product match — never substring (HI-PER must not match HI-PER STAR). */
+export function rowMatchesProduct(
+    row: Pick<PeriodSummaryRecord, "grain_key" | "grain_label">,
+    product?: string | null,
+): boolean {
+    const productKey = norm(product);
+    if (!productKey || productKey === norm(NO_PRODUCT_LABEL)) return true;
+    if (norm(row.grain_label) === productKey) return true;
+    const labelParts = norm(row.grain_label)
+        .split(/\s+[×x]\s+/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+    if (labelParts.includes(productKey)) return true;
+    const segments = (row.grain_key || "")
+        .split("::")
+        .map((part) => norm(part))
+        .filter(Boolean);
+    return segments.includes(productKey);
+}
+
+function filterHighlightsToProduct(
+    highlights: PeriodSummaryRecord["highlights"] | undefined,
+    product?: string | null,
+): PeriodSummaryRecord["highlights"] | undefined {
+    if (!highlights?.findings?.length || !product) return highlights;
+    const productKey = norm(product);
+    if (!productKey || productKey === norm(NO_PRODUCT_LABEL)) return highlights;
+    const named = highlights.findings.filter((item) => norm(item.product || item.title));
+    if (!named.length) return highlights;
+    return {
+        ...highlights,
+        findings: highlights.findings.filter(
+            (item) => norm(item.product || item.title) === productKey,
+        ),
+    };
+}
+
 function periodRowsForTag(
     periodTags: PeriodSummaryRecord[],
     category: string,
@@ -609,14 +651,14 @@ function periodRowsForTag(
     includeChildren = false,
 ): PeriodSummaryRecord[] {
     const ids = tagIdsFor(category, tag, includeChildren);
-    const productKey = norm(product);
+    // "Others" is a separate tag in every category, and every one of those stored
+    // rows is labeled Others. A name match would paste the same sentence into each row.
+    const matchByName = norm(tag) !== "others";
     return periodTags.filter((row) => {
         const byId = ids.some((id) => keyHasTagId(row.grain_key, id));
-        const byName = !byId && labelMentionsTag(row.grain_label || row.grain_key, tag);
+        const byName = matchByName && !byId && labelMentionsTag(row.grain_label || row.grain_key, tag);
         if (!byId && !byName) return false;
-        if (!productKey || productKey === norm(NO_PRODUCT_LABEL)) return true;
-        const haystack = `${norm(row.grain_label)} ${norm(row.grain_key)}`;
-        return haystack.includes(productKey);
+        return rowMatchesProduct(row, product);
     });
 }
 
@@ -630,30 +672,83 @@ function periodNarrative(
     const rows = periodRowsForTag(periodTags, category, tag, product, includeChildren);
     if (rows.some((row) => row.status === "error")) return "Updating…";
     const texts = rows
-        .map((row) => summaryDisplayText(row.summary_text, row.highlights))
+        .map((row) => {
+            const highlights = filterHighlightsToProduct(row.highlights, product);
+            if (product && highlights?.findings?.length) {
+                return summaryDisplayText(undefined, highlights);
+            }
+            return summaryDisplayText(row.summary_text, highlights);
+        })
         .filter(Boolean);
     return texts.length ? groupSummaryLines(texts.join("\n")) : undefined;
 }
 
-/** The number in the summary is the same feedback count shown in the row. */
+/**
+ * Keep theme (N) lines consistent with the row Feedback Count:
+ * - one theme → (N) becomes the feedback count
+ * - several themes → drop/shrink lines (Others first) so the sum never exceeds it
+ */
 function alignSummaryCount(text: string | undefined, count: number): string | undefined {
     const body = (text || "").trim();
     if (!body || count < 1) return body || undefined;
-    const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
-    const counted = lines.filter((line) => /^\(\d+\)/.test(line));
-    if (counted.length !== 1) return body;
-    return lines.map((line) => line.replace(/^\(\d+\)/, `(${count})`)).join("\n");
+
+    type Line = { n: number | null; rest: string; isOthers: boolean };
+    let lines: Line[] = body
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const match = line.match(/^\((\d+)\)\s+(.+)$/);
+            if (!match) return { n: null, rest: line, isOthers: false };
+            const rest = match[2];
+            const label = (rest.includes(" - ") ? rest.slice(0, rest.indexOf(" - ")) : rest).trim();
+            return {
+                n: Number(match[1]) || 1,
+                rest,
+                isOthers: label.toLowerCase() === "others",
+            };
+        });
+
+    // A single theme cannot outrun the row total.
+    lines = lines.filter((line) => line.n == null || line.n <= count);
+
+    const counted = () => lines.filter((line) => line.n != null);
+    const render = (forceCount?: number) =>
+        lines
+            .map((line) => {
+                if (line.n == null) return line.rest;
+                const n = forceCount ?? line.n;
+                return `(${n}) ${line.rest}`;
+            })
+            .join("\n");
+
+    if (counted().length === 1) return render(count) || undefined;
+
+    let sum = counted().reduce((total, line) => total + (line.n || 0), 0);
+    while (sum > count) {
+        const candidates = counted().filter((line) => (line.n || 0) > 0);
+        if (!candidates.length) break;
+        const others = candidates.find((line) => line.isOthers);
+        const target =
+            others && (others.n || 0) > 0
+                ? others
+                : [...candidates].sort((left, right) => (right.n || 0) - (left.n || 0))[0];
+        if (!target?.n) break;
+        const reduceBy = Math.min(sum - count, target.n);
+        target.n -= reduceBy;
+        sum -= reduceBy;
+        if (target.n <= 0) lines = lines.filter((line) => line !== target);
+    }
+
+    if (counted().length === 1) return render(count) || undefined;
+    return render() || undefined;
 }
 
 function summaryFitsCount(text: string | undefined, count: number): string | undefined {
     const grouped = groupSummaryLines(text);
     if (!grouped) return undefined;
     if (!count) return grouped;
-    const lines = grouped.split("\n").filter((line) => {
-        const match = line.match(/^\((\d+)\)/);
-        return !match || Number(match[1]) <= count;
-    });
-    return lines.join("\n") || undefined;
+    return alignSummaryCount(grouped, count);
 }
 
 function summaryTagNarrative(
@@ -726,7 +821,7 @@ export function buildProductRowsFromCounts(
 ): MatrixRow[] {
     return items
         .filter((item) => (item.feedback_count || 0) > 0)
-        .map((item) => {
+        .map((item): MatrixRow => {
         const product = display(item.product_name) || NO_PRODUCT_LABEL;
         const tagName = drill.feedback_tag || drill.feedback_category;
         const tagRows = tagName
@@ -734,12 +829,7 @@ export function buildProductRowsFromCounts(
             : [];
         const period = tagRows[0] || (tagName
             ? undefined
-            : periodProducts.find(
-                (row) =>
-                    norm(row.grain_label) === norm(product) ||
-                    norm(row.grain_key) === norm(product) ||
-                    (row.grain_key || "").split("::").includes(product),
-            ));
+            : periodProducts.find((row) => rowMatchesProduct(row, product)));
         const tagText = tagName
             ? periodNarrative(periodTags, drill.feedback_category || tagName, tagName, product, true)
             : undefined;
@@ -961,11 +1051,11 @@ export function columnsForSummaryTags(): MatrixColumn[] {
 }
 
 export function columnsForSummaryItems(): MatrixColumn[] {
-    return ["sentiment", "feedback_summary_ai", "feedback_excerpt"];
+    return ["feedback_summary_ai", "feedback_excerpt", "sentiment"];
 }
 
 export function columnsForProductDrill(drill: DrillScope): MatrixColumn[] {
-    const cols: MatrixColumn[] = ["product_name", "feedback_summary_ai"];
+    const cols: MatrixColumn[] = ["feedback_summary_ai", "product_name"];
     if (drill.level === "group" || drill.level === "category" || !drill.feedback_tag) {
         cols.push("feedback_category", "feedback_tag");
     }
@@ -978,22 +1068,21 @@ export function columnsForDetail(
     includeProduct: boolean,
     verbatim = false,
 ): MatrixColumn[] {
-    const cols: MatrixColumn[] = [];
-    if (includeProduct && !drill.product_name) cols.push("product_name");
+    const cols: MatrixColumn[] = ["feedback_summary_ai"];
+    if (!verbatim && includeProduct && !drill.product_name) cols.push("product_name");
     if (!verbatim && !drill.feedback_category) cols.push("feedback_category");
     if (!drill.feedback_tag) cols.push("feedback_tag");
     if (verbatim) {
-        cols.push("sentiment", "feedback_summary_ai", "feedback_excerpt", "call_datetime", "full_conversation");
+        cols.push("feedback_excerpt", "call_datetime", "full_conversation", "sentiment");
         return cols;
     }
     cols.push(
-        "sentiment",
-        "feedback_summary_ai",
         "feedback_excerpt",
         "call_datetime",
         "full_conversation",
         "file_name",
         "audio",
+        "sentiment",
     );
     return cols;
 }

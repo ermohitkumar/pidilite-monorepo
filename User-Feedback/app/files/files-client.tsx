@@ -13,7 +13,7 @@ import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
 import { formatPipelineError } from '@/lib/monitor/format-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { LuArrowUpDown, LuChevronDown, LuChevronUp, LuFilter } from 'react-icons/lu';
+import { LuArrowUpDown, LuArchive, LuChevronDown, LuChevronUp, LuDownload } from 'react-icons/lu';
 import { toast } from 'sonner';
 
 const FILTER_OPTIONS: Array<{ label: string; value: JobStatus | 'ALL' }> = [
@@ -38,7 +38,22 @@ function formatAudioDuration(seconds: number | null | undefined): string {
     return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
+function monthStart(date: string): string {
+    return `${date.slice(0, 7)}-01`;
+}
+
+function monthEnd(date: string): string {
+    const [year, month] = date.slice(0, 7).split('-').map(Number);
+    return `${date.slice(0, 7)}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`;
+}
+
 export default function FilesClient() {
+    const [tab, setTab] = useState<'files' | 'bulk'>('files');
+    const [bulkMode, setBulkMode] = useState<'monthly' | 'custom'>('monthly');
+    const [bulkMonth, setBulkMonth] = useState('');
+    const [bulkStartDate, setBulkStartDate] = useState('');
+    const [bulkEndDate, setBulkEndDate] = useState('');
+    const [bulkDownloading, setBulkDownloading] = useState(false);
     type SortKey = 'job_id' | 'batch_id' | 'file_name' | 'audio_duration_seconds' | 'created_at';
     type SortDir = 'asc' | 'desc' | null;
 
@@ -54,18 +69,15 @@ export default function FilesClient() {
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [sortKey, setSortKey] = useState<SortKey | null>(null);
-    const [sortDir, setSortDir] = useState<SortDir>(null);
+    const [sortKey, setSortKey] = useState<SortKey | null>('created_at');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
 
     const handleSort = (key: SortKey) => {
         if (sortKey !== key) {
             setSortKey(key);
             setSortDir('asc');
-        } else if (sortDir === 'asc') {
-            setSortDir('desc');
         } else {
-            setSortKey(null);
-            setSortDir(null);
+            setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
         }
         setCurrentPage(1);
     };
@@ -79,6 +91,45 @@ export default function FilesClient() {
     const applyFilters = () => {
         setApplied({ search, startDate, endDate, status: activeFilter });
         setCurrentPage(1);
+    };
+
+    const downloadBulkArchive = async () => {
+        let startDate = bulkStartDate;
+        let endDate = bulkEndDate;
+        if (bulkMode === 'monthly') {
+            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulkMonth)) {
+                toast.error('Choose a month to download.');
+                return;
+            }
+            startDate = `${bulkMonth}-01`;
+            endDate = monthEnd(startDate);
+        } else if (!startDate || !endDate) {
+            toast.error('Choose both a start date and an end date.');
+            return;
+        }
+        if (startDate > endDate) {
+            toast.error('Start date must be on or before the end date.');
+            return;
+        }
+        if (startDate.slice(0, 7) !== endDate.slice(0, 7)) {
+            toast.error('Choose a date range within one calendar month.');
+            return;
+        }
+
+        setBulkDownloading(true);
+        try {
+            const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+            const anchor = document.createElement('a');
+            anchor.href = `/bff/files/bulk-download?${params.toString()}`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            toast.info('Your audio ZIP is being prepared. The download will start when it is ready.');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not download audio files.');
+        } finally {
+            window.setTimeout(() => setBulkDownloading(false), 1500);
+        }
     };
 
     const { data: response, isLoading, isError } = useJobs({
@@ -143,7 +194,57 @@ export default function FilesClient() {
                 </p>
             </div>
 
-            {/* Table Panel */}
+            <div className="flex gap-1 rounded-md bg-surface p-1 self-start border border-border">
+                <button type="button" className={`flex items-center gap-2 rounded px-3 py-2 text-body-sm ${tab === 'files' ? 'bg-brand-subtle text-brand font-medium' : 'text-text-subtle'}`} onClick={() => setTab('files')}>
+                    <LuDownload className="h-4 w-4" /> Files
+                </button>
+                <button type="button" className={`flex items-center gap-2 rounded px-3 py-2 text-body-sm ${tab === 'bulk' ? 'bg-brand-subtle text-brand font-medium' : 'text-text-subtle'}`} onClick={() => setTab('bulk')}>
+                    <LuArchive className="h-4 w-4" /> Bulk download
+                </button>
+            </div>
+
+            {tab === 'bulk' ? (
+                <section className="rounded-lg border border-border bg-surface p-6">
+                    <h2 className="text-h3 font-semibold text-text">Bulk audio download</h2>
+                    <p className="mt-1 text-body-sm text-text-subtle">Download recordings for one calendar month per ZIP.</p>
+                    <div className="mt-5 flex flex-wrap items-end gap-4">
+                        <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Download type
+                            <Select
+                                value={bulkMode}
+                                onChange={(value) => setBulkMode(value as 'monthly' | 'custom')}
+                                options={[{ label: 'Monthly', value: 'monthly' }, { label: 'Custom', value: 'custom' }]}
+                            />
+                        </label>
+                        {bulkMode === 'monthly' ? (
+                            <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Month
+                                <input type="month" value={bulkMonth} onChange={(event) => setBulkMonth(event.target.value)} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                            </label>
+                        ) : (
+                            <>
+                                <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Start date
+                                    <input type="date" value={bulkStartDate} min={bulkEndDate ? monthStart(bulkEndDate) : undefined} max={bulkEndDate || (bulkStartDate ? monthEnd(bulkStartDate) : undefined)} onChange={(event) => {
+                                        const value = event.target.value;
+                                        setBulkStartDate(value);
+                                        if (bulkEndDate && value.slice(0, 7) !== bulkEndDate.slice(0, 7)) setBulkEndDate('');
+                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                                </label>
+                                <label className="flex flex-col gap-1 text-label-sm text-text-subtle">End date
+                                    <input type="date" value={bulkEndDate} min={bulkStartDate || (bulkEndDate ? monthStart(bulkEndDate) : undefined)} max={bulkStartDate ? monthEnd(bulkStartDate) : (bulkEndDate ? monthEnd(bulkEndDate) : undefined)} onChange={(event) => {
+                                        const value = event.target.value;
+                                        setBulkEndDate(value);
+                                        if (bulkStartDate && value.slice(0, 7) !== bulkStartDate.slice(0, 7)) setBulkStartDate('');
+                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                                </label>
+                            </>
+                        )}
+                        <Button type="button" onClick={downloadBulkArchive} disabled={bulkDownloading || (bulkMode === 'monthly' ? !bulkMonth : !bulkStartDate || !bulkEndDate)}>
+                            <LuDownload className="mr-2 h-4 w-4" />{bulkDownloading ? 'Preparing ZIP…' : 'Download ZIP'}
+                        </Button>
+                    </div>
+                    <p className="mt-4 text-xs text-text-disabled">Custom dates must stay within one calendar month. Only recordings you are authorized to access are included; missing audio files are skipped.</p>
+                </section>
+            ) : (
+            /* Table Panel */
             <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-surface overflow-hidden">
 
                 {/* Toolbar */}
@@ -188,7 +289,7 @@ export default function FilesClient() {
                                 {([
                                     { label: 'FILE ID', key: 'job_id' as SortKey },
                                     { label: 'BATCH ID', key: 'batch_id' as SortKey },
-                                    { label: 'SITE VISIT ID', key: 'file_name' as SortKey },
+                                    { label: 'FILE NAME', key: 'file_name' as SortKey },
                                     { label: 'DURATION', key: 'audio_duration_seconds' as SortKey },
                                     { label: 'STATUS' },
                                     { label: 'ERROR' },
@@ -289,6 +390,7 @@ export default function FilesClient() {
                     onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
                 />
             </div>
+            )}
         </div>
     );
 }

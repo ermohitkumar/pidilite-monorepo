@@ -678,6 +678,7 @@ def _filters(
     user_type: Optional[str] = None,
     search_sql: str = report_repo.DIM_SEARCH,
     exact_tag: bool = False,
+    division_zones: Optional[set[str]] = None,
 ) -> tuple[str, dict]:
     return report_repo.build_filters(
         feedback_group=feedback_group,
@@ -697,6 +698,7 @@ def _filters(
         search=search,
         search_sql=search_sql,
         exact_tag=exact_tag,
+        division_zones=division_zones,
     )
 
 
@@ -1034,6 +1036,7 @@ def get_report_summary(
             feedback_group, product_name, feedback_category, feedback_tag, feedback_sub_tag,
             division, zone, cluster, state, data_source, start_date, end_date, search,
             fme_code=fme_code, user_type=user_type,
+            division_zones=report_repo._division_zones(db),
         )
         where_sql = report_repo.where_summarized(db, fact, where_sql)
         counts = report_repo.summary_counts(db, fact, where_sql, params)
@@ -1104,6 +1107,7 @@ def get_report_products(
             feedback_group, product_name, feedback_category, feedback_tag, feedback_sub_tag,
             division, zone, cluster, state, data_source, start_date, end_date, search,
             fme_code=fme_code, user_type=user_type,
+            division_zones=report_repo._division_zones(db),
         )
         where_sql = report_repo.where_summarized(db, fact, where_sql)
         items, total = report_repo.product_counts(db, fact, where_sql, params)
@@ -1153,6 +1157,7 @@ def get_report_details(
             division, zone, cluster, state, data_source, start_date, end_date, search,
             fme_code=fme_code, user_type=user_type,
             search_sql=report_repo.DETAIL_SEARCH,
+            division_zones=report_repo._division_zones(db),
         )
         where_sql = report_repo.where_summarized(db, fact, where_sql)
         items, total = report_repo.detail_page(
@@ -1236,6 +1241,39 @@ def get_compliance(
     )
 
 
+@router.get("/compliance/pipeline")
+def get_compliance_pipeline(
+    db: DbSession,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    site_number: Optional[str] = Query(None),
+    grain: str = Query("day", pattern="^(day|week|month)$"),
+    user_timezone: str = Query("UTC", max_length=100),
+):
+    """Pipeline health: processed / successful / failed with duration and site breakdowns."""
+    try:
+        data = report_repo.pipeline_health(
+            db,
+            start_date=start_date,
+            end_date=end_date,
+            site_number=site_number,
+            grain=grain,
+            user_timezone=user_timezone,
+        )
+    except Exception:
+        logger.exception("Failed to retrieve compliance pipeline health")
+        raise APIException(
+            status_code=500,
+            message="Failed to retrieve compliance pipeline health",
+            error="Internal Error",
+        )
+    return make_response(
+        success=True,
+        message="Compliance pipeline health retrieved successfully",
+        data=data,
+    )
+
+
 @router.get("/feedback-fact")
 def get_feedback_fact(
     db: DbSession,
@@ -1280,6 +1318,7 @@ def get_feedback_fact(
         fme_code=fme_code, user_type=user_type,
         search_sql=report_repo.FACT_SEARCH,
         exact_tag=True,
+        division_zones=report_repo._division_zones(db),
     )
 
     paginate = page_size is not None

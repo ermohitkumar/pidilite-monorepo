@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { LuArrowDown, LuArrowUp, LuSettings2 } from "react-icons/lu";
 
 import { AudioPlayer } from "@/components/reports/AudioPlayer";
-import { summaryDisplayText } from "@/components/reports/FormattedSummary";
+import { HighlightedSummaryLine, summaryDisplayText } from "@/components/reports/FormattedSummary";
 import { canPlayAudio } from "@/lib/auth/permissions";
 import { useAppStore } from "@/lib/store/useAppStore";
 import { FileSourceLink } from "@/components/reports/FileSourceLink";
@@ -248,7 +248,12 @@ function ClampedSummary({
     return (
         <div>
             <p ref={textRef} className="line-clamp-3 whitespace-pre-wrap break-words text-[17px] leading-7 text-slate-800">
-                {value}
+                {value.split(/\n+/).map((line, index) => (
+                    <span key={`${index}-${line}`}>
+                        {index > 0 ? <br /> : null}
+                        <HighlightedSummaryLine text={line} />
+                    </span>
+                ))}
             </p>
             {onViewMore && truncated ? (
                 <button

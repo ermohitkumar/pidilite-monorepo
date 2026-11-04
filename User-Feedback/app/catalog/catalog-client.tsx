@@ -16,6 +16,8 @@ import {
     useUpdateProduct,
     useUpdateTag,
 } from "@/lib/hooks/catalog";
+import taxonomyJson from "@/lib/reports/feedback_taxonomy.json";
+import type { TaxonomyTag } from "@/lib/reports/types";
 import { useMemo, useState } from "react";
 import { LuPackage, LuPencil, LuPlus, LuTags, LuTrash2, LuX } from "react-icons/lu";
 import { toast } from "sonner";
@@ -30,6 +32,33 @@ const LEVEL_1_OPTIONS = [
     "User engagement",
     "User benefits/schemes",
 ];
+
+/** Legacy feedback_group values historically stored in group_type — not feedback categories. */
+const FEEDBACK_GROUP_VALUES = new Set(["PDT GROUP", "USER GROUP", "DEALER GROUP"]);
+
+const LEVEL_1_BY_TAG_ID = new Map<number, string>(
+    ((taxonomyJson as { taxonomy: TaxonomyTag[] }).taxonomy || [])
+        .filter((item) => item.tag_id != null && item.level_1)
+        .map((item) => [item.tag_id, String(item.level_1)]),
+);
+
+function isFeedbackGroup(value?: string | null): boolean {
+    return Boolean(value && FEEDBACK_GROUP_VALUES.has(value.trim().toUpperCase()));
+}
+
+/**
+ * Feedback Category = taxonomy level_1 (Product, System, …).
+ * Prefer DB group_type when it already holds level_1; else resolve from taxonomy by tag_id.
+ */
+function feedbackCategoryLabel(tag: CatalogTag): string {
+    if (tag.group_type && !isFeedbackGroup(tag.group_type)) return tag.group_type;
+    const tagId = tag.tag_id ?? (typeof tag.id === "number" ? tag.id : Number(tag.id));
+    if (Number.isFinite(tagId)) {
+        const fromTaxonomy = LEVEL_1_BY_TAG_ID.get(Number(tagId));
+        if (fromTaxonomy) return fromTaxonomy;
+    }
+    return "—";
+}
 
 function tagKey(tag: CatalogTag): string | number {
     return tag.tag_id ?? tag.id ?? tag.tag_name;
@@ -131,7 +160,10 @@ function TagModal({
     const updateMutation = useUpdateTag();
     const [tagId, setTagId] = useState(tag?.tag_id?.toString() || "");
     const [tagName, setTagName] = useState(tag?.tag_name || "");
-    const [groupType, setGroupType] = useState(tag?.group_type || "Product");
+    const initialCategory = tag ? feedbackCategoryLabel(tag) : "Product";
+    const [groupType, setGroupType] = useState(
+        initialCategory === "—" ? "Product" : initialCategory,
+    );
     const [category, setCategory] = useState(tag?.category || "");
     const [description, setDescription] = useState(tag?.description || "");
     const [isActive, setIsActive] = useState(tag?.is_active !== false);
@@ -142,9 +174,10 @@ function TagModal({
         e.preventDefault();
         setError("");
         try {
+            const categoryValue = isFeedbackGroup(groupType) ? null : groupType || null;
             const payload = {
                 tag_name: tagName,
-                group_type: groupType || null,
+                group_type: categoryValue,
                 category: category || null,
                 description: description || null,
                 is_active: isActive,
@@ -186,11 +219,15 @@ function TagModal({
                     <label className="block min-w-0 text-body-sm font-medium text-text-subtle">
                         Feedback Category
                         <select
-                            value={groupType}
+                            value={
+                                !groupType || isFeedbackGroup(groupType) ? "Product" : groupType
+                            }
                             onChange={(e) => setGroupType(e.target.value)}
                             className="mt-1 flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-body-sm"
                         >
-                            {groupType && !LEVEL_1_OPTIONS.includes(groupType) && (
+                            {groupType &&
+                                !LEVEL_1_OPTIONS.includes(groupType) &&
+                                !isFeedbackGroup(groupType) && (
                                 <option value={groupType}>{groupType}</option>
                             )}
                             {LEVEL_1_OPTIONS.map((option) => (
@@ -251,7 +288,12 @@ export default function CatalogClient() {
         const q = search.trim().toLowerCase();
         if (!q) return rows;
         return rows.filter((row) =>
-            [row.tag_name, row.group_type, row.category, row.description]
+            [
+                row.tag_name,
+                feedbackCategoryLabel(row),
+                row.category,
+                row.description,
+            ]
                 .join(" ")
                 .toLowerCase()
                 .includes(q),
@@ -351,7 +393,7 @@ export default function CatalogClient() {
                                 ) : tags.map((row, idx) => (
                                     <tr key={String(tagKey(row))} className={`border-b border-border ${idx % 2 !== 0 ? "bg-bg/40" : ""}`}>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.tag_id ?? row.id ?? "—"}</td>
-                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.group_type || "—"}</td>
+                                        <td className="px-5 py-3.5 text-body-sm text-text-subtle">{feedbackCategoryLabel(row)}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.category || "—"}</td>
                                         <td className="px-5 py-3.5 text-body-sm font-medium text-text">{row.tag_name}</td>
                                         <td className="px-5 py-3.5 text-body-sm text-text-subtle">{row.description || "—"}</td>

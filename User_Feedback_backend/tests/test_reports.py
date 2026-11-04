@@ -772,6 +772,59 @@ def test_compliance_counts_visited_and_recorded_sites(
     assert row["time_period"] == "2026-07"
 
 
+def test_compliance_keeps_only_division_code_zones(
+    client: TestClient, create_test_job, db_session
+):
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+    from sqlalchemy import text
+
+    west = create_test_job(status=JobStatus.COMPLETED, file_name="west.wav")
+    east = create_test_job(status=JobStatus.COMPLETED, file_name="east.wav")
+    west.file_details.zone = "West"
+    west.file_details.fme_code = "WEST01"
+    west.file_details.call_date = datetime(2026, 7, 10, tzinfo=timezone.utc)
+    east.file_details.zone = "East"
+    east.file_details.fme_code = "EAST01"
+    east.file_details.call_date = datetime(2026, 7, 10, tzinfo=timezone.utc)
+    db_session.execute(text("""
+        CREATE TABLE dimhierarchy (
+            divisioncode TEXT,
+            sh7name TEXT,
+            sh7code TEXT,
+            sh5name TEXT,
+            sh5code TEXT
+        )
+    """))
+    db_session.execute(text("""
+        INSERT INTO dimhierarchy (divisioncode, sh7name, sh7code, sh5name, sh5code) VALUES
+        ('10', 'FV-RETAIL-NSM', '10', 'West', 'W'),
+        ('20', 'Other Div', '20', 'East', 'E')
+    """))
+    db_session.commit()
+    try:
+        resp = client.get(
+            "/api/v1/reports/compliance",
+            params={"start_date": "2026-07-01", "end_date": "2026-07-31"},
+        )
+        assert resp.status_code == 200
+        codes = {row["fme_code"] for row in resp.json()["data"]["items"]}
+        assert codes == {"WEST01"}
+
+        filters = client.get("/api/v1/reports/filter-options")
+        assert filters.status_code == 200
+        data = filters.json()["data"]
+        # Without vw_filter_hierarchy, divisions may come from file_details;
+        # when dimhierarchy is present they must stay inside code 10.
+        assert "Other Div" not in data.get("divisions", [])
+        assert "East" not in data.get("zones", [])
+        assert "West" in data.get("zones", []) or not data.get("zones")
+    finally:
+        db_session.execute(text("DROP TABLE IF EXISTS dimhierarchy"))
+        db_session.commit()
+
+
 def test_compliance_date_range_uses_user_local_day(
     client: TestClient, create_test_job, db_session
 ):
@@ -798,3 +851,112 @@ def test_compliance_date_range_uses_user_local_day(
     assert len(items) == 1
     assert items[0]["fme_code"] == "NYC01"
     assert items[0]["time_period"] == "2026-07-09 – 2026-07-09"
+
+
+def test_compliance_pipeline_success_fail_and_buckets(
+    client: TestClient,
+    create_test_job,
+    create_test_feedback,
+    db_session,
+):
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+
+    ok = create_test_job(status=JobStatus.COMPLETED, file_name="ok.wav")
+    empty = create_test_job(status=JobStatus.COMPLETED, file_name="empty.wav")
+    few = create_test_job(status=JobStatus.FAILED, file_name="few.wav")
+    hard = create_test_job(status=JobStatus.FAILED, file_name="hard.wav")
+    short = create_test_job(status=JobStatus.FAILED, file_name="short.wav")
+    for job, site, seconds in (
+        (ok, "S1", 180),
+        (empty, "S1", 420),
+        (few, "S2", 720),
+        (hard, "S2", 1500),
+        (short, "S2", 40),
+    ):
+        job.file_details.site_number = site
+        job.file_details.audio_duration_seconds = seconds
+        job.file_details.call_date = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc)
+    few.error_message = "Transcript has too few words (need at least 100)."
+    hard.error_message = "STT credentials error"
+    short.error_message = "Audio too short: 40s (need at least 120s). File marked failed before transcription."
+    db_session.commit()
+    create_test_feedback(job_id=ok.id)
+
+    resp = client.get(
+        "/api/v1/reports/compliance/pipeline",
+        params={
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31",
+            "grain": "day",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["totals"]["processed"] == 5
+    assert data["totals"]["successful"] == 1
+    assert data["totals"]["failed"] == 4
+    reasons = {row["reason"]: row["count"] for row in data["failed_reasons"]}
+    assert reasons["no_insights"] == 1
+    assert reasons["few_words"] == 1
+    assert reasons["short_audio"] == 1
+    assert reasons["errors"] == 1
+    buckets = {row["bucket"]: row["count"] for row in data["duration_buckets"]}
+    assert buckets["0-5"] == 2
+    assert buckets["5-10"] == 1
+    assert buckets["10-15"] == 1
+    assert buckets["20+"] == 1
+    assert "S1" in data["sites"] and "S2" in data["sites"]
+    assert len(data["by_site"]) == 2
+
+
+def test_compliance_pipeline_site_filter_statuses_and_month_grain(
+    client: TestClient,
+    create_test_job,
+    db_session,
+):
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+
+    retrying = create_test_job(status=JobStatus.ERROR, file_name="retry.wav")
+    in_flight = create_test_job(status=JobStatus.PENDING, file_name="pending.wav")
+    long_a = create_test_job(status=JobStatus.FAILED, file_name="long_a.wav")
+    long_b = create_test_job(status=JobStatus.FAILED, file_name="long_b.wav")
+    for job, site, seconds, month in (
+        (retrying, "S1", 60, 1),
+        (in_flight, "S1", 60, 1),
+        (long_a, "S2", 960, 2),
+        (long_b, "S2", 1140, 3),
+    ):
+        job.file_details.site_number = site
+        job.file_details.audio_duration_seconds = seconds
+        job.file_details.call_date = datetime(2026, month, 10, 10, 0, tzinfo=timezone.utc)
+    db_session.commit()
+
+    resp = client.get(
+        "/api/v1/reports/compliance/pipeline",
+        params={"start_date": "2026-01-01", "end_date": "2026-12-31", "grain": "month"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    # PENDING is still in flight; ERROR counts as a failed error.
+    assert data["totals"] == {"processed": 3, "successful": 0, "failed": 3}
+    reasons = {row["reason"]: row["count"] for row in data["failed_reasons"]}
+    assert reasons == {"no_insights": 0, "few_words": 0, "short_audio": 0, "errors": 3}
+    buckets = {row["bucket"]: row for row in data["duration_buckets"]}
+    assert buckets["15-20"]["count"] == 2
+    assert buckets["15-20"]["avg_minutes"] == 17.5
+    assert [point["key"] for point in data["series"]][:3] == ["2026-01", "2026-02", "2026-03"]
+    assert len(data["series"]) == 12
+    assert data["series"][1]["failed"] == 1
+
+    resp = client.get(
+        "/api/v1/reports/compliance/pipeline",
+        params={"start_date": "2026-01-01", "end_date": "2026-12-31", "site_number": "S2"},
+    )
+    data = resp.json()["data"]
+    assert data["totals"]["processed"] == 2
+    assert [row["site_number"] for row in data["by_site"]] == ["S2"]
+    assert data["sites"] == ["S1", "S2"]

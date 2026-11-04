@@ -1,7 +1,15 @@
 import type { FeedbackGroup, ReportFilters } from "@/lib/reports/types";
 
 export type PeriodKind = "all" | "month" | "quarter" | "year";
+export type PipelinePeriodKind = "week" | "month" | "year";
 export type GroupFilter = FeedbackGroup | "ALL";
+
+export type PipelinePeriodState = {
+    kind: PipelinePeriodKind;
+    week?: string;
+    month?: string;
+    year?: string;
+};
 
 const GROUP_FROM_TOKEN: Record<string, FeedbackGroup> = {
     PDT: "PDT GROUP",
@@ -77,6 +85,72 @@ export function defaultPeriod(kind: PeriodKind, now = new Date()): PeriodState {
     }
     if (kind === "year") return { kind, year: currentYearValue(now) };
     return { kind: "month", month: currentMonthValue(now) };
+}
+
+/** Monday of the ISO week that contains `date` (local calendar). */
+function mondayOfIsoWeek(date: Date): Date {
+    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const weekday = (day.getDay() + 6) % 7; // Mon=0 … Sun=6
+    day.setDate(day.getDate() - weekday);
+    return day;
+}
+
+export function currentWeekValue(now = new Date()): string {
+    const monday = mondayOfIsoWeek(now);
+    // ISO week-year can differ from calendar year near Jan 1.
+    const thursday = new Date(monday);
+    thursday.setDate(monday.getDate() + 3);
+    const yearStart = new Date(thursday.getFullYear(), 0, 1);
+    const week =
+        Math.floor(
+            (Date.UTC(thursday.getFullYear(), thursday.getMonth(), thursday.getDate()) -
+                Date.UTC(yearStart.getFullYear(), 0, 1)) /
+                86_400_000 /
+                7,
+        ) + 1;
+    return `${thursday.getFullYear()}-W${pad(week)}`;
+}
+
+export function datesForIsoWeek(weekValue: string): { start_date?: string; end_date?: string } {
+    const match = /^(\d{4})-W(\d{2})$/.exec(weekValue.trim());
+    if (!match) return {};
+    const year = Number(match[1]);
+    const week = Number(match[2]);
+    if (!Number.isFinite(year) || week < 1 || week > 53) return {};
+    // ISO week 1 is the week with the year's first Thursday.
+    const jan4 = new Date(year, 0, 4);
+    const monday = mondayOfIsoWeek(jan4);
+    monday.setDate(monday.getDate() + (week - 1) * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { start_date: isoDate(monday), end_date: isoDate(sunday) };
+}
+
+export function defaultPipelinePeriod(kind: PipelinePeriodKind = "month", now = new Date()): PipelinePeriodState {
+    if (kind === "week") return { kind: "week", week: currentWeekValue(now) };
+    if (kind === "year") return { kind: "year", year: currentYearValue(now) };
+    return { kind: "month", month: currentMonthValue(now) };
+}
+
+export function datesForPipelinePeriod(
+    period: PipelinePeriodState,
+    now = new Date(),
+): { start_date?: string; end_date?: string } {
+    if (period.kind === "week") {
+        return datesForIsoWeek(period.week || currentWeekValue(now));
+    }
+    return datesForPeriod(
+        period.kind === "year"
+            ? { kind: "year", year: period.year || currentYearValue(now) }
+            : { kind: "month", month: period.month || currentMonthValue(now) },
+        now,
+    );
+}
+
+/** Chart grain: daily within a week/month, monthly within a year. */
+export function grainForPipelinePeriod(kind: PipelinePeriodKind): "day" | "week" | "month" {
+    if (kind === "year") return "month";
+    return "day";
 }
 
 export function restrictToAvailable(live: string[], allowed?: string[]): string[] {

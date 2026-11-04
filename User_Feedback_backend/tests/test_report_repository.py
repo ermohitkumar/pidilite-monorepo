@@ -22,6 +22,8 @@ def _reset_fact_view(db_session):
     db_session.execute(text("DROP VIEW IF EXISTS vw_pbi_feedback_fact"))
     db_session.execute(text("DROP VIEW IF EXISTS vw_pbi_feedback_fact_slim"))
     db_session.execute(text("DROP VIEW IF EXISTS vw_filter_options"))
+    db_session.execute(text("DROP VIEW IF EXISTS vw_filter_hierarchy"))
+    db_session.execute(text("DROP TABLE IF EXISTS dimhierarchy"))
     db_session.execute(text("DROP TABLE IF EXISTS _report_fact"))
     db_session.commit()
 
@@ -93,6 +95,50 @@ def fact_view(db_session):
     _seed_fact_view(db_session)
     yield db_session
     _reset_fact_view(db_session)
+
+
+def test_summary_counts_keep_only_division_code_zones(fact_view):
+    fact_view.execute(text("""
+        INSERT INTO _report_fact (
+            feedback_id, job_id, feedback_created_at, feedback_group, feedback_category,
+            feedback_tag, product_name, feedback_summary_ai, file_name, call_date,
+            division, zone
+        ) VALUES (
+            'fb-east-4444', 'job-4', '2026-08-04T10:00:00',
+            'PDT GROUP', 'Product', 'East only tag',
+            'Marine', 'East only.', 'east.mp3', '2026-08-04',
+            'Other', 'East'
+        )
+    """))
+    fact_view.execute(text("""
+        CREATE TABLE dimhierarchy (
+            divisioncode TEXT,
+            sh7name TEXT,
+            sh7code TEXT,
+            sh5name TEXT,
+            sh5code TEXT
+        )
+    """))
+    fact_view.execute(text("""
+        INSERT INTO dimhierarchy (divisioncode, sh7name, sh7code, sh5name, sh5code) VALUES
+        ('10', 'FV-RETAIL-NSM', '10', 'West', 'W'),
+        ('20', 'Other Div', '20', 'East', 'E')
+    """))
+    fact_view.commit()
+    try:
+        from repositories.report_repository import _division_zones
+
+        zones = _division_zones(fact_view)
+        assert zones == {"West"}
+        fact = fact_table(fact_view)
+        where_sql, params = build_filters(feedback_group="PDT GROUP", division_zones=zones)
+        counts = summary_counts(fact_view, fact, where_sql, params)
+        tags = {row["feedback_tag"] for row in counts["tags"]}
+        assert "East only tag" not in tags
+        assert counts["total"] == 2
+    finally:
+        fact_view.execute(text("DROP TABLE IF EXISTS dimhierarchy"))
+        fact_view.commit()
 
 
 def test_build_filters_tag_matches_sub_tag():
@@ -261,6 +307,7 @@ def test_filter_options_prefers_master_view(fact_view):
 
 
 def test_filter_options_cascades_from_hierarchy(fact_view):
+    fact_view.execute(text("DROP VIEW IF EXISTS vw_filter_hierarchy"))
     fact_view.execute(text("""
         CREATE VIEW vw_filter_hierarchy AS
         SELECT 'FV-RETAIL-NSM' AS division, 'West' AS zone,
@@ -316,6 +363,47 @@ def test_filter_options_cascades_from_hierarchy(fact_view):
     assert both["rfmm_clusters"] == ["AMFC-Kolkata", "Other RFMM", "PUNE 1"]
     one_div = filter_options(fact_view, fact, division=["FV-RETAIL-NSM"], zone=["West", "East"])
     assert one_div["rfmm_clusters"] == ["AMFC-Kolkata", "PUNE 1"]
+
+
+def test_filter_options_keep_only_division_code_geo(fact_view):
+    fact_view.execute(text("DROP VIEW IF EXISTS vw_filter_hierarchy"))
+    fact_view.execute(text("DROP TABLE IF EXISTS dimhierarchy"))
+    fact_view.execute(text("""
+        CREATE VIEW vw_filter_hierarchy AS
+        SELECT 'FV-RETAIL-NSM' AS division, 'West' AS zone,
+               'PUNE 1' AS rfmm_cluster, 'TY07220' AS fme_code
+        UNION ALL
+        SELECT 'FV-RETAIL-NSM', 'East', 'AMFC-Kolkata', 'FCSCAL1'
+        UNION ALL
+        SELECT 'Other Div', 'East', 'Other RFMM', 'OTHER1'
+    """))
+    fact_view.execute(text("""
+        CREATE TABLE dimhierarchy (
+            divisioncode TEXT,
+            sh7name TEXT,
+            sh7code TEXT,
+            sh5name TEXT,
+            sh5code TEXT
+        )
+    """))
+    fact_view.execute(text("""
+        INSERT INTO dimhierarchy (divisioncode, sh7name, sh7code, sh5name, sh5code) VALUES
+        ('10', 'FV-RETAIL-NSM', 'N000105', 'West', 'W'),
+        ('10', 'NSM_PAPL', 'HNSM002', 'East', 'E'),
+        ('20', 'Other Div', '20', 'East', 'E')
+    """))
+    fact_view.commit()
+    fact = fact_table(fact_view)
+    options = filter_options(fact_view, fact)
+    assert options["divisions"] == ["FV-RETAIL-NSM"]
+    assert options["zones"] == ["West"]
+    assert options["clusters"] == ["PUNE 1"]
+    assert options["rfmm_clusters"] == ["PUNE 1"]
+    assert options["fme_codes"] == ["TY07220"]
+    assert "NSM_PAPL" not in options["divisions"]
+    assert "Other Div" not in options["divisions"]
+    assert "East" not in options["zones"]
+    assert "OTHER1" not in options["fme_codes"]
 
 
 def test_build_filters_cluster_matches_rfmm():

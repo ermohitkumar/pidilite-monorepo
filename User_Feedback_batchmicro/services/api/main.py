@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 def _sync_taxonomy(db) -> None:
     """Upsert scripts/data/feedback_taxonomy.json and retire tags it no longer lists.
 
-    group_type stays the level-1 bucket (PDT GROUP, USER GROUP, DEALER GROUP).
+    group_type stores taxonomy level_1 (Feedback Category: Product, System, …).
+    feedback_group (PDT/USER/DEALER GROUP) is derived at insight-save time, not stored on tags.
     Repeated names such as Others are kept as separate tag_id rows.
     """
     import json
@@ -49,7 +50,8 @@ def _sync_taxonomy(db) -> None:
             "tag_name": entry["feedback_tag"],
             "sub_tag_name": entry.get("feedback_sub_tag"),
             "description": entry.get("description"),
-            "group_type": entry.get("feedback_group") or entry.get("level_1"),
+            # Library "Feedback Category" / prompt bracket — level_1, not PDT/USER/DEALER GROUP.
+            "group_type": entry.get("level_1") or entry.get("feedback_group"),
             "category": entry.get("feedback_category"),
             "is_active": True,
         }

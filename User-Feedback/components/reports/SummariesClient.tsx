@@ -436,7 +436,6 @@ function SummaryItems({
                     columnLabels={ITEM_LABELS}
                     itemLabel="feedback items"
                     pageSizeOptions={DETAIL_PAGE_SIZES}
-                    insightLevel
                     onTextClick={onTextClick}
                     serverMode={{
                         page: meta?.current_page || page,

@@ -8,6 +8,7 @@ import {
     fetchPeriodSummaries,
     fetchPeriodSummary,
     fetchCompliance,
+    fetchCompliancePipeline,
 } from "@/lib/api/reports";
 import type { ReportFilters } from "@/lib/reports/types";
 
@@ -114,3 +115,15 @@ export function useCompliance(filters: ReportFilters, enabled = true) {
         placeholderData: (previous) => previous,
     });
 }
+
+export function useCompliancePipeline(filters: ReportFilters, enabled = true) {
+    return useQuery({
+        queryKey: ["compliancePipeline", filters],
+        queryFn: () => fetchCompliancePipeline(filters),
+        enabled,
+        staleTime: 5 * 60_000,
+        retry: 1,
+        placeholderData: (previous) => previous,
+    });
+}
+

@@ -152,6 +152,8 @@ class FileDetails(Base):
                          default="Voice Conversations", index=True)
     call_date = Column(DateTime(timezone=True), nullable=True, index=True)
     audio_duration_seconds = Column(Integer, nullable=True)
+    # Parsed from GCS filename (also present in live Cloud SQL).
+    site_number = Column(String(50), nullable=True, index=True)
 
     job = relationship("Job", back_populates="file_details")
 

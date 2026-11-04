@@ -9,6 +9,7 @@ import type {
     PeriodSummariesResponse,
     PeriodSummaryResponse,
     ComplianceResponse,
+    PipelineHealthResponse,
 } from "@/lib/reports/types";
 
 function buildQuery(params: Record<string, unknown>): string {
@@ -110,3 +111,13 @@ export async function fetchCompliance(
     if (!res.ok) throw new Error("Failed to fetch compliance report");
     return res.json();
 }
+
+export async function fetchCompliancePipeline(
+    params: Pick<ReportFilters, "site_number" | "start_date" | "end_date" | "grain" | "user_timezone"> = {},
+): Promise<PipelineHealthResponse> {
+    const qs = buildQuery(params);
+    const res = await apiFetch(`/api/v1/reports/compliance/pipeline${qs ? `?${qs}` : ""}`);
+    if (!res.ok) throw new Error("Failed to fetch compliance dashboard");
+    return res.json();
+}
+

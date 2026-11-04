@@ -18,8 +18,10 @@ FAT_VIEW = "vw_pbi_feedback_fact"
 FILTER_VIEW = "vw_filter_options"
 HIERARCHY_VIEW = "vw_filter_hierarchy"
 HIERARCHY_TABLE = "dimhierarchy"
-# dimhierarchy.divisioncode for Fevicol; Zone dropdowns only list these zones.
+# Fevicol retail: dimhierarchy.divisioncode plus the SH7 display name used on files.
+# Zone dropdowns and report rows keep only zones (sh5name, else sh5code) in that slice.
 ZONE_DIVISION_CODE = "10"
+ZONE_DIVISION_NAME = "FV-RETAIL-NSM"
 NO_PRODUCT_LABEL = "(No product)"
 # Division / Zone / RFMM filters accept one value or a list (multi-select).
 FilterValue = Optional[str | list[str]]
@@ -136,6 +138,7 @@ def build_filters(
     search: Optional[str] = None,
     search_sql: str = DIM_SEARCH,
     exact_tag: bool = False,
+    division_zones: Optional[set[str]] = None,
 ) -> tuple[str, dict[str, Any]]:
     clauses: list[str] = ["NULLIF(TRIM(COALESCE(product_name, '')), '') IS NOT NULL"]
     params: dict[str, Any] = {}
@@ -265,6 +268,7 @@ def build_filters(
     if search:
         clauses.append(search_sql)
         params["search"] = f"%{search}%"
+    restrict_clauses_to_division_zones(clauses, params, division_zones, column="zone")
 
     where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     return where_sql, params
@@ -423,6 +427,16 @@ def _options_from_hierarchy(
         }
         for row in rows
     ]
+    # Keep only Fevicol (divisioncode 10) paths when dimhierarchy is present.
+    scope = _division_scope(db)
+    if scope is not None:
+        allowed_divisions, allowed_zones = scope
+        paths = [
+            path
+            for path in paths
+            if (not path["zone"] or path["zone"] in allowed_zones)
+            and (not path["division"] or path["division"] in allowed_divisions)
+        ]
     divisions = _sorted_unique([path["division"] for path in paths])
 
     scoped = paths
@@ -450,17 +464,75 @@ def _options_from_hierarchy(
     }
 
 
-def _division_zones(db: Session) -> Optional[set[str]]:
-    """Zones under ZONE_DIVISION_CODE (Fevicol). None if dimhierarchy is missing."""
+def _division_scope(db: Session) -> Optional[tuple[set[str], set[str]]]:
+    """Division names and zones for code 10 × FV-RETAIL-NSM. None if dimhierarchy is missing."""
     sql = (
-        "SELECT DISTINCT COALESCE(NULLIF(TRIM(sh5name), ''), NULLIF(TRIM(sh5code), '')) "
-        f"FROM {HIERARCHY_TABLE} WHERE TRIM(divisioncode) = :division_code"
+        "SELECT DISTINCT "
+        "COALESCE(NULLIF(TRIM(sh7name), ''), NULLIF(TRIM(sh7code), '')), "
+        "COALESCE(NULLIF(TRIM(sh5name), ''), NULLIF(TRIM(sh5code), '')) "
+        f"FROM {HIERARCHY_TABLE} "
+        "WHERE TRIM(divisioncode) = :division_code "
+        "AND LOWER(TRIM(COALESCE(sh7name, ''))) = LOWER(TRIM(:division_name))"
     )
     try:
-        rows = execute(db, sql, {"division_code": ZONE_DIVISION_CODE}).fetchall()
+        rows = execute(
+            db,
+            sql,
+            {
+                "division_code": ZONE_DIVISION_CODE,
+                "division_name": ZONE_DIVISION_NAME,
+            },
+        ).fetchall()
     except (MissingFactView, ProgrammingError, OperationalError):
         return None
-    return set(_sorted_unique([row[0] for row in rows]))
+    divisions = set(_sorted_unique([row[0] for row in rows]))
+    zones = set(_sorted_unique([row[1] for row in rows]))
+    return divisions, zones
+
+
+def _division_zones(db: Session) -> Optional[set[str]]:
+    """Zones under code 10 × FV-RETAIL-NSM. None if dimhierarchy is missing."""
+    scope = _division_scope(db)
+    if scope is None:
+        return None
+    return scope[1]
+
+
+def _division_names(db: Session) -> Optional[set[str]]:
+    """Division display names under code 10 × FV-RETAIL-NSM. None if dimhierarchy is missing."""
+    scope = _division_scope(db)
+    if scope is None:
+        return None
+    return scope[0]
+
+
+def _division_zone_clause(zones: set[str], column: str) -> tuple[str, dict[str, Any]]:
+    """Match fact/file zone names for division code 10. Empty set matches nothing."""
+    names = sorted({str(zone).strip() for zone in zones if zone and str(zone).strip()})
+    if not names:
+        return "1 = 0", {}
+    params: dict[str, Any] = {}
+    holders: list[str] = []
+    for index, name in enumerate(names):
+        key = f"div10_zone_{index}"
+        params[key] = name
+        holders.append(f":{key}")
+    return f"TRIM({column}) IN ({', '.join(holders)})", params
+
+
+def restrict_clauses_to_division_zones(
+    clauses: list[str],
+    params: dict[str, Any],
+    zones: Optional[set[str]],
+    *,
+    column: str,
+) -> None:
+    """Apply the code-10 zone list. A missing hierarchy (zones is None) leaves rows alone."""
+    if zones is None:
+        return
+    clause, extra = _division_zone_clause(zones, column)
+    clauses.append(clause)
+    params.update(extra)
 
 
 def filter_options(
@@ -521,11 +593,22 @@ def filter_options(
     )
     if not out["rfmm_clusters"]:
         out["rfmm_clusters"] = list(out.get("clusters", []))
-    division_zones = _division_zones(db)
-    out["zones"] = [
-        value for value in out.get("zones", [])
-        if str(value).strip() and (division_zones is None or value in division_zones)
-    ]
+    scope = _division_scope(db)
+    if scope is not None:
+        allowed_divisions, allowed_zones = scope
+        out["divisions"] = [
+            value for value in out.get("divisions", [])
+            if str(value).strip() and value in allowed_divisions
+        ]
+        out["zones"] = [
+            value for value in out.get("zones", [])
+            if str(value).strip() and value in allowed_zones
+        ]
+    else:
+        out["zones"] = [
+            value for value in out.get("zones", [])
+            if str(value).strip()
+        ]
     return out
 
 
@@ -676,6 +759,10 @@ def theme_counts(
     if end_date:
         clauses.append(f"{call_date} <= :end_date")
         params["end_date"] = end_date.isoformat()
+    if "zone" in detail_cols:
+        restrict_clauses_to_division_zones(
+            clauses, params, _division_zones(db), column="fd.zone",
+        )
     if feedback_category or feedback_tag:
         tag_clauses = ["l.feedback_id = fb.id"]
         if feedback_category:
@@ -1011,6 +1098,47 @@ def _period_label(start: Optional[date], end: Optional[date]) -> str:
     return ""
 
 
+def _user_tz(user_timezone: str):
+    try:
+        return ZoneInfo(user_timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return timezone.utc
+
+
+def _file_date_window(
+    db: Session,
+    *,
+    start_date: Optional[date],
+    end_date: Optional[date],
+    user_timezone: str,
+) -> tuple[str, list[str], dict[str, Any]]:
+    """File timestamp expr (call_date, else job created_at) plus local-day window clauses."""
+    dialect = getattr(getattr(db.get_bind(), "dialect", None), "name", "") or "postgresql"
+    job_created_at_expr = (
+        "NULLIF(j.created_at, '')::timestamptz"
+        if dialect != "sqlite"
+        else "j.created_at"
+    )
+    timestamp_expr = f"COALESCE(fd.call_date, {job_created_at_expr})"
+    if dialect == "sqlite":
+        timestamp_expr = f"datetime({timestamp_expr})"
+    user_tz = _user_tz(user_timezone)
+
+    def bound(day: date) -> Any:
+        at = datetime.combine(day, time.min, tzinfo=user_tz).astimezone(timezone.utc)
+        return at.replace(tzinfo=None).isoformat(sep=" ") if dialect == "sqlite" else at
+
+    clauses: list[str] = []
+    params: dict[str, Any] = {}
+    if start_date:
+        clauses.append(f"{timestamp_expr} >= :start_at")
+        params["start_at"] = bound(start_date)
+    if end_date:
+        clauses.append(f"{timestamp_expr} < :end_before")
+        params["end_before"] = bound(end_date + timedelta(days=1))
+    return timestamp_expr, clauses, params
+
+
 def compliance_rows(
     db: Session,
     *,
@@ -1025,7 +1153,6 @@ def compliance_rows(
 ) -> list[dict[str, Any]]:
     """FME-level open-conversation compliance from file_details / transcripts."""
     fd_cols = _table_columns(db, "file_details")
-    dialect = getattr(getattr(db.get_bind(), "dialect", None), "name", "") or "postgresql"
     site_expr = (
         "NULLIF(TRIM(COALESCE(fd.site_number, '')), '')"
         if "site_number" in fd_cols
@@ -1041,53 +1168,27 @@ def compliance_rows(
     recorded_join = ""
     recorded_site = "j.id"
     recorded_duration = duration_expr
-    job_created_at_expr = (
-        "NULLIF(j.created_at, '')::timestamptz"
-        if dialect != "sqlite"
-        else "j.created_at"
+    _, clauses, params = _file_date_window(
+        db, start_date=start_date, end_date=end_date, user_timezone=user_timezone,
     )
-    timestamp_expr = f"COALESCE(fd.call_date, {job_created_at_expr})"
-    if dialect == "sqlite":
-        timestamp_expr = f"datetime({timestamp_expr})"
-    try:
-        user_tz = ZoneInfo(user_timezone)
-    except (ZoneInfoNotFoundError, ValueError):
-        user_tz = timezone.utc
-
-    def local_midnight_utc(day: date) -> datetime:
-        return datetime.combine(day, time.min, tzinfo=user_tz).astimezone(timezone.utc)
-
-    clauses: list[str] = []
-    params: dict[str, Any] = {}
-    cluster_cols = ["fd.cluster", "fd.rfmm_cluster"] if "rfmm_cluster" in fd_cols else ["fd.cluster"]
-    for clause in (
-        match_any(["NULLIF(TRIM(COALESCE(fd.division, '')), '')"], "division", division, params),
-        match_any(["NULLIF(TRIM(COALESCE(fd.zone, '')), '')"], "zone", zone, params),
-        match_any(cluster_cols, "cluster", cluster, params),
-    ):
-        if clause:
-            clauses.append(clause)
+    if division:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.division, '')), '') = :division")
+        params["division"] = division
+    if zone:
+        clauses.append("NULLIF(TRIM(COALESCE(fd.zone, '')), '') = :zone")
+        params["zone"] = zone
+    if cluster:
+        clauses.append("(fd.cluster = :cluster OR fd.rfmm_cluster = :cluster)" if "rfmm_cluster" in fd_cols else "fd.cluster = :cluster")
+        params["cluster"] = cluster
     if fme_code:
         clauses.append("NULLIF(TRIM(COALESCE(fd.fme_code, '')), '') = :fme_code")
         params["fme_code"] = fme_code
     if user_type:
         clauses.append("NULLIF(TRIM(COALESCE(fd.user_type, '')), '') = :user_type")
         params["user_type"] = user_type
-    if start_date:
-        clauses.append(f"{timestamp_expr} >= :start_at")
-        start_at = local_midnight_utc(start_date)
-        params["start_at"] = (
-            start_at.replace(tzinfo=None).isoformat(sep=" ")
-            if dialect == "sqlite"
-            else start_at
-        )
-    if end_date:
-        clauses.append(f"{timestamp_expr} < :end_before")
-        end_before = local_midnight_utc(end_date + timedelta(days=1))
-        params["end_before"] = (
-            end_before.replace(tzinfo=None).isoformat(sep=" ")
-            if dialect == "sqlite"
-            else end_before
+    if "zone" in fd_cols:
+        restrict_clauses_to_division_zones(
+            clauses, params, _division_zones(db), column="fd.zone",
         )
     where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
     period = _period_label(start_date, end_date)
@@ -1130,3 +1231,216 @@ def compliance_rows(
             "avg_conversation_seconds": None if avg_seconds is None else round(float(avg_seconds), 1),
         })
     return items
+
+
+# Pipeline health: terminal jobs only; ERROR (retrying) counts as failed until it settles.
+PIPELINE_STATUSES = ("COMPLETED", "FAILED", "ERROR")
+# (label, lower minutes inclusive, upper minutes exclusive)
+DURATION_BUCKETS: tuple[tuple[str, float, Optional[float]], ...] = (
+    ("0-5", 0, 5),
+    ("5-10", 5, 10),
+    ("10-15", 10, 15),
+    ("15-20", 15, 20),
+    ("20+", 20, None),
+)
+UNKNOWN_DURATION_BUCKET = "unknown"
+FAILED_REASONS = ("no_insights", "few_words", "short_audio", "errors")
+UNKNOWN_SITE = "Unknown"
+# Batchmicro TOO_FEW_WORDS_MESSAGE lands in jobs.error_message / processed_file.empty_reason.
+FEW_WORDS_MARKER = "too few words"
+# Batchmicro STT gate rejects audio under MIN_AUDIO_SECONDS before transcription.
+SHORT_AUDIO_MARKER = "audio too short"
+
+
+def _as_utc(value: Any) -> Optional[datetime]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    if not isinstance(value, datetime):
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def _grain_key(day: date, grain: str) -> str:
+    if grain == "month":
+        return day.strftime("%Y-%m")
+    if grain == "week":
+        iso = day.isocalendar()
+        return f"{iso[0]}-W{iso[1]:02d}"
+    return day.isoformat()
+
+
+def _grain_keys(start: date, end: date, grain: str) -> list[str]:
+    keys: list[str] = []
+    day = start
+    while day <= end:
+        key = _grain_key(day, grain)
+        if not keys or keys[-1] != key:
+            keys.append(key)
+        day += timedelta(days=1)
+    return keys
+
+
+def _duration_bucket(seconds: Any) -> str:
+    if seconds is None:
+        return UNKNOWN_DURATION_BUCKET
+    minutes = float(seconds) / 60
+    for label, low, high in DURATION_BUCKETS:
+        if minutes >= low and (high is None or minutes < high):
+            return label
+    return UNKNOWN_DURATION_BUCKET
+
+
+def _failure_reason(row: Any) -> Optional[str]:
+    """None when the file is successful (completed with at least one insight)."""
+    status = str(row["status"] or "").upper()
+    if status == "COMPLETED":
+        return None if row["has_feedback"] else "no_insights"
+    text_blob = f"{row['error_message'] or ''} {row['empty_reason'] or ''}".lower()
+    if FEW_WORDS_MARKER in text_blob:
+        return "few_words"
+    if SHORT_AUDIO_MARKER in text_blob:
+        return "short_audio"
+    return "errors"
+
+
+class _PipelineStats:
+    def __init__(self) -> None:
+        self.processed = 0
+        self.successful = 0
+        self.failed = 0
+        self.bucket_counts = {label: 0 for label, _, _ in DURATION_BUCKETS}
+        self.bucket_counts[UNKNOWN_DURATION_BUCKET] = 0
+        self.bucket_seconds = dict.fromkeys(self.bucket_counts, 0.0)
+        self.reasons = dict.fromkeys(FAILED_REASONS, 0)
+
+    def add(self, reason: Optional[str], seconds: Any) -> None:
+        self.processed += 1
+        if reason is None:
+            self.successful += 1
+        else:
+            self.failed += 1
+            self.reasons[reason] += 1
+        bucket = _duration_bucket(seconds)
+        self.bucket_counts[bucket] += 1
+        if seconds is not None:
+            self.bucket_seconds[bucket] += float(seconds)
+
+    def totals(self) -> dict[str, int]:
+        return {"processed": self.processed, "successful": self.successful, "failed": self.failed}
+
+    def duration_buckets(self) -> list[dict[str, Any]]:
+        labels = [label for label, _, _ in DURATION_BUCKETS]
+        if self.bucket_counts[UNKNOWN_DURATION_BUCKET]:
+            labels.append(UNKNOWN_DURATION_BUCKET)
+        items = []
+        for label in labels:
+            count = self.bucket_counts[label]
+            has_avg = count and label != UNKNOWN_DURATION_BUCKET
+            avg = round(self.bucket_seconds[label] / count / 60, 1) if has_avg else None
+            items.append({"bucket": label, "count": count, "avg_minutes": avg})
+        return items
+
+    def failed_reasons(self) -> list[dict[str, Any]]:
+        return [{"reason": reason, "count": self.reasons[reason]} for reason in FAILED_REASONS]
+
+
+def pipeline_health(
+    db: Session,
+    *,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    site_number: Optional[str] = None,
+    grain: str = "day",
+    user_timezone: str = "UTC",
+) -> dict[str, Any]:
+    """Processed / successful / failed files with duration, failure-reason and site splits."""
+    fd_cols = _table_columns(db, "file_details")
+    site_expr = (
+        "NULLIF(TRIM(COALESCE(fd.site_number, '')), '')" if "site_number" in fd_cols else "NULL"
+    )
+    duration_expr = "fd.audio_duration_seconds" if "audio_duration_seconds" in fd_cols else "NULL"
+    has_empty_reason = "empty_reason" in _table_columns(db, "processed_file")
+    empty_reason_expr = "pf.empty_reason" if has_empty_reason else "NULL"
+    processed_join = "LEFT JOIN processed_file pf ON pf.job_id = j.id" if has_empty_reason else ""
+
+    timestamp_expr, clauses, params = _file_date_window(
+        db, start_date=start_date, end_date=end_date, user_timezone=user_timezone,
+    )
+    status_holders = []
+    for index, status in enumerate(PIPELINE_STATUSES):
+        params[f"status_{index}"] = status
+        status_holders.append(f":status_{index}")
+    clauses.append(f"CAST(j.status AS TEXT) IN ({', '.join(status_holders)})")
+    if "zone" in fd_cols:
+        restrict_clauses_to_division_zones(
+            clauses, params, _division_zones(db), column="fd.zone",
+        )
+    sql = f"""
+        SELECT
+            {site_expr} AS site_number,
+            {timestamp_expr} AS file_at,
+            {duration_expr} AS seconds,
+            CAST(j.status AS TEXT) AS status,
+            j.error_message AS error_message,
+            {empty_reason_expr} AS empty_reason,
+            EXISTS (SELECT 1 FROM feedbacks f WHERE f.job_id = j.id) AS has_feedback
+        FROM file_details fd
+        JOIN jobs j ON j.id = fd.job_id
+        {processed_join}
+        WHERE {" AND ".join(clauses)}
+    """
+    rows = db.execute(text(sql), params).mappings().all()
+
+    # Site list ignores the site filter so the dropdown keeps every option.
+    sites = sorted({row["site_number"] or UNKNOWN_SITE for row in rows})
+    if site_number:
+        rows = [row for row in rows if (row["site_number"] or UNKNOWN_SITE) == site_number]
+
+    user_tz = _user_tz(user_timezone)
+    overall = _PipelineStats()
+    by_site: dict[str, _PipelineStats] = {}
+    series: dict[str, dict[str, int]] = {}
+    for row in rows:
+        reason = _failure_reason(row)
+        overall.add(reason, row["seconds"])
+        site = row["site_number"] or UNKNOWN_SITE
+        by_site.setdefault(site, _PipelineStats()).add(reason, row["seconds"])
+        file_at = _as_utc(row["file_at"])
+        if file_at is None:
+            continue
+        point = series.setdefault(
+            _grain_key(file_at.astimezone(user_tz).date(), grain),
+            {"processed": 0, "successful": 0, "failed": 0},
+        )
+        point["processed"] += 1
+        point["successful" if reason is None else "failed"] += 1
+
+    keys = (
+        _grain_keys(start_date, end_date, grain)
+        if start_date and end_date and start_date <= end_date
+        else sorted(series)
+    )
+    empty_point = {"processed": 0, "successful": 0, "failed": 0}
+    return {
+        "totals": overall.totals(),
+        "series": [{"key": key, **series.get(key, empty_point)} for key in keys],
+        "duration_buckets": overall.duration_buckets(),
+        "failed_reasons": overall.failed_reasons(),
+        "by_site": [
+            {
+                "site_number": site,
+                **stats.totals(),
+                "duration_buckets": stats.duration_buckets(),
+                "failed_reasons": stats.failed_reasons(),
+            }
+            for site, stats in sorted(by_site.items(), key=lambda item: (-item[1].processed, item[0]))
+        ],
+        "sites": sites,
+        "grain": grain,
+        "period": _period_label(start_date, end_date),
+    }

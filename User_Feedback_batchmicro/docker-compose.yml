@@ -21,6 +21,7 @@ services:
 
   # ── PostgreSQL Database ───────────────────────────────────────────────────
   db:
+    profiles: ["standalone-db"]
     image: postgres:15-alpine
     restart: always
     environment:

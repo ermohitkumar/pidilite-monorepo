@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FiDownload, FiFilter } from "react-icons/fi";
 
+import ComplianceDashboard from "@/components/reports/ComplianceDashboard";
 import { Button } from "@/components/ui/button";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Pagination } from "@/components/ui/Pagination";
@@ -18,6 +19,13 @@ import {
     type PeriodState,
 } from "@/lib/reports/period";
 import type { ComplianceRow, FilterOptions, ReportFilters } from "@/lib/reports/types";
+
+type ComplianceTab = "open" | "dashboard";
+
+const COMPLIANCE_TABS: { id: ComplianceTab; label: string }[] = [
+    { id: "open", label: "Open conversations" },
+    { id: "dashboard", label: "Dashboard" },
+];
 
 const PERIOD_TABS: { id: PeriodKind; label: string }[] = [
     { id: "all", label: "All" },
@@ -206,6 +214,9 @@ const COLUMNS: { key: keyof ComplianceRow; label: string; metric?: boolean; rend
 
 export default function ComplianceClient() {
     const searchParams = useSearchParams();
+    const [tab, setTab] = useState<ComplianceTab>(
+        searchParams.get("tab") === "dashboard" ? "dashboard" : "open",
+    );
     const fromUrl = useMemo(() => filtersFromSearchParams(searchParams), [searchParams]);
     const initialPeriod = useMemo(
         () => defaultPeriod("all"),
@@ -237,7 +248,7 @@ export default function ComplianceClient() {
         cluster: draft.cluster,
     });
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    const reportQuery = useCompliance({ ...filters, user_timezone: userTimezone });
+    const reportQuery = useCompliance({ ...filters, user_timezone: userTimezone }, tab === "open");
     const rows = reportQuery.data?.data?.items || [];
     // Prefer /filter-options; if that master list is empty, derive dropdowns from
     // the loaded compliance rows so Division/Zone/RFMM still appear.
@@ -308,12 +319,35 @@ export default function ComplianceClient() {
 
     return (
         <div className="p-6">
+            <div className="mb-4">
+                <Link href="/" className="text-xs font-medium text-brand hover:underline">
+                    ← Back to home
+                </Link>
+                <h1 className="mt-1 text-2xl font-bold text-slate-900">Compliance</h1>
+            </div>
+
+            <div className="mb-5 flex gap-1 border-b border-slate-200">
+                {COMPLIANCE_TABS.map((item) => (
+                    <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setTab(item.id)}
+                        className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${
+                            tab === item.id
+                                ? "border-brand text-brand"
+                                : "border-transparent text-slate-500 hover:text-slate-800"
+                        }`}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </div>
+
+            {tab === "dashboard" ? <ComplianceDashboard /> : (
+            <>
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <Link href="/" className="text-xs font-medium text-brand hover:underline">
-                        ← Back to home
-                    </Link>
-                    <h1 className="mt-1 text-2xl font-bold text-slate-900">Open Conversations</h1>
+                    <h2 className="text-xl font-bold text-slate-900">Open conversations</h2>
                     <p className="mt-1 text-sm text-slate-500">
                         Compliance by FME: sites visited versus sites where a conversation was recorded.
                     </p>
@@ -531,6 +565,8 @@ export default function ComplianceClient() {
                     />
                 ) : null}
             </div>
+            </>
+            )}
         </div>
     );
 }
