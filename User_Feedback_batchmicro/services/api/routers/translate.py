@@ -175,14 +175,29 @@ def translate_transcript(
             )
 
         if not transcript_meets_min_words(raw_text):
-            msg = f"{TOO_FEW_WORDS_MESSAGE} Got {spoken_words} word(s)."
-            logger.error("translate: job %s — %s", payload.job_id, msg)
             job_row = batch_repository.get_job(db, payload.job_id)
-            file_name = (
-                job_row.file_details.file_name
-                if job_row and job_row.file_details
+            file_details = job_row.file_details if job_row else None
+            duration = (
+                file_details.audio_duration_seconds
+                if file_details and file_details.audio_duration_seconds is not None
                 else None
             )
+            # Short clips that also fail the word gate are recorded as too-short,
+            # not "few spoken words" — same user-facing bucket as the STT duration gate.
+            if (
+                settings.MIN_AUDIO_SECONDS
+                and duration is not None
+                and float(duration) < settings.MIN_AUDIO_SECONDS
+            ):
+                msg = (
+                    f"Recording too short: {int(duration)}s "
+                    f"(need at least {settings.MIN_AUDIO_SECONDS}s). "
+                    f"Got {spoken_words} spoken word(s)."
+                )
+            else:
+                msg = f"{TOO_FEW_WORDS_MESSAGE} Got {spoken_words} word(s)."
+            logger.error("translate: job %s — %s", payload.job_id, msg)
+            file_name = file_details.file_name if file_details else None
             db.add(FailedJob(
                 job_id=payload.job_id,
                 file_name=file_name,

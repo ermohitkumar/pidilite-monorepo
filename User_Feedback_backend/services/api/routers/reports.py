@@ -751,6 +751,18 @@ def get_period_summaries(
         geo_key=geo_key,
         product_name=product_name,
     )
+    # Division cubes were added late; if div_* is empty, fall back to nationwide
+    # product / all_pt so product narratives still render for division filters.
+    if geo_grain == "division" and not product_rows and not tag_rows:
+        product_rows, tag_rows = _period_product_and_tag_rows(
+            db,
+            period_type=period_type,
+            period_key=period_key,
+            token=token,
+            geo_grain=None,
+            geo_key=None,
+            product_name=product_name,
+        )
     products = [
         period_store.serialize_row(row)
         for row in product_rows
@@ -773,6 +785,17 @@ def get_period_summaries(
         )
         if period_store.matches_product(row, product_name) and period_store.is_visible_summary(row)
     ]
+    if geo_grain == "division" and not product_tags:
+        product_tags = [
+            period_store.serialize_row(row)
+            for row in period_store.filter_group(
+                period_store.list_current(
+                    db, grain="all_pt", period_type=period_type, period_key=period_key, status="ok",
+                ),
+                token,
+            )
+            if period_store.matches_product(row, product_name) and period_store.is_visible_summary(row)
+        ]
     available_filters = {
         "divisions": period_store.display_values(
             period_store.filter_group(

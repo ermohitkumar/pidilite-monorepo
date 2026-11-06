@@ -12,10 +12,13 @@ export type FetchParams = {
     size?: number;
     search?: string;
     status?: string;
+    outcome?: string;
+    site_number?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";
     start_date?: string;
     end_date?: string;
+    user_timezone?: string;
 };
 
 export const useDashboardSummary = () => {

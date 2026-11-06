@@ -14,9 +14,10 @@ export interface SelectProps {
     options: SelectOption[];
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 }
 
-export function Select({ value, onChange, options, placeholder = "Select...", className = "" }: SelectProps) {
+export function Select({ value, onChange, options, placeholder = "Select...", className = "", disabled = false }: SelectProps) {
     const [isOpen, setIsOpen] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -30,14 +31,19 @@ export function Select({ value, onChange, options, placeholder = "Select...", cl
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    React.useEffect(() => {
+        if (disabled) setIsOpen(false);
+    }, [disabled]);
+
     const selectedOption = options.find((opt) => opt.value === value);
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             <button
                 type="button"
-                className="flex h-9 w-full items-center justify-between rounded border border-border bg-surface px-3 py-1 text-sm text-text transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand focus-visible:border-brand"
-                onClick={() => setIsOpen(!isOpen)}
+                disabled={disabled}
+                className="flex h-9 w-full items-center justify-between rounded border border-border bg-surface px-3 py-1 text-sm text-text transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand focus-visible:border-brand disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
             >
                 <span className={!selectedOption ? "text-text-disabled" : "truncate"}>
                     {selectedOption ? selectedOption.label : placeholder}

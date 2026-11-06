@@ -9,20 +9,19 @@ export function formatPipelineError(message: string | null | undefined): string 
 
     const lower = text.toLowerCase();
 
-    // STT gate: duration under MIN_AUDIO_SECONDS. Check before word-count rewrite —
-    // short-audio messages also contain "need at least".
-    if (lower.includes("audio too short")) {
-        const match = lower.match(/audio too short:\s*(\d+)s\s*\(need at least\s*(\d+)s\)/);
+    // Duration gate (current + legacy copy). Check before word-count rewrite —
+    // short-audio messages may also mention spoken words.
+    if (lower.includes("recording too short") || lower.includes("audio too short")) {
+        const match = lower.match(
+            /(?:recording|audio) too short:\s*(\d+)s\s*\(need at least\s*(\d+)s\)/,
+        );
         if (match) {
             return (
-                `Recording is too short — ${match[1]}s (need at least ${match[2]}s). ` +
-                "File marked failed before transcription."
+                `Recording too short — ${match[1]}s (need at least ${match[2]}s). ` +
+                "File marked failed."
             );
         }
-        return (
-            "Recording is too short (under the minimum duration). " +
-            "File marked failed before transcription."
-        );
+        return "Recording too short (under the minimum duration). File marked failed.";
     }
 
     if (lower.includes("too few words") || /got\s+\d+\s+word/.test(lower)) {

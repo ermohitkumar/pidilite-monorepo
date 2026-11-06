@@ -5,10 +5,13 @@ type FetchParams = {
     size?: number;
     search?: string;
     status?: string;
+    outcome?: string;
+    site_number?: string;
     sort_by?: string;
     sort_dir?: "asc" | "desc";
     start_date?: string;
     end_date?: string;
+    user_timezone?: string;
 };
 
 function buildQueryString(params: FetchParams): string {
@@ -16,11 +19,14 @@ function buildQueryString(params: FetchParams): string {
     if (params.page !== undefined) searchParams.append('page', params.page.toString());
     if (params.size !== undefined) searchParams.append('size', params.size.toString());
     if (params.search) searchParams.append('search', params.search);
-    if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params.outcome) searchParams.append('outcome', params.outcome);
+    else if (params.status && params.status !== 'ALL') searchParams.append('status', params.status);
+    if (params.site_number) searchParams.append('site_number', params.site_number);
     if (params.sort_by) searchParams.append('sort_by', params.sort_by);
     if (params.sort_dir) searchParams.append('sort_dir', params.sort_dir);
     if (params.start_date) searchParams.append('start_date', params.start_date);
     if (params.end_date) searchParams.append('end_date', params.end_date);
+    if (params.user_timezone) searchParams.append('user_timezone', params.user_timezone);
     return searchParams.toString();
 }
 

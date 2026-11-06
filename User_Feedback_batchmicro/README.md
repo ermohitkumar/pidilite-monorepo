@@ -186,6 +186,23 @@ poetry run python tests/test_evaluate_pipeline.py
 
 ---
 
+## Ops: reprocess after STT
+
+Keep Chirp output, clear insights (+ translation), reset to `STT_COMPLETED`, then kick the checker so translate → insights re-run. Run inside the Cloud Run VPC (private Cloud SQL), same as other `scripts/gcp_sql_*.py` helpers:
+
+```bash
+ACTION=status poetry run python scripts/reprocess_after_stt.py
+# Past 2 weeks (COMPLETED + pending after STT; skips FAILED):
+DAYS=14 ACTION=run CONFIRM=YES KICK_ROUNDS=5 poetry run python scripts/reprocess_after_stt.py
+# October 2026 only (created_at in [2026-10-01, 2026-11-01)):
+MONTH=2026-10 ACTION=run CONFIRM=YES KICK_ROUNDS=5 poetry run python scripts/reprocess_after_stt.py
+# Or: SINCE=2026-10-01 UNTIL=2026-11-01 ...
+```
+
+See the script docstring for `ACTION=status|reset|kick|run`, `CONFIRM=YES`, `DAYS`/`MONTH`/`SINCE`/`UNTIL`, `INCLUDE_PENDING`, and checker URL env vars. Does not wipe `period_summaries`.
+
+---
+
 ## Docs
 
 | Doc | Description |

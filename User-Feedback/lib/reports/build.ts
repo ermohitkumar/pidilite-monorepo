@@ -387,7 +387,9 @@ export function buildCategoryTagRows(
             };
             buckets.set(bucketKey, bucket);
         }
-        bucket.count += summaryTagCount(tags, category, tag);
+        // Count every tagged feedback so the matrix total matches drill/products.
+        // Narrative still comes only from themes that have AI text.
+        bucket.count += summaryTagCount(tags, category, tag, { requireSummary: false });
     }
 
     const rows: MatrixRow[] = [];
@@ -398,7 +400,8 @@ export function buildCategoryTagRows(
             summaryTagNarrative(tags, bucket.category, bucket.category, options.periodTags || []),
             bucket.count,
         );
-        if (!narrative) continue;
+        // Show the row when there is feedback even if period AI text is still catching up.
+        if (!narrative && !bucket.count) continue;
         rows.push({
             kind: "data",
             feedback_category: bucket.level1 || bucket.category,
@@ -473,14 +476,13 @@ export function buildLevelThreeRows(tags: ReportSummaryTag[], levelTwo: string, 
     const push = (tag: string) => {
         const key = norm(tag);
         if (!tag || !key || known.has(key)) return;
-        const count = summaryTagCount(tags, levelTwo, tag);
+        const count = summaryTagCount(tags, levelTwo, tag, { requireSummary: false });
         if (!count) return;
         known.add(key);
         const match = tags.find(
             (row) => norm(row.feedback_category) === parent && norm(row.feedback_tag) === key && hasGeneratedSummary(row),
         );
         const narrative = alignSummaryCount(groupSummaryLines(displayBody(match?.ai_summary)), count);
-        if (!narrative) return;
         rows.push({
             kind: "data",
             feedback_category: levelTwo,
@@ -542,12 +544,18 @@ function hasGeneratedSummary(row?: ReportSummaryTag): boolean {
     return Boolean(text) && !text.toLowerCase().startsWith("no insights");
 }
 
-function summaryTagCount(tags: ReportSummaryTag[], category: string, tag: string): number {
+function summaryTagCount(
+    tags: ReportSummaryTag[],
+    category: string,
+    tag: string,
+    options: { requireSummary?: boolean } = {},
+): number {
+    const requireSummary = options.requireSummary !== false;
     const cat = norm(category);
     const key = norm(tag);
     let total = 0;
     for (const row of tags) {
-        if (!hasGeneratedSummary(row)) continue;
+        if (requireSummary && !hasGeneratedSummary(row)) continue;
         if (norm(row.feedback_category) !== cat) continue;
         if (norm(row.feedback_tag) === key) total += row.feedback_count || 0;
     }
@@ -643,6 +651,17 @@ function filterHighlightsToProduct(
     };
 }
 
+function findingMentionsProduct(
+    highlights: PeriodSummaryRecord["highlights"] | undefined,
+    product?: string | null,
+): boolean {
+    const productKey = norm(product);
+    if (!productKey || productKey === norm(NO_PRODUCT_LABEL)) return false;
+    return (highlights?.findings || []).some(
+        (item) => norm(item.product || item.title) === productKey,
+    );
+}
+
 function periodRowsForTag(
     periodTags: PeriodSummaryRecord[],
     category: string,
@@ -658,7 +677,9 @@ function periodRowsForTag(
         const byId = ids.some((id) => keyHasTagId(row.grain_key, id));
         const byName = matchByName && !byId && labelMentionsTag(row.grain_label || row.grain_key, tag);
         if (!byId && !byName) return false;
-        return rowMatchesProduct(row, product);
+        // Product-scoped grain, or a parent tag row that carries this product in findings.
+        if (rowMatchesProduct(row, product)) return true;
+        return Boolean(product) && findingMentionsProduct(row.highlights, product);
     });
 }
 
@@ -675,7 +696,8 @@ function periodNarrative(
         .map((row) => {
             const highlights = filterHighlightsToProduct(row.highlights, product);
             if (product && highlights?.findings?.length) {
-                return summaryDisplayText(undefined, highlights);
+                const fromFindings = summaryDisplayText(undefined, highlights);
+                if (fromFindings) return fromFindings;
             }
             return summaryDisplayText(row.summary_text, highlights);
         })
@@ -778,9 +800,46 @@ function summaryTagNarrative(
     return fromPeriod || displayBody(fromCounts?.ai_summary) || undefined;
 }
 
-function periodSentiment(period?: PeriodSummaryRecord): string | undefined {
+function sentimentFromCounts(
+    positive = 0,
+    neutral = 0,
+    negative = 0,
+): string | undefined {
+    if (positive + neutral + negative <= 0) return undefined;
+    if (positive > neutral && positive > negative) return "Positive";
+    if (negative > positive && negative > neutral) return "Negative";
+    return "Neutral";
+}
+
+function periodSentiment(
+    period?: PeriodSummaryRecord,
+    product?: string | null,
+): string | undefined {
+    const productKey = norm(product);
+    if (productKey && productKey !== norm(NO_PRODUCT_LABEL)) {
+        const finding = (period?.highlights?.findings || []).find(
+            (item) => norm(item.product || item.title) === productKey,
+        );
+        const fromFinding = typeof finding?.sentiment === "string" ? finding.sentiment.trim() : "";
+        if (fromFinding) return fromFinding;
+        // Prefer product-scoped grain sentiment; skip parent-tag rollup when we
+        // only matched via findings that lack a per-product label.
+        if (!rowMatchesProduct(period || { grain_key: "", grain_label: "" }, product)) {
+            return undefined;
+        }
+    }
     const raw = period?.highlights?.sentiment;
-    return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+    const counts = period?.highlights?.sentiment_counts;
+    if (counts && typeof counts === "object") {
+        const record = counts as Record<string, unknown>;
+        return sentimentFromCounts(
+            Number(record.Positive ?? record.positive ?? 0) || 0,
+            Number(record.Neutral ?? record.neutral ?? 0) || 0,
+            Number(record.Negative ?? record.negative ?? 0) || 0,
+        );
+    }
+    return undefined;
 }
 
 function summaryTagSentiment(
@@ -794,14 +853,12 @@ function summaryTagSentiment(
     const themeRows = themes.filter(
         (row) => norm(row.feedback_tag) === cat && (!tag || norm(tag) === cat || norm(row.theme) === norm(tag)),
     );
-    const positive = themeRows.reduce((total, row) => total + (row.sentiment_positive_count || 0), 0);
-    const neutral = themeRows.reduce((total, row) => total + (row.sentiment_neutral_count || 0), 0);
-    const negative = themeRows.reduce((total, row) => total + (row.sentiment_negative_count || 0), 0);
-    if (positive + neutral + negative > 0) {
-        if (positive > neutral && positive > negative) return "Positive";
-        if (negative > positive && negative > neutral) return "Negative";
-        return "Neutral";
-    }
+    const fromThemeCounts = sentimentFromCounts(
+        themeRows.reduce((total, row) => total + (row.sentiment_positive_count || 0), 0),
+        themeRows.reduce((total, row) => total + (row.sentiment_neutral_count || 0), 0),
+        themeRows.reduce((total, row) => total + (row.sentiment_negative_count || 0), 0),
+    );
+    if (fromThemeCounts) return fromThemeCounts;
     const fromThemes = majoritySentiment(themesInCategory(tags, category).map((row) => row.sentiment));
     if (fromThemes) return fromThemes;
     const fromPeriod =
@@ -819,6 +876,8 @@ export function buildProductRowsFromCounts(
     periodProducts: PeriodSummaryRecord[] = [],
     periodTags: PeriodSummaryRecord[] = [],
 ): MatrixRow[] {
+    // Keep every product with a count. Period AI text is optional — dropping
+    // rows without a narrative left drill tables empty while the API had data.
     return items
         .filter((item) => (item.feedback_count || 0) > 0)
         .map((item): MatrixRow => {
@@ -840,6 +899,14 @@ export function buildProductRowsFromCounts(
             : period?.status === "error"
                 ? "Updating…"
                 : summaryFitsCount(displayBody(period?.summary_text), item.feedback_count || 0);
+        const fromCounts = sentimentFromCounts(
+            item.sentiment_positive_count || 0,
+            item.sentiment_neutral_count || 0,
+            item.sentiment_negative_count || 0,
+        );
+        const fromPeriod =
+            periodSentiment(period, product) ||
+            tagRows.map((row) => periodSentiment(row, product)).find(Boolean);
         return {
             kind: "data" as const,
             feedback_group: drill.group,
@@ -848,7 +915,8 @@ export function buildProductRowsFromCounts(
             feedback_tag: drill.feedback_tag,
             feedback_count: item.feedback_count || null,
             feedback_summary_ai: alignSummaryCount(narrative, item.feedback_count || 0) || undefined,
-            sentiment: periodSentiment(period),
+            // Prefer live fact counts; period AI is a fallback when counts are absent.
+            sentiment: fromCounts || fromPeriod,
             drill: {
                 group: drill.group,
                 level: drill.feedback_sub_tag ? "sub_tag" : drill.feedback_tag ? "tag" : "product",
@@ -858,8 +926,7 @@ export function buildProductRowsFromCounts(
                 feedback_sub_tag: drill.feedback_sub_tag,
             },
         };
-    })
-        .filter((row) => Boolean(row.feedback_summary_ai));
+    });
 }
 
 export function buildDetailRowsFromItems(items: FeedbackFactRow[], drill: DrillScope): MatrixRow[] {
@@ -900,6 +967,31 @@ export function buildDetailRowsFromItems(items: FeedbackFactRow[], drill: DrillS
     });
 }
 
+/**
+ * Fact view `feedback_group` holds taxonomy level_1 (Product, System, …),
+ * not PDT/USER/DEALER GROUP. Sending the matrix group zeros every drill.
+ */
+function factFeedbackGroup(drill: DrillScope, category?: string): string | undefined {
+    const cat = norm(category);
+    const tag = norm(drill.feedback_tag);
+    const level1 = norm(drill.feedback_category);
+    const inSummary = (item: TaxonomyTag) =>
+        SUMMARY_GROUPS.includes(item.feedback_group as FeedbackGroup);
+    const match =
+        taxonomy.find((item) => inSummary(item) && cat && norm(item.feedback_category) === cat) ||
+        taxonomy.find((item) => inSummary(item) && tag && norm(item.feedback_category) === tag) ||
+        taxonomy.find((item) => inSummary(item) && level1 && norm(item.level_1) === level1);
+    const fromTaxonomy = display(match?.level_1);
+    if (fromTaxonomy) return fromTaxonomy;
+    if (
+        drill.feedback_category &&
+        taxonomy.some((item) => norm(item.level_1) === norm(drill.feedback_category))
+    ) {
+        return display(drill.feedback_category);
+    }
+    return undefined;
+}
+
 export function filtersForDrill(base: ReportFilters, drill: DrillScope): ReportFilters {
     // The matrix row's Feedback Tag is the level-2 name, and that same name is
     // stored on the fact view as feedback_category. feedback_tag on the view is
@@ -909,7 +1001,7 @@ export function filtersForDrill(base: ReportFilters, drill: DrillScope): ReportF
     const tagNamesTheCategory = Boolean(tag) && norm(tag) === norm(category);
     return {
         ...base,
-        feedback_group: drill.group,
+        feedback_group: factFeedbackGroup(drill, category),
         product_name: drill.product_name || base.product_name,
         feedback_category: category,
         feedback_tag: tagNamesTheCategory ? undefined : tag,

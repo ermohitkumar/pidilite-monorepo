@@ -7,6 +7,7 @@ with speaker diarization. Word timestamps are off so calls longer than
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 
 from core.config import settings
 from services.shared.stt_config import resolve_v2_model, stt_location
@@ -54,7 +55,39 @@ def recognizer_path() -> str:
     return f"projects/{project}/locations/{stt_location()}/recognizers/_"
 
 
-def build_recognition_config(language_code: str, model: str | None = None):
+def _adaptation_config(phrases: Sequence[str] | None):
+    """Inline PhraseSet for Chirp 3 model adaptation (product / domain terms)."""
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for raw in phrases or ():
+        value = (raw or "").strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(value)
+        if len(cleaned) >= 1000:
+            break
+    if not cleaned:
+        return None
+    return cloud_speech.SpeechAdaptation(
+        phrase_sets=[
+            cloud_speech.SpeechAdaptation.AdaptationPhraseSet(
+                inline_phrase_set=cloud_speech.PhraseSet(
+                    phrases=[cloud_speech.PhraseSet.Phrase(value=value) for value in cleaned]
+                )
+            )
+        ]
+    )
+
+
+def build_recognition_config(
+    language_code: str,
+    model: str | None = None,
+    adaptation_phrases: Sequence[str] | None = None,
+):
     """Chirp 3 config: auto-decode and speaker diarization.
 
     Word timestamps stay off. Chirp 3 caps BatchRecognize at about 20
@@ -62,19 +95,26 @@ def build_recognition_config(language_code: str, model: str | None = None):
     for hi-IN. Extra locales (mr-IN, gu-IN) are not on that list, so only
     the requested language is sent. Word confidence is not a real Chirp 3
     score and is left off.
+
+    When adaptation_phrases is set, SpeechAdaptation biases recognition
+    toward those terms (Chirp 3 supports up to 1000 phrases).
     """
     resolved = resolve_v2_model(model)
     primary = (language_code or "hi-IN").strip() or "hi-IN"
-    return cloud_speech.RecognitionConfig(
-        auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
-        language_codes=[primary],
-        model=resolved,
-        features=cloud_speech.RecognitionFeatures(
+    kwargs: dict = {
+        "auto_decoding_config": cloud_speech.AutoDetectDecodingConfig(),
+        "language_codes": [primary],
+        "model": resolved,
+        "features": cloud_speech.RecognitionFeatures(
             enable_automatic_punctuation=True,
             enable_word_time_offsets=False,
             diarization_config=cloud_speech.SpeakerDiarizationConfig(),
         ),
-    )
+    }
+    adaptation = _adaptation_config(adaptation_phrases)
+    if adaptation is not None:
+        kwargs["adaptation"] = adaptation
+    return cloud_speech.RecognitionConfig(**kwargs)
 
 
 def submit_batch_recognize(
@@ -82,10 +122,15 @@ def submit_batch_recognize(
     gcs_output_uri_prefix: str | None,
     language_code: str = "hi-IN",
     model: str | None = None,
+    adaptation_phrases: Sequence[str] | None = None,
 ) -> str:
     """Submit BatchRecognize LRO. Returns operation name."""
     client = get_speech_client()
-    config = build_recognition_config(language_code, model)
+    config = build_recognition_config(
+        language_code,
+        model,
+        adaptation_phrases=adaptation_phrases,
+    )
     prefix = (gcs_output_uri_prefix or "").rstrip("/") + "/"
     request = cloud_speech.BatchRecognizeRequest(
         recognizer=recognizer_path(),
@@ -95,12 +140,17 @@ def submit_batch_recognize(
             gcs_output_config=cloud_speech.GcsOutputConfig(uri=prefix),
         ),
     )
+    phrase_count = 0
+    if config.adaptation and config.adaptation.phrase_sets:
+        inline = config.adaptation.phrase_sets[0].inline_phrase_set
+        phrase_count = len(inline.phrases) if inline is not None else 0
     logger.info(
-        "STT v2 batch_recognize uri=%s model=%s languages=%s location=%s out=%s",
+        "STT v2 batch_recognize uri=%s model=%s languages=%s location=%s adaptation_phrases=%s out=%s",
         gcs_uri,
         config.model,
         list(config.language_codes),
         stt_location(),
+        phrase_count,
         prefix,
     )
     operation = client.batch_recognize(request=request)

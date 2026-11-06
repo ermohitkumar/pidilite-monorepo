@@ -544,6 +544,102 @@ class TestListJobs:
         assert len(items) == 1
         assert items[0]["status"] == "FAILED"
 
+    def test_list_jobs_filter_by_outcome_and_site(
+        self, client, db_session, create_test_batch, create_test_job, create_test_feedback
+    ):
+        from datetime import datetime, timezone
+
+        b = create_test_batch(batch_number=1)
+        ok = create_test_job(
+            status=JobStatus.COMPLETED, batch_id=b.id,
+            gcs_input_uri="gs://b/ok.wav", file_name="ok.wav",
+        )
+        empty = create_test_job(
+            status=JobStatus.COMPLETED, batch_id=b.id,
+            gcs_input_uri="gs://b/empty.wav", file_name="empty.wav",
+        )
+        few = create_test_job(
+            status=JobStatus.FAILED, batch_id=b.id,
+            gcs_input_uri="gs://b/few.wav", file_name="few.wav",
+        )
+        short = create_test_job(
+            status=JobStatus.FAILED, batch_id=b.id,
+            gcs_input_uri="gs://b/short.wav", file_name="short.wav",
+        )
+        hard = create_test_job(
+            status=JobStatus.ERROR, batch_id=b.id,
+            gcs_input_uri="gs://b/hard.wav", file_name="hard.wav",
+        )
+        for job, site in (
+            (ok, "S1"), (empty, "S1"), (few, "S2"), (short, "S2"), (hard, "S2"),
+        ):
+            job.file_details.site_number = site
+            job.file_details.call_date = datetime(2026, 10, 15, 10, 0, tzinfo=timezone.utc)
+        few.error_message = "Transcript has too few words (need at least 100)."
+        # Long enough that few-words stays in the few_words bucket (≥120s).
+        few.file_details.audio_duration_seconds = 180
+        short.error_message = "Recording too short: 40s (need at least 120s)."
+        short.file_details.audio_duration_seconds = 40
+        hard.error_message = "STT credentials error"
+        # Few-words on a sub-120s clip should appear under short_audio.
+        short_few = create_test_job(
+            status=JobStatus.FAILED, batch_id=b.id,
+            gcs_input_uri="gs://b/short-few.wav", file_name="short-few.wav",
+        )
+        short_few.file_details.site_number = "S2"
+        short_few.file_details.call_date = datetime(2026, 10, 15, 10, 0, tzinfo=timezone.utc)
+        short_few.file_details.audio_duration_seconds = 55
+        short_few.error_message = "Transcript has too few words (need at least 100). Got 8 word(s)."
+        db_session.commit()
+        create_test_feedback(job_id=ok.id)
+
+        by_outcome = {
+            outcome: [
+                item["file_name"]
+                for item in client.get(f"/api/v1/dashboard/jobs?outcome={outcome}").json()["data"]["items"]
+            ]
+            for outcome in ("successful", "no_insights", "few_words", "short_audio", "errors", "failed")
+        }
+        assert by_outcome["successful"] == ["ok.wav"]
+        assert by_outcome["no_insights"] == ["empty.wav"]
+        assert by_outcome["few_words"] == ["few.wav"]
+        assert set(by_outcome["short_audio"]) == {"short.wav", "short-few.wav"}
+        assert by_outcome["errors"] == ["hard.wav"]
+        assert set(by_outcome["failed"]) == {
+            "empty.wav", "few.wav", "short.wav", "short-few.wav", "hard.wav",
+        }
+
+        site_resp = client.get("/api/v1/dashboard/jobs?outcome=failed&site_number=S2")
+        assert {item["file_name"] for item in site_resp.json()["data"]["items"]} == {
+            "few.wav", "short.wav", "short-few.wav", "hard.wav",
+        }
+
+        # Drill-down totals must match compliance reason counts for the same window.
+        pipeline = client.get(
+            "/api/v1/reports/compliance/pipeline",
+            params={
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-31",
+                "grain": "day",
+                "user_timezone": "UTC",
+            },
+        ).json()["data"]
+        reasons = {row["reason"]: row["count"] for row in pipeline["failed_reasons"]}
+        for reason, expected in reasons.items():
+            if expected == 0:
+                continue
+            resp = client.get(
+                "/api/v1/dashboard/jobs",
+                params={
+                    "outcome": reason,
+                    "start_date": "2026-10-01",
+                    "end_date": "2026-10-31",
+                    "user_timezone": "UTC",
+                    "size": 100,
+                },
+            )
+            assert resp.json()["data"]["metadata"]["total_items"] == expected
+
     # ── Pagination ────────────────────────────────────────────────────────
 
     def test_list_jobs_pagination(

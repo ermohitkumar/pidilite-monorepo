@@ -10,7 +10,13 @@ import { ReportModal } from "@/components/reports/ReportModal";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/Select";
-import { useReportDetails, useReportFilterOptions, useReportProducts, useReportSummary } from "@/lib/hooks/reports";
+import {
+    usePeriodSummaries,
+    useReportDetails,
+    useReportFilterOptions,
+    useReportProducts,
+    useReportSummary,
+} from "@/lib/hooks/reports";
 import {
     buildCategoryTagRows,
     buildDetailRowsFromItems,
@@ -468,6 +474,15 @@ export default function SummariesClient() {
 
     const summaryFilters = useMemo(() => filtersFromScope(applied), [applied]);
     const summaryQuery = useReportSummary(summaryFilters);
+    const periodListQuery = usePeriodSummaries({
+        division: summaryFilters.division,
+        zone: summaryFilters.zone,
+        cluster: summaryFilters.cluster,
+        fme_code: summaryFilters.fme_code,
+        product_name: summaryFilters.product_name,
+        start_date: summaryFilters.start_date,
+        end_date: summaryFilters.end_date,
+    });
     const productsQuery = useReportProducts({});
     const filterQuery = useReportFilterOptions({ zone: draft.zone || undefined });
     const summaryTags = summaryQuery.data?.data?.tags || [];
@@ -475,9 +490,10 @@ export default function SummariesClient() {
         () =>
             buildCategoryTagRows(summaryTags, {
                 category: category === "ALL" ? undefined : category,
+                periodTags: periodListQuery.data?.data?.tags || [],
                 themes: summaryQuery.data?.data?.themes || [],
             }),
-        [category, summaryTags, summaryQuery.data?.data?.themes],
+        [category, summaryTags, summaryQuery.data?.data?.themes, periodListQuery.data?.data?.tags],
     );
     const levelThreeRows = useMemo(
         () => (drill ? buildLevelThreeRows(summaryTags, drill.tag, summaryQuery.data?.data?.themes || []) : []),

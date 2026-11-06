@@ -12,12 +12,27 @@ def test_build_config_uses_chirp3_diarization_without_timestamps():
     assert cfg.features.enable_word_time_offsets is False
     assert cfg.features.enable_word_confidence is False
     assert cfg.features._pb.HasField("diarization_config")
+    assert not cfg._pb.HasField("adaptation")
 
 
 def test_build_config_ignores_legacy_telephony_model():
     cfg = build_recognition_config("en-IN", "telephony")
     assert cfg.model == "chirp_3"
     assert list(cfg.language_codes) == ["en-IN"]
+
+
+def test_build_config_includes_product_adaptation_phrases():
+    cfg = build_recognition_config(
+        "hi-IN",
+        "chirp_3",
+        adaptation_phrases=["Fevicol SH", "Fevikwik 463", " fevicol sh ", ""],
+    )
+    assert cfg._pb.HasField("adaptation")
+    phrases = [
+        phrase.value
+        for phrase in cfg.adaptation.phrase_sets[0].inline_phrase_set.phrases
+    ]
+    assert phrases == ["Fevicol SH", "Fevikwik 463"]
 
 
 def test_output_uri_skipped_when_file_result_has_error():

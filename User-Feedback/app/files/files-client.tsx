@@ -11,13 +11,23 @@ import { TableEmpty, TableLoading } from '@/components/ui/TableStatus';
 import { useJobs } from '@/lib/hooks/queries';
 import type { Job, JobStatus, PaginationMeta } from '@/lib/monitor/types';
 import { formatPipelineError } from '@/lib/monitor/format-error';
+import { currentWeekValue, datesForIsoWeek } from '@/lib/reports/period';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { LuArrowUpDown, LuArchive, LuChevronDown, LuChevronUp, LuDownload } from 'react-icons/lu';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { LuArrowUpDown, LuArchive, LuChevronDown, LuChevronUp, LuDownload, LuLoader } from 'react-icons/lu';
 import { toast } from 'sonner';
 
-const FILTER_OPTIONS: Array<{ label: string; value: JobStatus | 'ALL' }> = [
-    { label: 'All Status', value: 'ALL' },
+const OUTCOME_OPTIONS = [
+    { label: 'Successful', value: 'successful' },
+    { label: 'No insights', value: 'no_insights' },
+    { label: 'Too few words', value: 'few_words' },
+    { label: 'Recording too short', value: 'short_audio' },
+    { label: 'Errors', value: 'errors' },
+    { label: 'All failed', value: 'failed' },
+] as const;
+
+const STATUS_OPTIONS: Array<{ label: string; value: JobStatus }> = [
     { label: 'Pending', value: 'PENDING' },
     { label: 'Batched', value: 'BATCHED' },
     { label: 'STT Submitted', value: 'STT_SUBMITTED' },
@@ -25,8 +35,23 @@ const FILTER_OPTIONS: Array<{ label: string; value: JobStatus | 'ALL' }> = [
     { label: 'Processing', value: 'PROCESSING' },
     { label: 'Completed', value: 'COMPLETED' },
     { label: 'Failed', value: 'FAILED' },
-    { label: 'Error', value: 'ERROR' }
+    { label: 'Error', value: 'ERROR' },
 ];
+
+const FILTER_OPTIONS: Array<{ label: string; value: string }> = [
+    { label: 'All', value: 'ALL' },
+    ...OUTCOME_OPTIONS,
+    ...STATUS_OPTIONS,
+];
+
+const OUTCOME_VALUES = new Set<string>(OUTCOME_OPTIONS.map((option) => option.value));
+
+function parseFilterValue(value: string | null | undefined): string {
+    if (!value || value === 'ALL') return 'ALL';
+    if (OUTCOME_VALUES.has(value)) return value;
+    if (STATUS_OPTIONS.some((option) => option.value === value)) return value;
+    return 'ALL';
+}
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
@@ -38,39 +63,83 @@ function formatAudioDuration(seconds: number | null | undefined): string {
     return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
-function monthStart(date: string): string {
-    return `${date.slice(0, 7)}-01`;
+const MAX_BULK_DAYS = 7;
+
+function shiftDate(date: string, days: number): string {
+    const value = new Date(`${date}T00:00:00.000Z`);
+    value.setUTCDate(value.getUTCDate() + days);
+    return value.toISOString().slice(0, 10);
 }
 
-function monthEnd(date: string): string {
-    const [year, month] = date.slice(0, 7).split('-').map(Number);
-    return `${date.slice(0, 7)}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`;
+function inclusiveDays(startDate: string, endDate: string): number {
+    const startMs = Date.parse(`${startDate}T00:00:00.000Z`);
+    const endMs = Date.parse(`${endDate}T00:00:00.000Z`);
+    return Math.floor((endMs - startMs) / 86_400_000) + 1;
 }
 
 export default function FilesClient() {
+    const searchParams = useSearchParams();
+    const urlKey = searchParams.toString();
+    const browserTimezone = useMemo(
+        () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        [],
+    );
+    const initialFromUrl = useMemo(() => {
+        const params = new URLSearchParams(urlKey);
+        const filter = parseFilterValue(params.get('outcome') || params.get('status'));
+        return {
+            search: params.get('search') || '',
+            startDate: params.get('start_date') || '',
+            endDate: params.get('end_date') || '',
+            filter,
+            siteNumber: params.get('site_number') || '',
+            userTimezone: params.get('user_timezone') || browserTimezone,
+        };
+    }, [urlKey, browserTimezone]);
+
     const [tab, setTab] = useState<'files' | 'bulk'>('files');
-    const [bulkMode, setBulkMode] = useState<'monthly' | 'custom'>('monthly');
-    const [bulkMonth, setBulkMonth] = useState('');
+    const [bulkMode, setBulkMode] = useState<'weekly' | 'custom'>('weekly');
+    const [bulkWeek, setBulkWeek] = useState(currentWeekValue);
     const [bulkStartDate, setBulkStartDate] = useState('');
     const [bulkEndDate, setBulkEndDate] = useState('');
     const [bulkDownloading, setBulkDownloading] = useState(false);
     type SortKey = 'job_id' | 'batch_id' | 'file_name' | 'audio_duration_seconds' | 'created_at';
     type SortDir = 'asc' | 'desc' | null;
 
-    const [search, setSearch] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [activeFilter, setActiveFilter] = useState<JobStatus | 'ALL'>('ALL');
+    const [search, setSearch] = useState(initialFromUrl.search);
+    const [startDate, setStartDate] = useState(initialFromUrl.startDate);
+    const [endDate, setEndDate] = useState(initialFromUrl.endDate);
+    const [activeFilter, setActiveFilter] = useState(initialFromUrl.filter);
     const [applied, setApplied] = useState({
-        search: '',
-        startDate: '',
-        endDate: '',
-        status: 'ALL' as JobStatus | 'ALL',
+        search: initialFromUrl.search,
+        startDate: initialFromUrl.startDate,
+        endDate: initialFromUrl.endDate,
+        filter: initialFromUrl.filter,
+        siteNumber: initialFromUrl.siteNumber,
+        userTimezone: initialFromUrl.userTimezone,
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [sortKey, setSortKey] = useState<SortKey | null>('created_at');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+    // Keep form + applied filters in sync when arriving from compliance deep-links.
+    useEffect(() => {
+        setSearch(initialFromUrl.search);
+        setStartDate(initialFromUrl.startDate);
+        setEndDate(initialFromUrl.endDate);
+        setActiveFilter(initialFromUrl.filter);
+        setApplied({
+            search: initialFromUrl.search,
+            startDate: initialFromUrl.startDate,
+            endDate: initialFromUrl.endDate,
+            filter: initialFromUrl.filter,
+            siteNumber: initialFromUrl.siteNumber,
+            userTimezone: initialFromUrl.userTimezone,
+        });
+        setCurrentPage(1);
+        setTab('files');
+    }, [initialFromUrl]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey !== key) {
@@ -89,20 +158,28 @@ export default function FilesClient() {
     };
 
     const applyFilters = () => {
-        setApplied({ search, startDate, endDate, status: activeFilter });
+        setApplied({
+            search,
+            startDate,
+            endDate,
+            filter: activeFilter,
+            siteNumber: applied.siteNumber,
+            userTimezone: applied.userTimezone || browserTimezone,
+        });
         setCurrentPage(1);
     };
 
     const downloadBulkArchive = async () => {
         let startDate = bulkStartDate;
         let endDate = bulkEndDate;
-        if (bulkMode === 'monthly') {
-            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulkMonth)) {
-                toast.error('Choose a month to download.');
+        if (bulkMode === 'weekly') {
+            const range = datesForIsoWeek(bulkWeek);
+            if (!range.start_date || !range.end_date) {
+                toast.error('Choose a week to download.');
                 return;
             }
-            startDate = `${bulkMonth}-01`;
-            endDate = monthEnd(startDate);
+            startDate = range.start_date;
+            endDate = range.end_date;
         } else if (!startDate || !endDate) {
             toast.error('Choose both a start date and an end date.');
             return;
@@ -111,34 +188,60 @@ export default function FilesClient() {
             toast.error('Start date must be on or before the end date.');
             return;
         }
-        if (startDate.slice(0, 7) !== endDate.slice(0, 7)) {
-            toast.error('Choose a date range within one calendar month.');
+        if (inclusiveDays(startDate, endDate) > MAX_BULK_DAYS) {
+            toast.error('Choose a date range within one week (7 days).');
             return;
         }
 
         setBulkDownloading(true);
+        let objectUrl: string | undefined;
         try {
             const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+            const response = await fetch(`/bff/files/bulk-download?${params.toString()}`, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok) {
+                const payload = contentType.includes('application/json')
+                    ? await response.json().catch(() => null)
+                    : null;
+                throw new Error(payload?.error || 'Could not prepare audio ZIP.');
+            }
+
+            const blob = await response.blob();
+            const disposition = response.headers.get('content-disposition') || '';
+            const matchedName = /filename="([^"]+)"/i.exec(disposition)?.[1];
+            const filename = matchedName || `audio-files_${startDate}_to_${endDate}.zip`;
+            objectUrl = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
-            anchor.href = `/bff/files/bulk-download?${params.toString()}`;
+            anchor.href = objectUrl;
+            anchor.download = filename;
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
-            toast.info('Your audio ZIP is being prepared. The download will start when it is ready.');
+            toast.success('Download started.');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Could not download audio files.');
         } finally {
-            window.setTimeout(() => setBulkDownloading(false), 1500);
+            if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl!), 60_000);
+            setBulkDownloading(false);
         }
     };
+
+    const outcomeFilter = OUTCOME_VALUES.has(applied.filter) ? applied.filter : undefined;
+    const statusFilter = !outcomeFilter && applied.filter !== 'ALL' ? applied.filter : undefined;
 
     const { data: response, isLoading, isError } = useJobs({
         page: currentPage,
         size: pageSize,
         search: applied.search || undefined,
-        status: applied.status,
+        status: statusFilter,
+        outcome: outcomeFilter,
+        site_number: applied.siteNumber || undefined,
         start_date: applied.startDate || undefined,
         end_date: applied.endDate || undefined,
+        user_timezone: applied.userTimezone || browserTimezone,
         sort_by: sortKey || undefined,
         sort_dir: sortDir || undefined,
     });
@@ -204,44 +307,53 @@ export default function FilesClient() {
             </div>
 
             {tab === 'bulk' ? (
-                <section className="rounded-lg border border-border bg-surface p-6">
+                <section className="relative rounded-lg border border-border bg-surface p-6">
+                    {bulkDownloading ? (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg bg-surface/90 backdrop-blur-[1px]">
+                            <LuLoader className="h-8 w-8 animate-spin text-brand" />
+                            <p className="text-body-md font-medium text-text">Preparing ZIP…</p>
+                            <p className="text-body-sm text-text-subtle">This can take a few minutes for larger weeks.</p>
+                        </div>
+                    ) : null}
                     <h2 className="text-h3 font-semibold text-text">Bulk audio download</h2>
-                    <p className="mt-1 text-body-sm text-text-subtle">Download recordings for one calendar month per ZIP.</p>
+                    <p className="mt-1 text-body-sm text-text-subtle">Download recordings for one week per ZIP.</p>
                     <div className="mt-5 flex flex-wrap items-end gap-4">
                         <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Download type
                             <Select
                                 value={bulkMode}
-                                onChange={(value) => setBulkMode(value as 'monthly' | 'custom')}
-                                options={[{ label: 'Monthly', value: 'monthly' }, { label: 'Custom', value: 'custom' }]}
+                                onChange={(value) => setBulkMode(value as 'weekly' | 'custom')}
+                                options={[{ label: 'Weekly', value: 'weekly' }, { label: 'Custom', value: 'custom' }]}
+                                disabled={bulkDownloading}
                             />
                         </label>
-                        {bulkMode === 'monthly' ? (
-                            <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Month
-                                <input type="month" value={bulkMonth} onChange={(event) => setBulkMonth(event.target.value)} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                        {bulkMode === 'weekly' ? (
+                            <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Week
+                                <input type="week" value={bulkWeek} disabled={bulkDownloading} onChange={(event) => setBulkWeek(event.target.value)} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text disabled:opacity-60" />
                             </label>
                         ) : (
                             <>
                                 <label className="flex flex-col gap-1 text-label-sm text-text-subtle">Start date
-                                    <input type="date" value={bulkStartDate} min={bulkEndDate ? monthStart(bulkEndDate) : undefined} max={bulkEndDate || (bulkStartDate ? monthEnd(bulkStartDate) : undefined)} onChange={(event) => {
+                                    <input type="date" value={bulkStartDate} disabled={bulkDownloading} min={bulkEndDate ? shiftDate(bulkEndDate, -(MAX_BULK_DAYS - 1)) : undefined} max={bulkEndDate || undefined} onChange={(event) => {
                                         const value = event.target.value;
                                         setBulkStartDate(value);
-                                        if (bulkEndDate && value.slice(0, 7) !== bulkEndDate.slice(0, 7)) setBulkEndDate('');
-                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                                        if (bulkEndDate && inclusiveDays(value, bulkEndDate) > MAX_BULK_DAYS) setBulkEndDate('');
+                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text disabled:opacity-60" />
                                 </label>
                                 <label className="flex flex-col gap-1 text-label-sm text-text-subtle">End date
-                                    <input type="date" value={bulkEndDate} min={bulkStartDate || (bulkEndDate ? monthStart(bulkEndDate) : undefined)} max={bulkStartDate ? monthEnd(bulkStartDate) : (bulkEndDate ? monthEnd(bulkEndDate) : undefined)} onChange={(event) => {
+                                    <input type="date" value={bulkEndDate} disabled={bulkDownloading} min={bulkStartDate || undefined} max={bulkStartDate ? shiftDate(bulkStartDate, MAX_BULK_DAYS - 1) : undefined} onChange={(event) => {
                                         const value = event.target.value;
                                         setBulkEndDate(value);
-                                        if (bulkStartDate && value.slice(0, 7) !== bulkStartDate.slice(0, 7)) setBulkStartDate('');
-                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text" />
+                                        if (bulkStartDate && inclusiveDays(bulkStartDate, value) > MAX_BULK_DAYS) setBulkStartDate('');
+                                    }} className="h-10 rounded border border-border bg-bg px-3 text-body-sm text-text disabled:opacity-60" />
                                 </label>
                             </>
                         )}
-                        <Button type="button" onClick={downloadBulkArchive} disabled={bulkDownloading || (bulkMode === 'monthly' ? !bulkMonth : !bulkStartDate || !bulkEndDate)}>
-                            <LuDownload className="mr-2 h-4 w-4" />{bulkDownloading ? 'Preparing ZIP…' : 'Download ZIP'}
+                        <Button type="button" onClick={downloadBulkArchive} disabled={bulkDownloading || (bulkMode === 'weekly' ? !bulkWeek : !bulkStartDate || !bulkEndDate)}>
+                            {bulkDownloading ? <LuLoader className="mr-2 h-4 w-4 animate-spin" /> : <LuDownload className="mr-2 h-4 w-4" />}
+                            {bulkDownloading ? 'Preparing ZIP…' : 'Download ZIP'}
                         </Button>
                     </div>
-                    <p className="mt-4 text-xs text-text-disabled">Custom dates must stay within one calendar month. Only recordings you are authorized to access are included; missing audio files are skipped.</p>
+                    <p className="mt-4 text-xs text-text-disabled">Weekly and custom ranges are limited to 7 days. Only recordings you are authorized to access are included; missing audio files are skipped.</p>
                 </section>
             ) : (
             /* Table Panel */
@@ -261,14 +373,27 @@ export default function FilesClient() {
                         onEndDateChange={setEndDate}
                     />
 
-                    <div className="w-48">
+                    <div className="w-56">
                         <Select
                             value={activeFilter}
-                            onChange={(v) => setActiveFilter(v as JobStatus | 'ALL')}
+                            onChange={setActiveFilter}
                             options={FILTER_OPTIONS}
                         />
                     </div>
                     <Button type="button" onClick={applyFilters}>Apply filters</Button>
+                    {applied.siteNumber ? (
+                        <button
+                            type="button"
+                            className="rounded border border-border bg-bg px-2.5 py-1 text-xs text-text-subtle hover:border-brand hover:text-brand"
+                            onClick={() => {
+                                setApplied((prev) => ({ ...prev, siteNumber: '' }));
+                                setCurrentPage(1);
+                            }}
+                            title="Clear site filter"
+                        >
+                            Site: {applied.siteNumber} ×
+                        </button>
+                    ) : null}
                 </div>
 
                 {/* Table */}

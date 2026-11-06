@@ -33,6 +33,7 @@ from repositories import batch_repository
 from core.enums import JobStatus
 from db.models import FailedJob
 from schemas.schemas import STTSubmitRequest, STTSubmitResponseData
+from services.shared.product_catalog import stt_adaptation_phrases
 from services.shared.stt_client import (
     _HAS_SPEECH,
     reset_speech_client,
@@ -73,6 +74,7 @@ def _submit_to_stt(
     language_code: str = "hi-IN",
     model: str = "chirp_3",
     source_hint: str | None = None,
+    adaptation_phrases: list[str] | None = None,
 ) -> str:
     """
     Submit an async BatchRecognize LRO to Cloud Speech-to-Text v2 Chirp 3.
@@ -88,6 +90,7 @@ def _submit_to_stt(
             gcs_output_uri_prefix,
             language_code=language_code,
             model=model,
+            adaptation_phrases=adaptation_phrases,
         )
     except Exception as exc:
         reset_speech_client()
@@ -227,7 +230,7 @@ def submit_stt(
         duration = file_details.audio_duration_seconds
         if settings.MIN_AUDIO_SECONDS and duration and duration < settings.MIN_AUDIO_SECONDS:
             error_msg = (
-                f"Audio too short: {duration}s (need at least {settings.MIN_AUDIO_SECONDS}s). "
+                f"Recording too short: {duration}s (need at least {settings.MIN_AUDIO_SECONDS}s). "
                 "File marked failed before transcription."
             )
             db.add(FailedJob(job_id=job.id, file_name=file_details.file_name, error_message=error_msg, pipeline_stage="STT"))
@@ -235,19 +238,29 @@ def submit_stt(
             db.commit()
             return make_response(
                 success=False,
-                message="STT submission skipped - audio too short",
+                message="STT submission skipped - recording too short",
                 data=STTSubmitResponseData(job_id=payload.job_id, status=JobStatus.FAILED.value).model_dump(),
                 error=error_msg
             )
 
     try:
         source_hint = file_details.file_extension if file_details else None
+        adaptation_phrases: list[str] = []
+        if settings.STT_USE_PRODUCT_ADAPTATION:
+            adaptation_phrases = stt_adaptation_phrases(db)
+            if adaptation_phrases:
+                logger.info(
+                    "STT product adaptation enabled for job %s (%d phrases)",
+                    payload.job_id,
+                    len(adaptation_phrases),
+                )
         operation_name = _submit_to_stt(
             payload.gcs_input_uri,
             gcs_output_uri_prefix=payload.gcs_output_uri_prefix,
             language_code=payload.language_code,
             model=payload.model,
             source_hint=source_hint,
+            adaptation_phrases=adaptation_phrases or None,
         )
         batch_repository.update_job_status(
             db, payload.job_id,

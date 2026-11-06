@@ -354,6 +354,10 @@ def test_runner_writes_pdt_cube_and_user_tag_without_product(db_session):
     assert tag is not None
     assert tag.source_kind == "child_summaries"
     assert get_current(db_session, "zone_t", "ZONE-A::PDT::22", "month", "2026-09") is not None
+    assert get_current(db_session, "div_t", "DIV-A::PDT::22", "month", "2026-09") is not None
+    assert get_current(db_session, "div_p", "DIV-A::PDT::Marine", "month", "2026-09") is not None
+    assert get_current(db_session, "div_pt", "DIV-A::PDT::Marine::22", "month", "2026-09") is not None
+    assert get_current(db_session, "product", "Marine::PDT", "month", "2026-09") is not None
     assert get_current(db_session, "all_pt", "ALL::PDT::Marine::22", "month", "2026-09") is not None
     assert get_current(db_session, "tag", "30::USER", "month", "2026-09") is not None
     assert get_current(db_session, "bde", "GOOD::PDT", "month", "2026-09") is not None

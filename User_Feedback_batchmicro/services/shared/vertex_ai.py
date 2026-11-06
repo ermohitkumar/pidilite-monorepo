@@ -741,9 +741,16 @@ CRITICAL TAGGING RULES:
 4. For `category_type`, use the Feedback Tag shown next to the chosen theme (for example "Product Quality Complaint", "Schemes", "stock").
 5. FIELD VISITS: Use "No/ sporadic Field Rep Visit" only when the user comments on the visit itself (visit quality, frequency, the rep not coming or delayed, scheduling, requesting more visits). NEVER because the audio was recorded on a job site, and NEVER for product talk that happened during a visit.
 6. SPECIFIC TAGS, NOT USAGE:
-   - Product quality, bond, viscosity, coverage, odor, tack, or bubble forming map to the matching Product Quality Complaint theme, including "Bubble forming".
-   - Packaging leaks, lids, nozzles, and drying in the tub map to Product Packaging Complaint.
-   - Praise, comparison, or a request to change performance maps to the specific theme, not to Others.
+   - Product quality complaints (bond, viscosity, coverage, odor, tack, bubble forming) map to the matching Product Quality theme, including "Bubble forming".
+   - Packaging complaints (leaks, lids, nozzles, drying in the tub, hard to open) map to the matching Product Packaging complaint theme.
+   - POSITIVE / PRAISE THEMES (never dump these into Others):
+     - Overall product praise / "no issues" / "good quality" / "best product" → "Overall Good product".
+     - Good initial grab / tack praise → "Good grab".
+     - Helps finish sites faster / saves time on site → "Helping/ Enabling me to complete sites faster".
+     - Packaging praise ("packaging is good", sturdy pack, no spoilage, reseals well, liked the pack) → "Good packaging".
+     - Easy to pour / apply / use / handle → "Easy to use".
+   - Packaging shape/size change requests (e.g. round bucket easier to pour) → "New Packaging Idea" when that is the ask; otherwise the matching packaging or Easy to use theme — not Packaging Others.
+   - Praise, comparison, or a request to change performance maps to the specific theme above, not to Others.
    - If the insight is only usage or quantity ("used X", "ordered X"), OMIT it.
 7. SUMMARY MUST JUSTIFY THE TAG: Rewrite `summary` so a reader of the theme name knows why this row is here (for example Bubble forming → "Marine glue line formed bubbles."). Not "User uses Marine." For an Others theme, the summary is the statement of what was important and unmatched.
 7b. SENTIMENT: Set `sentiment` to exactly one of Positive, Neutral, Negative from the User's words. Praise / satisfaction → Positive. Complaint / leak / delay / request-to-fix → Negative. Factual usage with no evaluation → Neutral.

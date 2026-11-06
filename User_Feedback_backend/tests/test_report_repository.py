@@ -214,7 +214,14 @@ def test_product_counts_includes_user_group_without_product(fact_view):
     where_sql, params = build_filters(feedback_group="USER GROUP")
     items, total = product_counts(fact_view, fact, where_sql, params)
     assert total == 1
-    assert items == [{"product_name": NO_PRODUCT_LABEL, "feedback_count": 1, "site_visit_count": 1}]
+    assert items == [{
+        "product_name": NO_PRODUCT_LABEL,
+        "feedback_count": 1,
+        "site_visit_count": 1,
+        "sentiment_positive_count": 0,
+        "sentiment_neutral_count": 0,
+        "sentiment_negative_count": 0,
+    }]
 
     none_where, none_params = build_filters(
         feedback_group="USER GROUP",

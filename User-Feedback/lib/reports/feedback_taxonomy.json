@@ -2,8 +2,8 @@
   "_meta": {
     "description": "Feedback taxonomy with level 1, level 2, and level 3 tags",
     "sources": [
-      "New tags.xlsx",
-      "Product / Product Quality Complaint / Bubble forming"
+      "New tags (1).xlsx",
+      "scripts/data/feedback_taxonomy.json (prior tag_id continuity)"
     ],
     "groups": [
       "PDT GROUP",
@@ -16,154 +16,136 @@
       "Competitor",
       "Dealer related",
       "User engagement",
-      "User benefits/schemes"
+      "User benefits/ schemes"
     ],
-    "total_tags": 87
+    "total_tags": 92
   },
   "taxonomy": [
     {
       "tag_id": 101,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bad Viscosity / Too Thick",
       "is_other": false,
-      "description": "Bad Viscosity / Too Thick under Product / Product Quality Complaint."
+      "description": "Bad Viscosity / Too Thick under Product / Product Quality."
     },
     {
       "tag_id": 102,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bad Viscosity / Too Thin",
       "is_other": false,
-      "description": "Bad Viscosity / Too Thin under Product / Product Quality Complaint."
+      "description": "Bad Viscosity / Too Thin under Product / Product Quality."
     },
     {
       "tag_id": 103,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Foul Odor",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Smell/ Odor",
       "is_other": false,
-      "description": "Foul Odor under Product / Product Quality Complaint."
+      "description": "Smell/ Odor under Product / Product Quality."
     },
     {
       "tag_id": 104,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Poor Coverage / High Consumption",
       "is_other": false,
-      "description": "Poor Coverage / High Consumption under Product / Product Quality Complaint."
+      "description": "Poor Coverage / High Consumption under Product / Product Quality."
     },
     {
       "tag_id": 105,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Product Separation / Settling",
       "is_other": false,
-      "description": "Product Separation / Settling under Product / Product Quality Complaint."
-    },
-    {
-      "tag_id": 106,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Slow Initial Tack / Grab",
-      "is_other": false,
-      "description": "Slow Initial Tack / Grab under Product / Product Quality Complaint."
-    },
-    {
-      "tag_id": 107,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Long Pressing / Clamping Time",
-      "is_other": false,
-      "description": "Long Pressing / Clamping Time under Product / Product Quality Complaint."
-    },
-    {
-      "tag_id": 108,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Weak Ultimate Bond / Delamination",
-      "is_other": false,
-      "description": "Weak Ultimate Bond / Delamination under Product / Product Quality Complaint."
+      "description": "Product Separation / Settling under Product / Product Quality."
     },
     {
       "tag_id": 109,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
+      "feedback_category": "Product Quality",
       "feedback_tag": "Bubble forming",
       "is_other": false,
       "description": "Bubbles forming in the adhesive film, glue line, or finished surface."
     },
     {
-      "tag_id": 110,
+      "tag_id": 106,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Quality Complaint",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Product Quality Complaint that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Slow Initial Tack / Grab",
+      "is_other": false,
+      "description": "Slow Initial Tack / Grab under Product / Product Quality."
+    },
+    {
+      "tag_id": 107,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Long Pressing / Clamping Time",
+      "is_other": false,
+      "description": "Long Pressing / Clamping Time under Product / Product Quality."
+    },
+    {
+      "tag_id": 108,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Weak Ultimate Bond / Delamination",
+      "is_other": false,
+      "description": "Weak Ultimate Bond / Delamination under Product / Product Quality."
     },
     {
       "tag_id": 111,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Lid / Cap Hard to Open",
       "is_other": false,
-      "description": "Lid / Cap Hard to Open under Product / Product Packaging Complaint."
+      "description": "Lid / Cap Hard to Open under Product / Product Packaging."
     },
     {
       "tag_id": 112,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Packaging Failure / Transit Leakage",
       "is_other": false,
-      "description": "Packaging Failure / Transit Leakage under Product / Product Packaging Complaint."
+      "description": "Packaging Failure / Transit Leakage under Product / Product Packaging."
     },
     {
       "tag_id": 113,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Nozzle Clogging / Hardening",
       "is_other": false,
-      "description": "Nozzle Clogging / Hardening under Product / Product Packaging Complaint."
+      "description": "Nozzle Clogging / Hardening under Product / Product Packaging."
     },
     {
       "tag_id": 114,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Re-sealing Issue / Product Drying in Tub",
       "is_other": false,
-      "description": "Re-sealing Issue / Product Drying in Tub under Product / Product Packaging Complaint."
+      "description": "Re-sealing Issue / Product Drying in Tub under Product / Product Packaging."
     },
     {
       "tag_id": 115,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
+      "feedback_category": "Product Packaging",
       "feedback_tag": "Application difficulty",
       "is_other": false,
-      "description": "Application difficulty under Product / Product Packaging Complaint."
-    },
-    {
-      "tag_id": 116,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product Packaging Complaint",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Product Packaging Complaint that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "description": "Application difficulty under Product / Product Packaging."
     },
     {
       "tag_id": 117,
@@ -211,15 +193,6 @@
       "description": "Nail destroys aesthetics under Product / Post application feedback."
     },
     {
-      "tag_id": 122,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Post application feedback",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Post application feedback that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 123,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
@@ -265,24 +238,6 @@
       "description": "Insufficient Quantity of Applicators under Product / Applicator & Spreader Tools."
     },
     {
-      "tag_id": 128,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Applicator & Spreader Tools",
-      "feedback_tag": "New Application for existing product",
-      "is_other": false,
-      "description": "New Application for existing product under Product / Applicator & Spreader Tools."
-    },
-    {
-      "tag_id": 129,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Applicator & Spreader Tools",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Applicator & Spreader Tools that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 130,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
@@ -292,13 +247,13 @@
       "description": "New Product Idea under Product / New Product Idea."
     },
     {
-      "tag_id": 131,
+      "tag_id": 128,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
-      "feedback_category": "New Product Idea",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in New Product Idea that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "feedback_category": "Applicator & Spreader Tools",
+      "feedback_tag": "New Application for existing product",
+      "is_other": false,
+      "description": "New Application for existing product under Product / Applicator & Spreader Tools."
     },
     {
       "tag_id": 132,
@@ -310,15 +265,6 @@
       "description": "New Packaging Idea under Product / New Packaging Idea."
     },
     {
-      "tag_id": 133,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "New Packaging Idea",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in New Packaging Idea that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 134,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
@@ -328,15 +274,6 @@
       "description": "New Substrate under Product / New Substrate."
     },
     {
-      "tag_id": 135,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "New Substrate",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in New Substrate that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 136,
       "level_1": "Product",
       "feedback_group": "PDT GROUP",
@@ -344,15 +281,6 @@
       "feedback_tag": "Product & its Application Knowledge gap",
       "is_other": false,
       "description": "Product & its Application Knowledge gap under Product / Product & its Application Knowledge gap."
-    },
-    {
-      "tag_id": 137,
-      "level_1": "Product",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product & its Application Knowledge gap",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Product & its Application Knowledge gap that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 138,
@@ -391,15 +319,6 @@
       "description": "Point/Activity Sync Issues under System / FCC App Usability & Tech."
     },
     {
-      "tag_id": 142,
-      "level_1": "System",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "FCC App Usability & Tech",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in FCC App Usability & Tech that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 143,
       "level_1": "System",
       "feedback_group": "USER GROUP",
@@ -409,15 +328,6 @@
       "description": "Recording related issue under System / Mpower."
     },
     {
-      "tag_id": 144,
-      "level_1": "System",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Mpower",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Mpower that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 145,
       "level_1": "System",
       "feedback_group": "USER GROUP",
@@ -425,15 +335,6 @@
       "feedback_tag": "Awareness videos",
       "is_other": false,
       "description": "Awareness videos under System / Jharokha."
-    },
-    {
-      "tag_id": 146,
-      "level_1": "System",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Jharokha",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Jharokha that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 147,
@@ -454,15 +355,6 @@
       "description": "New product under Competitor / Product."
     },
     {
-      "tag_id": 149,
-      "level_1": "Competitor",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Product",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Product that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 150,
       "level_1": "Competitor",
       "feedback_group": "PDT GROUP",
@@ -479,15 +371,6 @@
       "feedback_tag": "MOP - Market operating price",
       "is_other": false,
       "description": "MOP - Market operating price under Competitor / Pricing."
-    },
-    {
-      "tag_id": 152,
-      "level_1": "Competitor",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Pricing",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Pricing that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 153,
@@ -508,15 +391,6 @@
       "description": "Product cataloging under Competitor / Field execution."
     },
     {
-      "tag_id": 155,
-      "level_1": "Competitor",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Field execution",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Field execution that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 156,
       "level_1": "Competitor",
       "feedback_group": "PDT GROUP",
@@ -535,15 +409,6 @@
       "description": "Competition Manpower/ Infra related under Competitor / Engagement."
     },
     {
-      "tag_id": 158,
-      "level_1": "Competitor",
-      "feedback_group": "PDT GROUP",
-      "feedback_category": "Engagement",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Engagement that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 159,
       "level_1": "Dealer related",
       "feedback_group": "DEALER GROUP",
@@ -553,15 +418,6 @@
       "description": "Product Out of Stock under Dealer related / stock."
     },
     {
-      "tag_id": 160,
-      "level_1": "Dealer related",
-      "feedback_group": "DEALER GROUP",
-      "feedback_category": "stock",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in stock that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 161,
       "level_1": "Dealer related",
       "feedback_group": "DEALER GROUP",
@@ -569,15 +425,6 @@
       "feedback_tag": "Pushing Competitor Brands (Brand Switching)",
       "is_other": false,
       "description": "Pushing Competitor Brands (Brand Switching) under Dealer related / Influence & Relationships."
-    },
-    {
-      "tag_id": 162,
-      "level_1": "Dealer related",
-      "feedback_group": "DEALER GROUP",
-      "feedback_category": "Influence & Relationships",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Influence & Relationships that does not match a specific level 3 tag. Summarize the important points as a statement."
     },
     {
       "tag_id": 163,
@@ -598,15 +445,6 @@
       "description": "Slow Complaint Resolution under User engagement / Support."
     },
     {
-      "tag_id": 165,
-      "level_1": "User engagement",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Support",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Support that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
       "tag_id": 166,
       "level_1": "User engagement",
       "feedback_group": "USER GROUP",
@@ -614,6 +452,15 @@
       "feedback_tag": "Infrequent Meets / Low Engagement",
       "is_other": false,
       "description": "Infrequent Meets / Low Engagement under User engagement / FCC Meet/ Other meets."
+    },
+    {
+      "tag_id": 173,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "User Trips",
+      "is_other": false,
+      "description": "User Trips under User benefits/schemes / Schemes."
     },
     {
       "tag_id": 167,
@@ -652,6 +499,15 @@
       "description": "Marketing material of portfolio - stimulus under User engagement / FCC Meet/ Other meets."
     },
     {
+      "tag_id": 181,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Points & Redemption",
+      "feedback_tag": "Issues with Insurance & Benefits",
+      "is_other": false,
+      "description": "Issues with Insurance & Benefits under User benefits/schemes / Points & Redemption."
+    },
+    {
       "tag_id": 171,
       "level_1": "User engagement",
       "feedback_group": "USER GROUP",
@@ -661,98 +517,8 @@
       "description": "Competition meet up and group activity overshadowing us under User engagement / FCC Meet/ Other meets."
     },
     {
-      "tag_id": 172,
-      "level_1": "User engagement",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "FCC Meet/ Other meets",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in FCC Meet/ Other meets that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
-      "tag_id": 173,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "User Trips",
-      "is_other": false,
-      "description": "User Trips under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 174,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Scheme - equivalence",
-      "is_other": false,
-      "description": "Scheme - equivalence under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 175,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Cash benefits",
-      "is_other": false,
-      "description": "Cash benefits under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 176,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Unrealistic Slabs & Targets",
-      "is_other": false,
-      "description": "Unrealistic Slabs & Targets under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 177,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Delayed Payouts / Gift Settlement",
-      "is_other": false,
-      "description": "Delayed Payouts / Gift Settlement under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 178,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Physical Token Missing from Pack",
-      "is_other": false,
-      "description": "Physical Token Missing from Pack under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 179,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Physical Token Damaged / Unreadable",
-      "is_other": false,
-      "description": "Physical Token Damaged / Unreadable under User benefits/schemes / Schemes."
-    },
-    {
-      "tag_id": 180,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Schemes",
-      "feedback_tag": "Others",
-      "is_other": true,
-      "description": "Feedback in Schemes that does not match a specific level 3 tag. Summarize the important points as a statement."
-    },
-    {
-      "tag_id": 181,
-      "level_1": "User benefits/schemes",
-      "feedback_group": "USER GROUP",
-      "feedback_category": "Points & Redemption",
-      "feedback_tag": "Issues with Insurance & Benefits",
-      "is_other": false,
-      "description": "Issues with Insurance & Benefits under User benefits/schemes / Points & Redemption."
-    },
-    {
       "tag_id": 182,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Point Expiry Dispute",
@@ -761,7 +527,7 @@
     },
     {
       "tag_id": 183,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Long Delivery Timelines for Gifts",
@@ -770,7 +536,7 @@
     },
     {
       "tag_id": 184,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Poor Quality / No Warranty on Gifts",
@@ -779,7 +545,7 @@
     },
     {
       "tag_id": 185,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Limited Gift Catalog / New Gift Request",
@@ -788,7 +554,7 @@
     },
     {
       "tag_id": 186,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Lack of Access to Redemption Center",
@@ -796,13 +562,292 @@
       "description": "Lack of Access to Redemption Center under User benefits/schemes / Points & Redemption."
     },
     {
+      "tag_id": 174,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Scheme - equivalence",
+      "is_other": false,
+      "description": "Scheme - equivalence under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 175,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Cash benefits",
+      "is_other": false,
+      "description": "Cash benefits under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 176,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Unrealistic Slabs & Targets",
+      "is_other": false,
+      "description": "Unrealistic Slabs & Targets under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 177,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Delayed Payouts / Gift Settlement",
+      "is_other": false,
+      "description": "Delayed Payouts / Gift Settlement under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 178,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Physical Token Missing from Pack",
+      "is_other": false,
+      "description": "Physical Token Missing from Pack under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 179,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Physical Token Damaged / Unreadable",
+      "is_other": false,
+      "description": "Physical Token Damaged / Unreadable under User benefits/schemes / Schemes."
+    },
+    {
+      "tag_id": 110,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Product Quality only when no specific theme fits. Prefer first: viscosity thick/thin, Smell/Odor, Poor Coverage, Product Separation, Bubble forming, Slow Initial Tack / Grab, Long Pressing / Clamping Time, Weak Ultimate Bond / Delamination, Overall Good product (general praise / no issues), Good grab (positive grab/tack), Helping/ Enabling me to complete sites faster. Do not use for general product praise or good-grab praise."
+    },
+    {
+      "tag_id": 116,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Packaging",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Product Packaging only when no specific theme fits. Prefer first: Lid / Cap Hard to Open, Packaging Failure / Transit Leakage, Nozzle Clogging / Hardening, Re-sealing Issue / Product Drying in Tub, Application difficulty, Good packaging (packaging praise / sturdy pack / no spoilage). Do not use for packaging praise — use Good packaging. Pack shape/size change requests belong under New Packaging Idea when that is the ask."
+    },
+    {
+      "tag_id": 122,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Post application feedback",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Post application feedback only when no specific theme fits. Prefer first: Joint Separation, Glue Line Hardening (Damages Tools), Staining & Discoloration, Breakage due to expansion, Nail destroys aesthetics, Easy to use (easy to pour/apply/handle). Do not use for ease-of-use praise — use Easy to use."
+    },
+    {
+      "tag_id": 129,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Applicator & Spreader Tools",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Applicator & Spreader Tools only when no specific theme fits. Prefer first: Spreader Missing, Spreader Flimsy / Poor Quality, Wrong Spreader Size, Request for Specific Tool, Insufficient Quantity of Applicators, New Application for existing product."
+    },
+    {
+      "tag_id": 131,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "New Product Idea",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in New Product Idea only when the feedback is product-idea related but does not fit the New Product Idea theme itself. Prefer New Product Idea for concrete new-SKU / new-variant requests."
+    },
+    {
+      "tag_id": 133,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "New Packaging Idea",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in New Packaging Idea only when packaging-idea related feedback does not fit New Packaging Idea. Prefer New Packaging Idea for pack shape/size/format change requests. Packaging praise goes to Good packaging, not here."
+    },
+    {
+      "tag_id": 135,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "New Substrate",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in New Substrate only when substrate-related feedback does not fit New Substrate. Prefer New Substrate for new boards/materials/surfaces the user wants supported."
+    },
+    {
+      "tag_id": 137,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product & its Application Knowledge gap",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Product & its Application Knowledge gap only when knowledge-gap feedback does not fit that theme. Prefer Product & its Application Knowledge gap when the user lacks how-to / application know-how."
+    },
+    {
+      "tag_id": 142,
+      "level_1": "System",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "FCC App Usability & Tech",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in FCC App Usability & Tech only when no specific theme fits. Prefer first: Scan / OCR Failure, Login / OTP Issue, Interface Freezing / Lag / Crashing, Point/Activity Sync Issues."
+    },
+    {
+      "tag_id": 144,
+      "level_1": "System",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Mpower",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Mpower only when the feedback is Mpower-related but does not fit Recording related issue. Prefer Recording related issue for recording failures/problems."
+    },
+    {
+      "tag_id": 146,
+      "level_1": "System",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Jharokha",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Jharokha only when Jharokha-related feedback does not fit Awareness videos. Prefer Awareness videos for video content / awareness asks."
+    },
+    {
+      "tag_id": 149,
+      "level_1": "Competitor",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Competitor Product only when no specific theme fits. Prefer first: Better product (competitor product seen as better), New product (competitor launched / offering a new product). Pidilite product praise is not this category."
+    },
+    {
+      "tag_id": 152,
+      "level_1": "Competitor",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Pricing",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Competitor Pricing only when no specific theme fits. Prefer first: Better scheme & Better coupons, MOP - Market operating price."
+    },
+    {
+      "tag_id": 155,
+      "level_1": "Competitor",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Field execution",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Competitor Field execution only when no specific theme fits. Prefer first: Continuous trial to switch, Product cataloging."
+    },
+    {
+      "tag_id": 158,
+      "level_1": "Competitor",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Engagement",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Competitor Engagement only when no specific theme fits. Prefer first: Competition Engagement, Competition Manpower/ Infra related."
+    },
+    {
+      "tag_id": 160,
+      "level_1": "Dealer related",
+      "feedback_group": "DEALER GROUP",
+      "feedback_category": "stock",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in dealer stock only when no specific theme fits. Prefer Product Out of Stock for availability / OOS complaints."
+    },
+    {
+      "tag_id": 162,
+      "level_1": "Dealer related",
+      "feedback_group": "DEALER GROUP",
+      "feedback_category": "Influence & Relationships",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Influence & Relationships only when no specific theme fits. Prefer Pushing Competitor Brands (Brand Switching) when the dealer pushes competitors."
+    },
+    {
+      "tag_id": 165,
+      "level_1": "User engagement",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Support",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Support only when no specific theme fits. Prefer first: No/ sporadic Field Rep Visit, Slow Complaint Resolution."
+    },
+    {
+      "tag_id": 172,
+      "level_1": "User engagement",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "FCC Meet/ Other meets",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in FCC Meet/ Other meets only when no specific theme fits. Prefer first: Infrequent Meets / Low Engagement, Request for Demo / Training, Request for Recognition / Awards, Issues with Meet Logistics & Invites, Marketing material of portfolio - stimulus, Competition meet up and group activity overshadowing us."
+    },
+    {
+      "tag_id": 180,
+      "level_1": "User benefits/ schemes",
+      "feedback_group": "USER GROUP",
+      "feedback_category": "Schemes",
+      "feedback_tag": "Others",
+      "is_other": true,
+      "description": "Last resort in Schemes only when no specific theme fits. Prefer first: User Trips, Scheme - equivalence, Cash benefits, Unrealistic Slabs & Targets, Delayed Payouts / Gift Settlement, Physical Token Missing from Pack, Physical Token Damaged / Unreadable."
+    },
+    {
       "tag_id": 187,
-      "level_1": "User benefits/schemes",
+      "level_1": "User benefits/ schemes",
       "feedback_group": "USER GROUP",
       "feedback_category": "Points & Redemption",
       "feedback_tag": "Others",
       "is_other": true,
-      "description": "Feedback in Points & Redemption that does not match a specific level 3 tag. Summarize the important points as a statement."
+      "description": "Last resort in Points & Redemption only when no specific theme fits. Prefer first: Issues with Insurance & Benefits, Point Expiry Dispute, Long Delivery Timelines for Gifts, Poor Quality / No Warranty on Gifts, Limited Gift Catalog / New Gift Request, Lack of Access to Redemption Center."
+    },
+    {
+      "tag_id": 188,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Overall Good product",
+      "is_other": false,
+      "description": "User praises the product overall: good quality, no issues, satisfied, best glue/product. Use instead of Product Quality Others for general praise."
+    },
+    {
+      "tag_id": 189,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Good grab",
+      "is_other": false,
+      "description": "User praises initial grab/tack/grip (holds quickly, good grab). Not for weak grab complaints."
+    },
+    {
+      "tag_id": 190,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Quality",
+      "feedback_tag": "Helping/ Enabling me to complete sites faster",
+      "is_other": false,
+      "description": "User says the product helps finish sites/jobs faster or improves on-site speed/productivity."
+    },
+    {
+      "tag_id": 191,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Product Packaging",
+      "feedback_tag": "Good packaging",
+      "is_other": false,
+      "description": "User praises packaging: packaging is good, sturdy, no damage/spoilage, reseals well, liked the pack. Use instead of Product Packaging Others for packaging praise."
+    },
+    {
+      "tag_id": 192,
+      "level_1": "Product",
+      "feedback_group": "PDT GROUP",
+      "feedback_category": "Post application feedback",
+      "feedback_tag": "Easy to use",
+      "is_other": false,
+      "description": "User says the product is easy to pour, apply, handle, or use. Use instead of Post application Others for ease-of-use praise."
     }
   ]
 }

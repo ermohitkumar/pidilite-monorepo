@@ -130,6 +130,9 @@ export type ReportProductCount = {
     product_name?: string | null;
     feedback_count: number;
     site_visit_count?: number;
+    sentiment_positive_count?: number;
+    sentiment_neutral_count?: number;
+    sentiment_negative_count?: number;
 };
 
 export type ReportProductsResponse = {
@@ -343,6 +346,11 @@ export type PipelineHealthData = {
     totals: PipelineTotals;
     series: PipelineSeriesPoint[];
     duration_buckets: PipelineDurationBucket[];
+    duration_buckets_successful?: PipelineDurationBucket[];
+    duration_buckets_failed?: PipelineDurationBucket[];
+    duration_buckets_by_reason?: Partial<
+        Record<PipelineFailedReason["reason"], PipelineDurationBucket[]>
+    >;
     failed_reasons: PipelineFailedReason[];
     by_site: PipelineSiteRow[];
     sites: string[];

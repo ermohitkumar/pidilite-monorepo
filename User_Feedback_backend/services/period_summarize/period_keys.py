@@ -48,10 +48,10 @@ CHILD_GRAIN = {
     "rfmm_t": "bde_t",
     "zone_t": "rfmm_t",
     "div_t": "zone_t",
-    # Presented summaries: cluster leaves roll to zone, then to all.
-    "tag": "zone_t",
-    "product": "zone_p",
-    "all_pt": "zone_pt",
+    # Presented summaries: cluster → zone → division → nationwide.
+    "tag": "div_t",
+    "product": "div_p",
+    "all_pt": "div_pt",
 }
 PARENT_GRAIN = {child: parent for parent, child in CHILD_GRAIN.items()}
 HIERARCHY_ORDER = GEO_GRAINS

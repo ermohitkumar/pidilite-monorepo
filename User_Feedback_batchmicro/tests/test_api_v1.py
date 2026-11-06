@@ -312,12 +312,12 @@ class TestSTTSubmit:
         body = resp.json()
         assert body["success"] is False
         assert body["data"]["status"] == "FAILED"
-        assert "Audio too short: 119s" in body["error"]
+        assert "Recording too short: 119s" in body["error"]
         assert "need at least 120s" in body["error"]
         mock_speech_client.assert_not_called()
         db_session.refresh(job)
         assert job.status == JobStatus.FAILED
-        assert "Audio too short" in job.error_message
+        assert "Recording too short" in job.error_message
         failed = db_session.query(FailedJob).filter_by(job_id=job.id).one()
         assert failed.pipeline_stage == "STT"
 

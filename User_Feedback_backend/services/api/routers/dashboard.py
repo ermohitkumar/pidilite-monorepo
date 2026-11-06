@@ -1,20 +1,36 @@
 import json
 import logging
 import math
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, time, timezone, timedelta
 from typing import Annotated, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload, load_only, noload
-from sqlalchemy import cast, inspect as sa_inspect, or_, String, func, case, asc, desc, text
+from sqlalchemy import (
+    DateTime,
+    and_,
+    asc,
+    case,
+    cast,
+    desc,
+    exists,
+    false,
+    func,
+    inspect as sa_inspect,
+    or_,
+    String,
+    text,
+)
 
 from core.response import make_response
 from core.exceptions import APIException
 from core.enums import BatchStatus, JobStatus
 from core.permissions import Permissions
 from db.session import get_db
-from db.models import Job, Batch, FileDetails, ProcessedFile
+from db.models import Job, Batch, FileDetails, ProcessedFile, Feedback
 from core.dependencies import RoleChecker
+from repositories import report_repository as report_repo
 
 from schemas.schemas import (
     APIResponse,
@@ -101,18 +117,194 @@ def _visit_day_text():
     return func.coalesce(_day_text(FileDetails.call_date), _day_text(Job.created_at))
 
 
-def _apply_visit_on(query, start_date: Optional[date], end_date: Optional[date], *, joined_files: bool):
+def _query_dialect(query) -> str:
+    try:
+        bind = query.session.get_bind()
+        return getattr(getattr(bind, "dialect", None), "name", "") or "postgresql"
+    except Exception:
+        return "postgresql"
+
+
+def _file_visit_ts(dialect: str = "postgresql"):
+    """Filename visit time, else job ingest time — same choice as pipeline_health.
+
+    Live Cloud SQL stores jobs.created_at as varchar while call_date is timestamptz.
+    A bare COALESCE then raises DatatypeMismatch and the Files page spins forever
+    on compliance deep-links that pass a date range.
+    """
+    if dialect == "sqlite":
+        return func.coalesce(FileDetails.call_date, Job.created_at)
+    return func.coalesce(
+        FileDetails.call_date,
+        cast(func.nullif(cast(Job.created_at, String), ""), DateTime(timezone=True)),
+    )
+
+
+def _user_tz(user_timezone: str):
+    try:
+        return ZoneInfo(user_timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        return timezone.utc
+
+
+def _local_day_start_utc(day: date, user_timezone: str) -> datetime:
+    """Local midnight for day, as UTC — same bound as report_repository._file_date_window."""
+    return datetime.combine(day, time.min, tzinfo=_user_tz(user_timezone)).astimezone(timezone.utc)
+
+
+def _apply_visit_on(
+    query,
+    start_date: Optional[date],
+    end_date: Optional[date],
+    *,
+    joined_files: bool,
+    user_timezone: str = "UTC",
+):
+    """Inclusive local-day window on call_date (else created_at), matching compliance."""
     if start_date is None and end_date is None:
         return query, joined_files
     if not joined_files:
         query = query.outerjoin(FileDetails)
         joined_files = True
-    visit_day = _visit_day_text()
+    ts = _file_visit_ts(_query_dialect(query))
     if start_date is not None:
-        query = query.filter(visit_day >= start_date.isoformat())
+        query = query.filter(ts >= _local_day_start_utc(start_date, user_timezone))
     if end_date is not None:
-        query = query.filter(visit_day <= end_date.isoformat())
+        query = query.filter(ts < _local_day_start_utc(end_date + timedelta(days=1), user_timezone))
     return query, joined_files
+
+
+def _apply_division_zones(query, db: Session, *, joined_files: bool):
+    """Same code-10 zone restriction used by compliance pipeline_health."""
+    zones = report_repo._division_zones(db)
+    if zones is None:
+        return query, joined_files
+    if not joined_files:
+        query = query.outerjoin(FileDetails)
+        joined_files = True
+    names = sorted({str(zone).strip() for zone in zones if zone and str(zone).strip()})
+    if not names:
+        return query.filter(false()), joined_files
+    return query.filter(func.trim(FileDetails.zone).in_(names)), joined_files
+
+
+# Matches compliance dashboard failure taxonomy (report_repository._failure_reason).
+_FEW_WORDS_MARKER = "too few words"
+_SHORT_AUDIO_MARKERS = ("recording too short", "audio too short")
+_MIN_AUDIO_SECONDS = 120
+_JOB_OUTCOMES = frozenset({
+    "successful",
+    "failed",
+    "no_insights",
+    "few_words",
+    "short_audio",
+    "errors",
+})
+
+
+def _has_feedback_exists():
+    return exists().where(Feedback.job_id == Job.id)
+
+
+def _error_text_matches(marker: str):
+    pattern = f"%{marker}%"
+    return or_(
+        func.lower(func.coalesce(Job.error_message, "")).like(pattern),
+        func.lower(func.coalesce(ProcessedFile.empty_reason, "")).like(pattern),
+    )
+
+
+def _error_text_matches_any(markers: tuple[str, ...]):
+    return or_(*(_error_text_matches(marker) for marker in markers))
+
+
+def _under_min_duration():
+    return and_(
+        FileDetails.audio_duration_seconds.isnot(None),
+        FileDetails.audio_duration_seconds < _MIN_AUDIO_SECONDS,
+    )
+
+
+def _is_few_words_outcome():
+    """Few-words failures on recordings that are long enough (≥120s)."""
+    return and_(
+        _error_text_matches(_FEW_WORDS_MARKER),
+        ~_error_text_matches_any(_SHORT_AUDIO_MARKERS),
+        ~_under_min_duration(),
+    )
+
+
+def _is_short_audio_outcome():
+    """Duration gate, or few-words on a sub-120s clip."""
+    return or_(
+        _error_text_matches_any(_SHORT_AUDIO_MARKERS),
+        and_(_error_text_matches(_FEW_WORDS_MARKER), _under_min_duration()),
+    )
+
+
+def _apply_site_number(query, site_number: Optional[str], *, joined_files: bool):
+    if not site_number:
+        return query, joined_files
+    if not joined_files:
+        query = query.outerjoin(FileDetails)
+        joined_files = True
+    if site_number == "Unknown":
+        query = query.filter(
+            or_(FileDetails.site_number.is_(None), FileDetails.site_number == "")
+        )
+    else:
+        query = query.filter(FileDetails.site_number == site_number)
+    return query, joined_files
+
+
+def _apply_outcome(
+    query,
+    outcome: Optional[str],
+    *,
+    joined_files: bool,
+    joined_processed: bool,
+):
+    """Filter jobs by compliance outcome.
+
+    Returns (query, joined_files, joined_processed).
+    """
+    if not outcome:
+        return query, joined_files, joined_processed
+    if outcome not in _JOB_OUTCOMES:
+        return query, joined_files, joined_processed
+
+    needs_processed = outcome in {"few_words", "short_audio", "errors", "failed"}
+    if needs_processed and not joined_processed:
+        query = query.outerjoin(ProcessedFile)
+        joined_processed = True
+    needs_files = outcome in {"few_words", "short_audio", "errors"}
+    if needs_files and not joined_files:
+        query = query.outerjoin(FileDetails)
+        joined_files = True
+
+    failed_statuses = [JobStatus.FAILED, JobStatus.ERROR]
+    if outcome == "successful":
+        query = query.filter(Job.status == JobStatus.COMPLETED, _has_feedback_exists())
+    elif outcome == "no_insights":
+        query = query.filter(Job.status == JobStatus.COMPLETED, ~_has_feedback_exists())
+    elif outcome == "few_words":
+        query = query.filter(Job.status.in_(failed_statuses), _is_few_words_outcome())
+    elif outcome == "short_audio":
+        query = query.filter(Job.status.in_(failed_statuses), _is_short_audio_outcome())
+    elif outcome == "errors":
+        query = query.filter(
+            Job.status.in_(failed_statuses),
+            ~_is_few_words_outcome(),
+            ~_is_short_audio_outcome(),
+        )
+    elif outcome == "failed":
+        query = query.filter(
+            or_(
+                Job.status.in_(failed_statuses),
+                and_(Job.status == JobStatus.COMPLETED, ~_has_feedback_exists()),
+            )
+        )
+    return query, joined_files, joined_processed
 
 
 def _apply_created_on(query, column, start_date: Optional[date], end_date: Optional[date]):
@@ -492,14 +684,25 @@ def list_jobs(
     db: DbSession,
     page: Page = 1, size: PageSize = 10,
     search: Optional[str] = None, status: Optional[str] = None,
+    outcome: Optional[str] = None,
+    site_number: Optional[str] = None,
     start_date: Optional[date] = None, end_date: Optional[date] = None,
+    user_timezone: str = "UTC",
     sort_by: Optional[str] = None, sort_dir: SortDir = "desc",
 ):
     try:
         query = db.query(Job)
         joined_files = False
+        joined_processed = False
         query, joined_files = _apply_visit_on(
-            query, start_date, end_date, joined_files=joined_files,
+            query,
+            start_date,
+            end_date,
+            joined_files=joined_files,
+            user_timezone=user_timezone or "UTC",
+        )
+        query, joined_files = _apply_site_number(
+            query, site_number, joined_files=joined_files,
         )
         if search:
             safe_search = _escape_like(search)
@@ -510,7 +713,19 @@ def list_jobs(
                 Job.batch_id.cast(String).ilike(f"%{safe_search}%"),
             ))
             joined_files = True
-        if status:
+        # Outcome (compliance taxonomy) wins over raw status when both are sent.
+        if outcome and outcome in _JOB_OUTCOMES:
+            # Keep drill-down totals aligned with the compliance dashboard.
+            query, joined_files = _apply_division_zones(
+                query, db, joined_files=joined_files,
+            )
+            query, joined_files, joined_processed = _apply_outcome(
+                query,
+                outcome,
+                joined_files=joined_files,
+                joined_processed=joined_processed,
+            )
+        elif status:
             query = query.filter(Job.status == status)
 
         total = query.count()

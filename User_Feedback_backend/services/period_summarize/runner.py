@@ -593,9 +593,11 @@ def _rollup_family(
     force: bool,
     summarize: SummarizeFn,
     budget: CellBudget,
+    zone_to_div: Optional[dict[str, str]] = None,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     seen: set[str] = set()
+    zone_to_div = zone_to_div or {}
     try:
         children = store.list_current(db, grain=child_grain, period_type="month", period_key=period_key)
     except Exception:
@@ -607,15 +609,27 @@ def _rollup_family(
             continue
         seen.add(parent)
         geo = display_key(parent)
+        write_grain = parent_grain
+        parent_of_parent: Optional[str]
         if parent_grain in {"zone_t", "zone_p", "zone_pt"}:
-            parent_of_parent = _nation_key(parent_grain, parent)
+            # Prefer division slice; if unknown, zone parent becomes the nationwide key.
+            parent_of_parent = _division_slice_key(parent, zone_to_div) or _nation_key(
+                parent_grain, parent
+            )
+        elif parent_grain in {"div_t", "div_p", "div_pt"}:
+            if _is_nation_parent_key(parent_grain, parent):
+                # Zone had no division — write nationwide grain, never a fake div_* row.
+                write_grain = _DIV_TO_NATION[parent_grain]
+                parent_of_parent = None
+            else:
+                parent_of_parent = _nation_key(parent_grain, parent)
         else:
             grand_geo = _lookup_parent_geo(parent_grain, geo, nodes)
             parent_of_parent = with_geo(grand_geo, parent) if grand_geo else None
         results.append(
             _summarize_from_children(
                 db,
-                grain=parent_grain,
+                grain=write_grain,
                 grain_key=parent,
                 parent_key=parent_of_parent,
                 period_type="month",
@@ -738,21 +752,33 @@ def _run_nationwide(
     return results
 
 
-def _nation_key(zone_grain: str, zone_key: str) -> Optional[str]:
-    """Zone slice key → the all-level key that slice rolls up into."""
-    parts = split_key(zone_key)
+# Zone and division product/tag cubes share GEO::[TOKEN::]suffix shape.
+_NATION_SHAPE = {
+    "zone_t": "zone_t",
+    "div_t": "zone_t",
+    "zone_p": "zone_p",
+    "div_p": "zone_p",
+    "zone_pt": "zone_pt",
+    "div_pt": "zone_pt",
+}
+
+
+def _nation_key(slice_grain: str, slice_key: str) -> Optional[str]:
+    """Zone/division slice key → the all-level key that slice rolls up into."""
+    shape = _NATION_SHAPE.get(slice_grain, slice_grain)
+    parts = split_key(slice_key)
     if len(parts) < 2:
         return None
     token = parts[1] if parts[1] in GROUP_TOKENS else None
-    if zone_grain == "zone_t":
+    if shape == "zone_t":
         tag_id = parts[-1]
         return scoped_key(tag_id, token) if token else tag_id
-    if zone_grain == "zone_p":
+    if shape == "zone_p":
         product = "::".join(parts[2:]) if token else "::".join(parts[1:])
         if not product:
             return None
         return scoped_key(product, token) if token else product
-    if zone_grain == "zone_pt":
+    if shape == "zone_pt":
         if token:
             if len(parts) < 4:
                 return None
@@ -765,6 +791,72 @@ def _nation_key(zone_grain: str, zone_key: str) -> Optional[str]:
         tag_id = parts[-1]
         return scoped_key("ALL", product, tag_id)
     return None
+
+
+_DIV_TO_NATION = {"div_t": "tag", "div_p": "product", "div_pt": "all_pt"}
+
+
+def _zone_to_division(
+    nodes: list[dict[str, Optional[str]]],
+    cells: Optional[list[dict[str, Optional[str]]]] = None,
+) -> dict[str, str]:
+    """zone_key → division_key from hierarchy nodes and cube cells."""
+    out: dict[str, str] = {}
+    for row in (*(nodes or []), *(cells or [])):
+        zone = row.get("zone_key")
+        division = row.get("division_key")
+        if zone and division:
+            out[str(zone)] = str(division)
+    return out
+
+
+def _division_slice_key(zone_key: str, zone_to_div: dict[str, str]) -> Optional[str]:
+    """Zone slice key → division slice key, or None when division is unknown."""
+    zone_geo = display_key(zone_key)
+    division = zone_to_div.get(zone_geo or "")
+    if not division:
+        return None
+    return with_geo(division, zone_key)
+
+
+def _is_nation_parent_key(div_grain: str, key: str) -> bool:
+    """True when key is already nationwide (Product::PDT / 22::PDT / ALL::...), not DIV::..."""
+    parts = split_key(key)
+    if not parts:
+        return True
+    if parts[0] == "ALL":
+        return True
+    shape = _NATION_SHAPE.get(div_grain, div_grain)
+    token = parts[1] if len(parts) >= 2 and parts[1] in GROUP_TOKENS else None
+    if shape in {"zone_t", "zone_p"}:
+        # Nation: identity::TOKEN (len 2) or identity (len 1).
+        # Division: DIV::TOKEN::identity (len >= 3) or DIV::identity (len >= 2 without token).
+        return len(parts) < 3 if token else len(parts) < 2
+    return False
+
+
+def _retire_miskeyed_division_rows(db: Session, period_key: str) -> int:
+    """Drop is_current on div_* rows that were wrongly keyed as nationwide."""
+    retired = 0
+    for grain in ("div_p", "div_t", "div_pt"):
+        try:
+            rows = store.list_current(db, grain=grain, period_type="month", period_key=period_key)
+        except Exception:
+            logger.exception("list miskeyed division rows failed grain=%s", grain)
+            continue
+        for row in rows:
+            if not _is_nation_parent_key(grain, row.grain_key or ""):
+                continue
+            row.is_current = False
+            retired += 1
+    if retired:
+        try:
+            db.commit()
+        except Exception:
+            logger.exception("retire miskeyed division rows commit failed")
+            db.rollback()
+            return 0
+    return retired
 
 
 def _stored_children(
@@ -961,13 +1053,17 @@ def _run_cube_and_slices(
             parent_for=lambda grain_key, spec: with_geo(spec.get("zone"), grain_key) if spec.get("zone") else None,
         )
     )
+    zone_to_div = _zone_to_division(nodes, cells)
     for child_grain, parent_grain in (
         ("rfmm_t", "zone_t"),
-        ("zone_t", "tag"),
+        ("zone_t", "div_t"),
+        ("div_t", "tag"),
         ("rfmm_p", "zone_p"),
-        ("zone_p", "product"),
+        ("zone_p", "div_p"),
+        ("div_p", "product"),
         ("rfmm_pt", "zone_pt"),
-        ("zone_pt", "all_pt"),
+        ("zone_pt", "div_pt"),
+        ("div_pt", "all_pt"),
     ):
         results.extend(
             _rollup_family(
@@ -981,8 +1077,12 @@ def _run_cube_and_slices(
                 force=force,
                 summarize=summarize,
                 budget=budget,
+                zone_to_div=zone_to_div,
             )
         )
+    retired = _retire_miskeyed_division_rows(db, period_key)
+    if retired:
+        logger.warning("retired %s miskeyed division period rows for %s", retired, period_key)
     results.extend(
         _run_unclustered_slices(
             db,

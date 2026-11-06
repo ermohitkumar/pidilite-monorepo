@@ -62,8 +62,15 @@ export function ReportDrillView({
     const wantProducts = isProductGroup && !drill.product_name && !verbatim;
     const productsQuery = useReportProducts(drillFilters, wantProducts);
     const productItems = productsQuery.data?.data?.items || [];
-    const showProductBreakdown = wantProducts && productItems.length > 0;
     const productsReady = !wantProducts || !productsQuery.isLoading;
+
+    const productRows = useMemo(
+        () => buildProductRowsFromCounts(drill, productItems, periodProducts, periodTags),
+        [drill, productItems, periodProducts, periodTags],
+    );
+    // Use built rows (not raw API items) so an empty narrative filter cannot
+    // block the detail fallback while the header still shows a non-zero total.
+    const showProductBreakdown = wantProducts && productRows.length > 0;
     const showDetail = productsReady && !showProductBreakdown;
 
     const detailsQuery = useReportDetails(
@@ -80,11 +87,6 @@ export function ReportDrillView({
     useEffect(() => {
         setPage(1);
     }, [drill, filters, pageSize, sortBy, sortDir]);
-
-    const productRows = useMemo(
-        () => buildProductRowsFromCounts(drill, productItems, periodProducts, periodTags),
-        [drill, productItems, periodProducts, periodTags],
-    );
     const detailItems = detailsQuery.data?.data?.items || [];
     const detailRows = useMemo(
         () => buildDetailRowsFromItems(detailItems, drill),

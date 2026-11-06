@@ -876,8 +876,48 @@ def test_compliance_pipeline_success_fail_and_buckets(
     assert buckets["5-10"] == 1
     assert buckets["10-15"] == 1
     assert buckets["20+"] == 1
+    success_buckets = {row["bucket"]: row["count"] for row in data["duration_buckets_successful"]}
+    assert success_buckets["0-5"] == 1
+    assert success_buckets.get("5-10", 0) == 0
+    failed_buckets = {row["bucket"]: row["count"] for row in data["duration_buckets_failed"]}
+    assert failed_buckets["0-5"] == 1
+    assert failed_buckets["5-10"] == 1
+    assert failed_buckets["10-15"] == 1
+    assert failed_buckets["20+"] == 1
+    by_reason = data["duration_buckets_by_reason"]
+    assert {row["bucket"]: row["count"] for row in by_reason["no_insights"]}["5-10"] == 1
+    assert {row["bucket"]: row["count"] for row in by_reason["few_words"]}["10-15"] == 1
+    assert {row["bucket"]: row["count"] for row in by_reason["short_audio"]}["0-5"] == 1
+    assert {row["bucket"]: row["count"] for row in by_reason["errors"]}["20+"] == 1
     assert "S1" in data["sites"] and "S2" in data["sites"]
     assert len(data["by_site"]) == 2
+
+
+def test_compliance_pipeline_few_words_under_120s_counts_as_short(
+    client: TestClient,
+    create_test_job,
+    db_session,
+):
+    """Sub-120s clips with a few-words error are Recording too short."""
+    from datetime import datetime, timezone
+
+    from core.enums import JobStatus
+
+    job = create_test_job(status=JobStatus.FAILED)
+    job.file_details.site_number = "S1"
+    job.file_details.audio_duration_seconds = 90
+    job.file_details.call_date = datetime(2026, 10, 5, 10, 0, tzinfo=timezone.utc)
+    job.error_message = "Transcript has too few words (need at least 100). Got 12 word(s)."
+    db_session.commit()
+
+    resp = client.get(
+        "/api/v1/reports/compliance/pipeline",
+        params={"start_date": "2026-10-01", "end_date": "2026-10-31", "grain": "day"},
+    )
+    assert resp.status_code == 200
+    reasons = {row["reason"]: row["count"] for row in resp.json()["data"]["failed_reasons"]}
+    assert reasons["short_audio"] == 1
+    assert reasons["few_words"] == 0
 
 
 def test_compliance_pipeline_site_filter_statuses_and_month_grain(

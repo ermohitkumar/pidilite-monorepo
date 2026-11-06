@@ -108,7 +108,7 @@ def build_filters(
     exact_tag: bool = False,
     division_zones: Optional[set[str]] = None,
 ) -> tuple[str, dict[str, Any]]:
-    clauses: list[str] = ["NULLIF(TRIM(COALESCE(product_name, '')), '') IS NOT NULL"]
+    clauses: list[str] = []
     params: dict[str, Any] = {}
 
     def eq(column: str, value: Optional[str]) -> None:
@@ -130,7 +130,7 @@ def build_filters(
 
     if product_name:
         if product_name.strip().lower() == NO_PRODUCT_LABEL.lower():
-            clauses.append("(product_name IS NULL OR TRIM(product_name) = '')")
+            clauses.append("(product_name IS NULL OR TRIM(COALESCE(product_name, '')) = '')")
         else:
             # Match by exact name / product_id / unique short-code alias only.
             # Never equate shared or empty short_codes across different products —
@@ -200,6 +200,12 @@ def build_filters(
                 ")"
             )
             params["product_name"] = product_name
+    else:
+        # PDT product rolls require a name. USER/DEALER rows often have none —
+        # keep those so "No product" buckets and non-product groups still count.
+        group = (feedback_group or "").strip().upper()
+        if group in ("", "PDT GROUP"):
+            clauses.append("NULLIF(TRIM(COALESCE(product_name, '')), '') IS NOT NULL")
     if feedback_category:
         clauses.append(
             "LOWER(TRIM(feedback_category)) = LOWER(TRIM(:feedback_category))"
@@ -846,31 +852,90 @@ def product_counts(
     db: Session, fact: str, where_sql: str, params: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], int]:
     query_params = {**params, "no_product": NO_PRODUCT_LABEL}
-    sql = f"""
-        SELECT
-            COALESCE(NULLIF(TRIM(product_name), ''), :no_product) AS product_name,
-            COUNT(DISTINCT feedback_id) AS feedback_count,
-            COUNT(DISTINCT job_id) AS site_visit_count
-        FROM {fact}
-        {where_sql}
-        GROUP BY 1
-        HAVING COUNT(DISTINCT feedback_id) > 0
-        ORDER BY 1
-        LIMIT 500
-    """
+    feedback_cols = _table_columns(db, "feedbacks")
+    has_sentiment = "sentiment_label" in feedback_cols
+    if has_sentiment:
+        # Subquery keeps existing fact where_sql (unqualified columns) intact.
+        sql = f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(v.product_name), ''), :no_product) AS product_name,
+                COUNT(DISTINCT v.feedback_id) AS feedback_count,
+                COUNT(DISTINCT v.job_id) AS site_visit_count,
+                COUNT(DISTINCT CASE WHEN LOWER(TRIM(COALESCE(fb.sentiment_label, '')))
+                    IN ('positive', 'pos') THEN v.feedback_id END) AS sentiment_positive_count,
+                COUNT(DISTINCT CASE WHEN LOWER(TRIM(COALESCE(fb.sentiment_label, '')))
+                    IN ('neutral', 'neu') THEN v.feedback_id END) AS sentiment_neutral_count,
+                COUNT(DISTINCT CASE WHEN LOWER(TRIM(COALESCE(fb.sentiment_label, '')))
+                    IN ('negative', 'neg') THEN v.feedback_id END) AS sentiment_negative_count
+            FROM (
+                SELECT product_name, feedback_id, job_id
+                FROM {fact}
+                {where_sql}
+            ) v
+            LEFT JOIN feedbacks fb ON (
+                CAST(fb.id AS TEXT) = CAST(v.feedback_id AS TEXT)
+                OR REPLACE(CAST(fb.id AS TEXT), '-', '')
+                    = REPLACE(CAST(v.feedback_id AS TEXT), '-', '')
+            )
+            GROUP BY 1
+            HAVING COUNT(DISTINCT v.feedback_id) > 0
+            ORDER BY 1
+            LIMIT 500
+        """
+    else:
+        sql = f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(product_name), ''), :no_product) AS product_name,
+                COUNT(DISTINCT feedback_id) AS feedback_count,
+                COUNT(DISTINCT job_id) AS site_visit_count,
+                0 AS sentiment_positive_count,
+                0 AS sentiment_neutral_count,
+                0 AS sentiment_negative_count
+            FROM {fact}
+            {where_sql}
+            GROUP BY 1
+            HAVING COUNT(DISTINCT feedback_id) > 0
+            ORDER BY 1
+            LIMIT 500
+        """
     rows = execute(db, sql, query_params).fetchall()
     by_name, by_code, _catalog_names = _catalog_product_maps(db)
     rolled: dict[str, dict[str, int]] = {}
-    for name, count, visits in rows:
+    for row in rows:
+        mapping = row._mapping if hasattr(row, "_mapping") else None
+        if mapping is not None:
+            name = mapping["product_name"]
+            count = mapping["feedback_count"]
+            visits = mapping["site_visit_count"]
+            pos = mapping["sentiment_positive_count"]
+            neu = mapping["sentiment_neutral_count"]
+            neg = mapping["sentiment_negative_count"]
+        else:
+            name, count, visits, pos, neu, neg = row
         label = _canonical_catalog_product(_serialize(name), by_name, by_code)
-        bucket = rolled.setdefault(label, {"feedback_count": 0, "site_visit_count": 0})
+        bucket = rolled.setdefault(
+            label,
+            {
+                "feedback_count": 0,
+                "site_visit_count": 0,
+                "sentiment_positive_count": 0,
+                "sentiment_neutral_count": 0,
+                "sentiment_negative_count": 0,
+            },
+        )
         bucket["feedback_count"] += int(count or 0)
         bucket["site_visit_count"] += int(visits or 0)
+        bucket["sentiment_positive_count"] += int(pos or 0)
+        bucket["sentiment_neutral_count"] += int(neu or 0)
+        bucket["sentiment_negative_count"] += int(neg or 0)
     items = [
         {
             "product_name": name,
             "feedback_count": counts["feedback_count"],
             "site_visit_count": counts["site_visit_count"],
+            "sentiment_positive_count": counts["sentiment_positive_count"],
+            "sentiment_neutral_count": counts["sentiment_neutral_count"],
+            "sentiment_negative_count": counts["sentiment_negative_count"],
         }
         for name, counts in rolled.items()
     ]
@@ -1213,8 +1278,10 @@ FAILED_REASONS = ("no_insights", "few_words", "short_audio", "errors")
 UNKNOWN_SITE = "Unknown"
 # Batchmicro TOO_FEW_WORDS_MESSAGE lands in jobs.error_message / processed_file.empty_reason.
 FEW_WORDS_MARKER = "too few words"
-# Batchmicro STT gate rejects audio under MIN_AUDIO_SECONDS before transcription.
-SHORT_AUDIO_MARKER = "audio too short"
+# Batchmicro STT / translate gate for clips under MIN_AUDIO_SECONDS (legacy + current copy).
+SHORT_AUDIO_MARKERS = ("recording too short", "audio too short")
+# Matches batchmicro core.config.MIN_AUDIO_SECONDS — short + few-words → short_audio.
+MIN_AUDIO_SECONDS = 120
 
 
 def _as_utc(value: Any) -> Optional[datetime]:
@@ -1266,11 +1333,22 @@ def _failure_reason(row: Any) -> Optional[str]:
     if status == "COMPLETED":
         return None if row["has_feedback"] else "no_insights"
     text_blob = f"{row['error_message'] or ''} {row['empty_reason'] or ''}".lower()
-    if FEW_WORDS_MARKER in text_blob:
-        return "few_words"
-    if SHORT_AUDIO_MARKER in text_blob:
+    is_few_words = FEW_WORDS_MARKER in text_blob
+    is_short_audio = any(marker in text_blob for marker in SHORT_AUDIO_MARKERS)
+    seconds = row["seconds"] if "seconds" in row else None
+    under_min = seconds is not None and float(seconds) < MIN_AUDIO_SECONDS
+    # Sub-120s clips tagged "too few words" count as recording-too-short.
+    if is_short_audio or (is_few_words and under_min):
         return "short_audio"
+    if is_few_words:
+        return "few_words"
     return "errors"
+
+
+def _empty_bucket_maps() -> tuple[dict[str, int], dict[str, float]]:
+    counts = {label: 0 for label, _, _ in DURATION_BUCKETS}
+    counts[UNKNOWN_DURATION_BUCKET] = 0
+    return counts, dict.fromkeys(counts, 0.0)
 
 
 class _PipelineStats:
@@ -1278,37 +1356,69 @@ class _PipelineStats:
         self.processed = 0
         self.successful = 0
         self.failed = 0
-        self.bucket_counts = {label: 0 for label, _, _ in DURATION_BUCKETS}
-        self.bucket_counts[UNKNOWN_DURATION_BUCKET] = 0
-        self.bucket_seconds = dict.fromkeys(self.bucket_counts, 0.0)
+        self.bucket_counts, self.bucket_seconds = _empty_bucket_maps()
+        self.success_bucket_counts, self.success_bucket_seconds = _empty_bucket_maps()
+        self.failed_bucket_counts, self.failed_bucket_seconds = _empty_bucket_maps()
+        self.reason_bucket_counts = {reason: _empty_bucket_maps()[0] for reason in FAILED_REASONS}
+        self.reason_bucket_seconds = {reason: _empty_bucket_maps()[1] for reason in FAILED_REASONS}
         self.reasons = dict.fromkeys(FAILED_REASONS, 0)
 
     def add(self, reason: Optional[str], seconds: Any) -> None:
         self.processed += 1
-        if reason is None:
-            self.successful += 1
-        else:
-            self.failed += 1
-            self.reasons[reason] += 1
         bucket = _duration_bucket(seconds)
         self.bucket_counts[bucket] += 1
         if seconds is not None:
             self.bucket_seconds[bucket] += float(seconds)
+        if reason is None:
+            self.successful += 1
+            self.success_bucket_counts[bucket] += 1
+            if seconds is not None:
+                self.success_bucket_seconds[bucket] += float(seconds)
+        else:
+            self.failed += 1
+            self.reasons[reason] += 1
+            self.failed_bucket_counts[bucket] += 1
+            self.reason_bucket_counts[reason][bucket] += 1
+            if seconds is not None:
+                self.failed_bucket_seconds[bucket] += float(seconds)
+                self.reason_bucket_seconds[reason][bucket] += float(seconds)
 
     def totals(self) -> dict[str, int]:
         return {"processed": self.processed, "successful": self.successful, "failed": self.failed}
 
-    def duration_buckets(self) -> list[dict[str, Any]]:
+    def _duration_buckets_from(
+        self,
+        counts: dict[str, int],
+        seconds: dict[str, float],
+    ) -> list[dict[str, Any]]:
         labels = [label for label, _, _ in DURATION_BUCKETS]
-        if self.bucket_counts[UNKNOWN_DURATION_BUCKET]:
+        if counts[UNKNOWN_DURATION_BUCKET]:
             labels.append(UNKNOWN_DURATION_BUCKET)
         items = []
         for label in labels:
-            count = self.bucket_counts[label]
+            count = counts[label]
             has_avg = count and label != UNKNOWN_DURATION_BUCKET
-            avg = round(self.bucket_seconds[label] / count / 60, 1) if has_avg else None
+            avg = round(seconds[label] / count / 60, 1) if has_avg else None
             items.append({"bucket": label, "count": count, "avg_minutes": avg})
         return items
+
+    def duration_buckets(self) -> list[dict[str, Any]]:
+        return self._duration_buckets_from(self.bucket_counts, self.bucket_seconds)
+
+    def duration_buckets_successful(self) -> list[dict[str, Any]]:
+        return self._duration_buckets_from(self.success_bucket_counts, self.success_bucket_seconds)
+
+    def duration_buckets_failed(self) -> list[dict[str, Any]]:
+        return self._duration_buckets_from(self.failed_bucket_counts, self.failed_bucket_seconds)
+
+    def duration_buckets_by_reason(self) -> dict[str, list[dict[str, Any]]]:
+        return {
+            reason: self._duration_buckets_from(
+                self.reason_bucket_counts[reason],
+                self.reason_bucket_seconds[reason],
+            )
+            for reason in FAILED_REASONS
+        }
 
     def failed_reasons(self) -> list[dict[str, Any]]:
         return [{"reason": reason, "count": self.reasons[reason]} for reason in FAILED_REASONS]
@@ -1395,6 +1505,9 @@ def pipeline_health(
         "totals": overall.totals(),
         "series": [{"key": key, **series.get(key, empty_point)} for key in keys],
         "duration_buckets": overall.duration_buckets(),
+        "duration_buckets_successful": overall.duration_buckets_successful(),
+        "duration_buckets_failed": overall.duration_buckets_failed(),
+        "duration_buckets_by_reason": overall.duration_buckets_by_reason(),
         "failed_reasons": overall.failed_reasons(),
         "by_site": [
             {

@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     # Chirp 3 is only in the us and eu multi-regions, not asia-south1.
     STT_LOCATION: str = "us"
     STT_MODEL: str = "chirp_3"
+    # Bias Chirp 3 toward active product names via SpeechAdaptation phrase sets.
+    # Off for now: Chirp 3 BatchRecognize returns gRPC 13 when adaptation is
+    # combined with speaker diarization (prod always enables diarization).
+    # Chirp 3 allows up to 1000 phrases; keep this at or below that limit.
+    STT_USE_PRODUCT_ADAPTATION: bool = False
+    STT_ADAPTATION_MAX_PHRASES: int = 1000
     # Files shorter than this (probed duration) are marked FAILED before STT.
     # Unknown duration still goes through. Set 0 to disable.
     MIN_AUDIO_SECONDS: int = 120

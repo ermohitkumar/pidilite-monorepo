@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
     Bar,
@@ -21,7 +22,9 @@ import { useCompliancePipeline } from "@/lib/hooks/reports";
 import {
     datesForPipelinePeriod,
     defaultPipelinePeriod,
+    filesHref,
     grainForPipelinePeriod,
+    type FilesOutcome,
     type PipelinePeriodKind,
     type PipelinePeriodState,
 } from "@/lib/reports/period";
@@ -40,11 +43,64 @@ const COLORS = {
     bucket: "#6366f1",
 };
 
+type DurationBucketOutcome = "all" | FilesOutcome;
+
 const REASON_META: Record<PipelineFailedReason["reason"], { label: string; color: string }> = {
     no_insights: { label: "No insights", color: "#f59e0b" },
     few_words: { label: "Too few words", color: "#a855f7" },
-    short_audio: { label: "Audio under 120s", color: "#0ea5e9" },
+    short_audio: { label: "Recording too short", color: "#0ea5e9" },
     errors: { label: "Errors", color: "#dc2626" },
+};
+
+const DURATION_OUTCOME_OPTIONS: { label: string; value: DurationBucketOutcome }[] = [
+    { label: "All files", value: "all" },
+    { label: "Successful", value: "successful" },
+    { label: "Failed", value: "failed" },
+    { label: REASON_META.no_insights.label, value: "no_insights" },
+    { label: REASON_META.few_words.label, value: "few_words" },
+    { label: REASON_META.short_audio.label, value: "short_audio" },
+    { label: REASON_META.errors.label, value: "errors" },
+];
+
+const DURATION_OUTCOME_META: Record<
+    DurationBucketOutcome,
+    { title: string; subtitle: string; color: string }
+> = {
+    all: {
+        title: "Audio duration buckets — All files",
+        subtitle: "All processed files by duration; label shows average minutes",
+        color: COLORS.bucket,
+    },
+    successful: {
+        title: "Audio duration buckets — Successful",
+        subtitle: "Successful files by duration; label shows average minutes",
+        color: COLORS.successful,
+    },
+    failed: {
+        title: "Audio duration buckets — Failed",
+        subtitle: "Failed files by duration; label shows average minutes",
+        color: COLORS.failed,
+    },
+    no_insights: {
+        title: "Audio duration buckets — No insights",
+        subtitle: "Completed with no insights by duration; label shows average minutes",
+        color: REASON_META.no_insights.color,
+    },
+    few_words: {
+        title: "Audio duration buckets — Too few words",
+        subtitle: "Too-few-words failures by duration; label shows average minutes",
+        color: REASON_META.few_words.color,
+    },
+    short_audio: {
+        title: "Audio duration buckets — Recording too short",
+        subtitle: "Recordings under 120s by duration; label shows average minutes",
+        color: REASON_META.short_audio.color,
+    },
+    errors: {
+        title: "Audio duration buckets — Errors",
+        subtitle: "Pipeline errors by duration; label shows average minutes",
+        color: REASON_META.errors.color,
+    },
 };
 
 const BUCKET_LABELS: Record<string, string> = {
@@ -105,16 +161,23 @@ function ChartCard({
     subtitle,
     children,
     className = "",
+    action,
 }: {
     title: string;
     subtitle?: string;
     children: React.ReactNode;
     className?: string;
+    action?: React.ReactNode;
 }) {
     return (
         <div className={`rounded-lg border border-slate-200 bg-white p-4 ${className}`}>
-            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-            {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+                    {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
+                </div>
+                {action ? <div className="shrink-0">{action}</div> : null}
+            </div>
             <div className="mt-3 h-72">{children}</div>
         </div>
     );
@@ -141,15 +204,18 @@ function BucketTooltip({
 }
 
 export default function ComplianceDashboard() {
+    const router = useRouter();
     const [period, setPeriod] = useState<PipelinePeriodState>(() => defaultPipelinePeriod("month"));
     const [draftSite, setDraftSite] = useState("ALL");
     const [site, setSite] = useState("ALL");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+    const [durationOutcome, setDurationOutcome] = useState<DurationBucketOutcome>("all");
 
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const periodDates = useMemo(() => datesForPipelinePeriod(period), [period]);
     const query = useCompliancePipeline({
-        ...datesForPipelinePeriod(period),
+        ...periodDates,
         grain: grainForPipelinePeriod(period.kind),
         site_number: site === "ALL" ? undefined : site,
         user_timezone: userTimezone,
@@ -161,14 +227,23 @@ export default function ComplianceDashboard() {
         () => (data?.series ?? []).map((point) => ({ ...point, label: seriesLabel(point.key) })),
         [data],
     );
+    const sourceBuckets = useMemo(() => {
+        if (durationOutcome === "successful") return data?.duration_buckets_successful ?? [];
+        if (durationOutcome === "failed") return data?.duration_buckets_failed ?? [];
+        if (durationOutcome !== "all") {
+            return data?.duration_buckets_by_reason?.[durationOutcome] ?? [];
+        }
+        return data?.duration_buckets ?? [];
+    }, [data, durationOutcome]);
     const buckets = useMemo(
         () =>
-            (data?.duration_buckets ?? []).map((bucket) => ({
+            sourceBuckets.map((bucket) => ({
                 ...bucket,
                 label: BUCKET_LABELS[bucket.bucket] ?? bucket.bucket,
             })),
-        [data],
+        [sourceBuckets],
     );
+    const durationMeta = DURATION_OUTCOME_META[durationOutcome];
     const reasons = useMemo(
         () =>
             (data?.failed_reasons ?? []).map((item) => ({
@@ -199,13 +274,26 @@ export default function ComplianceDashboard() {
         ...(data?.sites ?? []).map((value) => ({ label: value, value })),
     ];
 
+    const openFiles = (opts: { outcome?: FilesOutcome; site_number?: string } = {}) => {
+        const siteNumber = opts.site_number ?? (site !== "ALL" ? site : undefined);
+        router.push(
+            filesHref({
+                start_date: periodDates.start_date,
+                end_date: periodDates.end_date,
+                outcome: opts.outcome,
+                site_number: siteNumber,
+                user_timezone: userTimezone,
+            }),
+        );
+    };
+
     return (
         <div>
             <div className="mb-4">
                 <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
                 <p className="mt-1 text-sm text-slate-500">
                     Files processed in the period: successful (at least one insight) versus failed (no insights,
-                    too few words, audio under 120s or pipeline errors).
+                    too few words, recording too short, or pipeline errors).
                 </p>
             </div>
 
@@ -316,7 +404,7 @@ export default function ComplianceDashboard() {
             <div className="mb-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <ChartCard
                     title="Files processed over time"
-                    subtitle={period.kind === "year" ? "Monthly" : "Daily"}
+                    subtitle={`${period.kind === "year" ? "Monthly" : "Daily"} · click a bar to open matching files`}
                     className="xl:col-span-2"
                 >
                     <ResponsiveContainer width="100%" height="100%">
@@ -326,20 +414,57 @@ export default function ComplianceDashboard() {
                             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="successful" name="Successful" stackId="files" fill={COLORS.successful} />
-                            <Bar dataKey="failed" name="Failed" stackId="files" fill={COLORS.failed} />
+                            <Bar
+                                dataKey="successful"
+                                name="Successful"
+                                stackId="files"
+                                fill={COLORS.successful}
+                                cursor="pointer"
+                                onClick={() => openFiles({ outcome: "successful" })}
+                            />
+                            <Bar
+                                dataKey="failed"
+                                name="Failed"
+                                stackId="files"
+                                fill={COLORS.failed}
+                                cursor="pointer"
+                                onClick={() => openFiles({ outcome: "failed" })}
+                            />
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title="Audio duration buckets" subtitle="File count per bucket; label shows average minutes">
+                <ChartCard
+                    title={durationMeta.title}
+                    subtitle={`${durationMeta.subtitle} · click a bar to open matching files`}
+                    action={
+                        <Select
+                            className="w-44"
+                            value={durationOutcome}
+                            onChange={(value) => setDurationOutcome(value as DurationBucketOutcome)}
+                            options={DURATION_OUTCOME_OPTIONS}
+                        />
+                    }
+                >
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={buckets} margin={{ top: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                             <Tooltip content={<BucketTooltip />} />
-                            <Bar dataKey="count" name="Files" fill={COLORS.bucket}>
+                            <Bar
+                                dataKey="count"
+                                name="Files"
+                                fill={durationMeta.color}
+                                cursor="pointer"
+                                onClick={() =>
+                                    openFiles(
+                                        durationOutcome === "all"
+                                            ? {}
+                                            : { outcome: durationOutcome },
+                                    )
+                                }
+                            >
                                 <LabelList
                                     dataKey="avg_minutes"
                                     position="top"
@@ -353,7 +478,7 @@ export default function ComplianceDashboard() {
 
                 <ChartCard
                     title="Failed files by reason"
-                    subtitle={`${totals.failed.toLocaleString()} failed files`}
+                    subtitle={`${totals.failed.toLocaleString()} failed files · click a bar to open matching files`}
                 >
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={reasons} layout="vertical" margin={{ left: 20, right: 40 }}>
@@ -361,7 +486,21 @@ export default function ComplianceDashboard() {
                             <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                             <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 11 }} />
                             <Tooltip />
-                            <Bar dataKey="count" name="Files">
+                            <Bar
+                                dataKey="count"
+                                name="Files"
+                                cursor="pointer"
+                                onClick={(state) => {
+                                    const row = (state as { payload?: PipelineFailedReason } | PipelineFailedReason | null) ?? null;
+                                    const reason =
+                                        row && "payload" in row
+                                            ? row.payload?.reason
+                                            : row && "reason" in row
+                                              ? row.reason
+                                              : undefined;
+                                    if (reason) openFiles({ outcome: reason });
+                                }}
+                            >
                                 {reasons.map((item) => (
                                     <Cell key={item.reason} fill={item.color} />
                                 ))}
@@ -373,7 +512,7 @@ export default function ComplianceDashboard() {
 
                 <ChartCard
                     title="Site-wise processing"
-                    subtitle={`Top ${Math.min(TOP_SITES, sites.length)} sites by files processed`}
+                    subtitle={`Top ${Math.min(TOP_SITES, sites.length)} sites by files processed · click a bar to open matching files`}
                     className="xl:col-span-2"
                 >
                     <ResponsiveContainer width="100%" height="100%">
@@ -383,8 +522,28 @@ export default function ComplianceDashboard() {
                             <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                             <Tooltip />
                             <Legend />
-                            <Bar dataKey="successful" name="Successful" stackId="site" fill={COLORS.successful} />
-                            <Bar dataKey="failed" name="Failed" stackId="site" fill={COLORS.failed} />
+                            <Bar
+                                dataKey="successful"
+                                name="Successful"
+                                stackId="site"
+                                fill={COLORS.successful}
+                                cursor="pointer"
+                                onClick={(state) => {
+                                    const siteNumber = (state as { payload?: PipelineSiteRow })?.payload?.site_number;
+                                    if (siteNumber) openFiles({ outcome: "successful", site_number: siteNumber });
+                                }}
+                            />
+                            <Bar
+                                dataKey="failed"
+                                name="Failed"
+                                stackId="site"
+                                fill={COLORS.failed}
+                                cursor="pointer"
+                                onClick={(state) => {
+                                    const siteNumber = (state as { payload?: PipelineSiteRow })?.payload?.site_number;
+                                    if (siteNumber) openFiles({ outcome: "failed", site_number: siteNumber });
+                                }}
+                            />
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartCard>
@@ -401,7 +560,7 @@ export default function ComplianceDashboard() {
                             <th className="px-3 py-3 text-right">Success rate</th>
                             <th className="px-3 py-3 text-right">No insights</th>
                             <th className="px-3 py-3 text-right">Too few words</th>
-                            <th className="px-3 py-3 text-right">Audio under 120s</th>
+                            <th className="px-3 py-3 text-right">Recording too short</th>
                             <th className="px-3 py-3 text-right">Errors</th>
                             <th className="px-3 py-3 text-right">Avg duration</th>
                         </tr>

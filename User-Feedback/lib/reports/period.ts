@@ -245,6 +245,38 @@ export function complianceHref(filters: ReportFilters = {}): string {
     return qs ? `/reports/compliance?${qs}` : "/reports/compliance";
 }
 
+export type FilesOutcome =
+    | "successful"
+    | "failed"
+    | "no_insights"
+    | "few_words"
+    | "short_audio"
+    | "errors";
+
+export type FilesHrefFilters = {
+    start_date?: string;
+    end_date?: string;
+    outcome?: FilesOutcome | string;
+    site_number?: string;
+    status?: string;
+    search?: string;
+    user_timezone?: string;
+};
+
+/** Deep-link into Audio Files with the same period / outcome used on compliance. */
+export function filesHref(filters: FilesHrefFilters = {}): string {
+    const params = new URLSearchParams();
+    if (filters.start_date) params.set("start_date", filters.start_date);
+    if (filters.end_date) params.set("end_date", filters.end_date);
+    if (filters.outcome) params.set("outcome", filters.outcome);
+    if (filters.site_number) params.set("site_number", filters.site_number);
+    if (filters.status) params.set("status", filters.status);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.user_timezone) params.set("user_timezone", filters.user_timezone);
+    const qs = params.toString();
+    return qs ? `/files?${qs}` : "/files";
+}
+
 export function hasVisibleSummary(record?: { status?: string; summary_text?: string | null } | null): boolean {
     if (!record || record.status !== "ok") return false;
     const text = (record.summary_text || "").trim();
